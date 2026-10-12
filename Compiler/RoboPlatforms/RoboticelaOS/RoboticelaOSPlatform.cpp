@@ -1,7 +1,9 @@
 #include "RoboticelaOSPlatform.hpp"
 
 #include <algorithm>
-#ifndef ROBO_KERNEL
+#ifdef ROBO_KERNEL
+#include "RoboFS.hpp"
+#else
 #include <fstream>
 #include <iterator>
 #endif
@@ -130,16 +132,77 @@ void RoboticelaOSPlatform::CopyText(const std::string& text) {
     copiedText_ = text;
 }
 
+namespace {
+
+bool EndsWithMp4(const std::string& name) {
+    if (name.size() < 4) {
+        return false;
+    }
+    const char a = name[name.size() - 3];
+    const char b = name[name.size() - 2];
+    const char c = name[name.size() - 1];
+    const char dot = name[name.size() - 4];
+    const char la = a >= 'A' && a <= 'Z' ? static_cast<char>(a - 'A' + 'a') : a;
+    const char lb = b >= 'A' && b <= 'Z' ? static_cast<char>(b - 'A' + 'a') : b;
+    const char lc = c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+    return dot == '.' && la == 'm' && lb == 'p' && lc == '4';
+}
+
+std::string ReelName(const std::string& name) {
+    return name.substr(0, name.size() - 4) + ".rjp";
+}
+
+}  // namespace
+
 std::vector<std::uint8_t> RoboticelaOSPlatform::LoadAsset(const std::string& relativePath) const {
 #ifdef ROBO_KERNEL
-    (void)relativePath;
-    return {};
+    std::string name = relativePath;
+    std::size_t slash = std::string::npos;
+    for (std::size_t index = 0; index < name.size(); ++index) {
+        if (name[index] == '/' || name[index] == '\\') {
+            slash = index;
+        }
+    }
+    if (slash != std::string::npos) {
+        name = name.substr(slash + 1);
+    }
+    auto readFile = [](const std::string& fileName) {
+        std::uint8_t probe = 0;
+        std::uint32_t size = 0;
+        if (!RoboFsReadFile(fileName.c_str(), &probe, 1, &size) || size == 0 || size > 8u * 1024u * 1024u) {
+            return std::vector<std::uint8_t>();
+        }
+        std::vector<std::uint8_t> bytes(size);
+        std::uint32_t got = 0;
+        if (!RoboFsReadFile(fileName.c_str(), bytes.data(), size, &got) || got == 0) {
+            return std::vector<std::uint8_t>();
+        }
+        if (got < size) {
+            bytes.resize(got);
+        }
+        return bytes;
+    };
+    if (EndsWithMp4(name)) {
+        const std::vector<std::uint8_t> reel = readFile(ReelName(name));
+        if (!reel.empty()) {
+            return reel;
+        }
+    }
+    return readFile(name);
 #else
     std::string path = assetRoot_;
     if (!path.empty() && path.back() != '/' && path.back() != '\\') {
         path.push_back('/');
     }
-    path += relativePath;
+    std::string relative = relativePath;
+    if (EndsWithMp4(relative)) {
+        std::string reelPath = path + ReelName(relative);
+        std::ifstream reel(reelPath, std::ios::binary);
+        if (reel) {
+            return std::vector<std::uint8_t>((std::istreambuf_iterator<char>(reel)), std::istreambuf_iterator<char>());
+        }
+    }
+    path += relative;
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         return {};

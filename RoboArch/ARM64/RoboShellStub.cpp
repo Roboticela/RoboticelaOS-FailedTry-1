@@ -30,3 +30,12 @@ bool RoboShellFlush(RoboDesktop* desktop) {
     (void)desktop;
     return false;
 }
+
+bool RoboShellTick(uint32_t deltaMs) {
+    (void)deltaMs;
+    return false;
+}
+
+void RoboShellSetBackground(const char* path) {
+    (void)path;
+}

@@ -100,6 +100,7 @@ public:
     void AddMotionShape(MotionShape shape);
     void EnableDesktop();
     void SetDesktopBackground(const Color& color, const std::string& token);
+    void SetDesktopBackgroundPath(const std::string& path);
     void SetAppShell(AppShell shell);
     void SetAppShellTitle(const std::string& title);
     void AddDockItem(DockItem item);

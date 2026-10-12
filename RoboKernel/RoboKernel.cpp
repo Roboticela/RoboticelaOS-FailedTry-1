@@ -47,6 +47,7 @@ uint32_t gWidgetOn = ROBO_APP_WIDGET_ON;
 uint8_t gDesktopFile[16u + ROBO_DESKTOP_IMAGE_WIDTH * ROBO_DESKTOP_IMAGE_HEIGHT * 4u];
 bool gShellLoaded = false;
 bool gShellLive = false;
+uint64_t gLastShellTick = 0;
 
 uint32_t RoboLoad32(const uint8_t* bytes) {
     return static_cast<uint32_t>(bytes[0])
@@ -220,6 +221,21 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
             }
         }
         if (gShellLive) {
+            const uint64_t now = RoboTimerTicks();
+            if (gLastShellTick == 0) {
+                gLastShellTick = now;
+            }
+            const uint64_t deltaTicks = now - gLastShellTick;
+            if (deltaTicks > 0) {
+                gLastShellTick = now;
+                uint32_t deltaMs = static_cast<uint32_t>(deltaTicks) * 10u;
+                if (deltaMs > 100u) {
+                    deltaMs = 100u;
+                }
+                if (RoboShellTick(deltaMs)) {
+                    shellInput = true;
+                }
+            }
             RoboArchSti();
             if (RoboShellFlush(&desktop)) {
                 shellInput = true;

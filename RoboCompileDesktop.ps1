@@ -124,6 +124,15 @@ Copy-Item -Force (Join-Path $esp "INTERR.TTF") (Join-Path $espArm "INTERR.TTF")
 Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")
 Copy-Item -Force (Join-Path $esp "INTERI.TTF") (Join-Path $espArm "INTERI.TTF")
+$video = Join-Path $Root "Assets\Background.mp4"
+if (Test-Path $video) {
+    Copy-Item -Force $video (Join-Path $esp "BACKGROU.MP4")
+    Copy-Item -Force $video (Join-Path $espArm "BACKGROU.MP4")
+    & python (Join-Path $Root "RoboPackBackground.py")
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
 
 Write-Host "Built $generated"
 Write-Host "Built $library"

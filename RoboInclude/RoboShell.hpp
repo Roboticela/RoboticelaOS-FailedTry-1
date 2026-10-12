@@ -10,3 +10,5 @@ void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch);
 void RoboShellPointerUp(int32_t x, int32_t y);
 void RoboShellKey(uint16_t code, bool pressed);
 bool RoboShellFlush(RoboDesktop* desktop);
+bool RoboShellTick(uint32_t deltaMs);
+void RoboShellSetBackground(const char* path);

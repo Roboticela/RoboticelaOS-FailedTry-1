@@ -2,6 +2,7 @@
 #include "Robo/Motion.hpp"
 #include "Robo/TextSelection.hpp"
 #include "Robo/BrandLogoPainter.hpp"
+#include "Robo/BackgroundPainter.hpp"
 #include "Robo/DesktopPainter.hpp"
 #include "Robo/Foundation.hpp"
 #include "Robo/TitleBarPainter.hpp"
@@ -1814,6 +1815,15 @@ void RoboScene::SetDesktopBackground(const Color& color, const std::string& toke
     desktop_.SetBackground(color, token);
 }
 
+void RoboScene::SetDesktopBackgroundPath(const std::string& path) {
+    desktop_.SetEnabled(true);
+    desktop_.SetBackgroundPath(path);
+    if (platform_ != nullptr) {
+        desktop_.GetBackgroundSource().EnsureLoaded(*platform_);
+    }
+    MarkFullDirty();
+}
+
 void RoboScene::SetAppShell(AppShell shell) {
     desktop_.SetEnabled(true);
     desktop_.SetAppShell(std::move(shell));
@@ -2062,6 +2072,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     ActiveFoundation().LookupColor("bg.primary", Theme::Dark, darkPage);
     background_ = LerpPageColor(lightPage, darkPage, themeMix_);
     if (desktop_.IsEnabled() && desktop_.HasBackground()) {
+        desktop_.GetBackgroundSource().EnsureLoaded(platform);
         background_ = ResolveColor(desktop_.GetBackground(), desktop_.GetBackgroundToken());
     }
     if (!pagePaddingSet_) {
@@ -2111,7 +2122,11 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         damageHeight = std::max(0, damageBottom - damageY);
         frame.PushClipRect(static_cast<float>(damageX), static_cast<float>(damageY),
                            static_cast<float>(damageWidth), static_cast<float>(damageHeight));
-        frame.ClearRect(damageX, damageY, damageWidth, damageHeight, background_);
+        if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
+            BackgroundPainter::Paint(frame, desktop_.GetBackgroundSource(), width, height, damageX, damageY, damageWidth, damageHeight);
+        } else {
+            frame.ClearRect(damageX, damageY, damageWidth, damageHeight, background_);
+        }
     }
 
     float verticalReserve = partial ? paintedVerticalReserve_ : 0.0f;
@@ -2123,7 +2138,11 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         scrollY_ = std::max(0.0f, std::min(scrollY_, maxScrollY_));
 
         if (!partial) {
-            frame.Clear(background_);
+            if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
+                BackgroundPainter::Paint(frame, desktop_.GetBackgroundSource(), width, height, 0, 0, width, height);
+            } else {
+                frame.Clear(background_);
+            }
         }
         TextSelection::BeginFrame();
 
@@ -4420,6 +4439,10 @@ bool RoboScene::PointerLeave() {
 
 bool RoboScene::Tick(double deltaMs) {
     bool changed = false;
+    if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().Advance(deltaMs)) {
+        MarkFullDirty();
+        changed = true;
+    }
     bool contentMoved = false;
     auto visit = [&changed, &contentMoved, this, deltaMs](Scrollbar& scrollbar) {
         const double value = scrollbar.GetValue();

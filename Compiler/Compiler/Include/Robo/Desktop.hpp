@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Background.hpp"
 #include "Color.hpp"
 #include "Svg.hpp"
 
@@ -59,9 +60,12 @@ public:
     bool IsEnabled() const;
 
     void SetBackground(const Color& color, const std::string& token);
+    void SetBackgroundPath(const std::string& path);
     bool HasBackground() const;
     const Color& GetBackground() const;
     const std::string& GetBackgroundToken() const;
+    Background& GetBackgroundSource();
+    const Background& GetBackgroundSource() const;
 
     void SetAppShell(AppShell shell);
     bool HasAppShell() const;
@@ -82,9 +86,7 @@ public:
 
 private:
     bool enabled_ = false;
-    bool hasBackground_ = false;
-    Color background_ = Color::FromHex("#202838");
-    std::string backgroundToken_;
+    Background background_;
     bool hasAppShell_ = false;
     AppShell appShell_;
     std::vector<DockItem> dock_;

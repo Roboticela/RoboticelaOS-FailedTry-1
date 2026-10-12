@@ -64,21 +64,31 @@ bool Desktop::IsEnabled() const {
 }
 
 void Desktop::SetBackground(const Color& color, const std::string& token) {
-    background_ = color;
-    backgroundToken_ = token;
-    hasBackground_ = true;
+    background_.SetColor(color, token);
+}
+
+void Desktop::SetBackgroundPath(const std::string& path) {
+    background_.SetPath(path);
 }
 
 bool Desktop::HasBackground() const {
-    return hasBackground_;
+    return background_.HasSource();
 }
 
 const Color& Desktop::GetBackground() const {
-    return background_;
+    return background_.GetColor();
 }
 
 const std::string& Desktop::GetBackgroundToken() const {
-    return backgroundToken_;
+    return background_.GetColorToken();
+}
+
+Background& Desktop::GetBackgroundSource() {
+    return background_;
+}
+
+const Background& Desktop::GetBackgroundSource() const {
+    return background_;
 }
 
 void Desktop::SetAppShell(AppShell shell) {

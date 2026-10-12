@@ -395,6 +395,15 @@ bool OwnsScrollGesture(float x, float y) {
     return gScene.OwnsScrollGesture(x, y);
 }
 
+bool SetBackground(const std::string& path) {
+    if (!EnsureApp()) {
+        return false;
+    }
+    gScene.SetDesktopBackgroundPath(path);
+    SchedulePresent();
+    return true;
+}
+
 }  // namespace
 
 EMSCRIPTEN_BINDINGS(RoboModule) {
@@ -434,4 +443,5 @@ EMSCRIPTEN_BINDINGS(RoboModule) {
     emscripten::function("SelectAllText", &SelectAllText);
     emscripten::function("ActiveScrollbarAxis", &ActiveScrollbarAxis);
     emscripten::function("OwnsScrollGesture", &OwnsScrollGesture);
+    emscripten::function("SetBackground", &SetBackground);
 }

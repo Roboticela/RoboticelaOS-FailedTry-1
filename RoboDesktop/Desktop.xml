@@ -3,7 +3,7 @@
   <FoundationUse name="Desktop"/>
 
   <Desktop>
-    <Background color="{color.bg.primary}"/>
+    <Background color="{color.bg.primary}" src="Assets/Background.mp4"/>
     <AppShell title="Roboticela">
       <Heading level="1">Desktop</Heading>
       <Paragraph>

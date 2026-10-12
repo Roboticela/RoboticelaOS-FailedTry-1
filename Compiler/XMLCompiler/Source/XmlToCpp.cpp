@@ -2250,6 +2250,18 @@ void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int in
                 code << Indent(indent) << "scene.SetDesktopBackground(Robo::Color::FromHex(\"" << EscapeCpp(color)
                      << "\"), \"\");\n";
             }
+            std::string source;
+            if (child.attributes.count("src") != 0) {
+                source = child.attributes.at("src");
+            } else if (child.attributes.count("path") != 0) {
+                source = child.attributes.at("path");
+            }
+            if (child.attributes.count("kind") != 0 && !source.empty()) {
+                source = child.attributes.at("kind") + ":" + source;
+            }
+            if (!source.empty()) {
+                code << Indent(indent) << "scene.SetDesktopBackgroundPath(\"" << EscapeCpp(source) << "\");\n";
+            }
         } else if (child.name == "AppShell") {
             std::string title;
             if (child.attributes.count("title") != 0) {

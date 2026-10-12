@@ -187,6 +187,20 @@ void RoboShellKey(uint16_t code, bool pressed) {
     }
 }
 
+bool RoboShellTick(uint32_t deltaMs) {
+    if (gScene == nullptr || deltaMs == 0) {
+        return false;
+    }
+    return gScene->Tick(static_cast<double>(deltaMs));
+}
+
+void RoboShellSetBackground(const char* path) {
+    if (gScene == nullptr || path == nullptr) {
+        return;
+    }
+    gScene->SetDesktopBackgroundPath(path);
+}
+
 bool RoboShellFlush(RoboDesktop* desktop) {
     if (gScene == nullptr || gPlatform == nullptr || gFonts == nullptr || desktop == nullptr || !gScene->NeedsRender()) {
         return false;

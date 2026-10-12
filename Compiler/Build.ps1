@@ -48,6 +48,9 @@ function Get-CoreSources {
         (Join-Path $Root "Compiler\Source\BrandLogoPainter.cpp"),
         (Join-Path $Root "Compiler\Source\TitleBar.cpp"),
         (Join-Path $Root "Compiler\Source\Desktop.cpp"),
+        (Join-Path $Root "Compiler\Source\Background.cpp"),
+        (Join-Path $Root "Compiler\Source\BackgroundImage.cpp"),
+        (Join-Path $Root "Compiler\Source\BackgroundPainter.cpp"),
         (Join-Path $Root "Compiler\Source\DesktopPainter.cpp"),
         (Join-Path $Root "Compiler\Source\TitleBarPainter.cpp"),
         (Join-Path $Root "Compiler\Source\Sidebar.cpp"),
@@ -243,8 +246,28 @@ function Invoke-WebBuild {
         throw "em++ failed with exit code $LASTEXITCODE"
     }
 
+    $assetUrl = "/Build/Web/"
+    $publicDir = Join-Path $Root "Demo"
+    if ($App -eq "DevKit") {
+        $assetUrl = "/Build/DevKit/"
+        $publicDir = Join-Path $Root "devkit"
+    }
+    $writer = Join-Path $Root "Tools\WritePageIndex.js"
+    & node $writer --out $outputDir --title $App --asset $assetUrl
+    if ($LASTEXITCODE -ne 0) {
+        throw "Index.html was not written"
+    }
+    & node $writer --out $publicDir --title $App --asset $assetUrl
+    if ($App -eq "DevKit") {
+        & node $writer --out (Join-Path $publicDir "syntax") --title "Syntax" --asset $assetUrl
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Index.html was not written"
+    }
+
     Write-Host "Built: $outputJs"
     Write-Host "Built: $(Join-Path $outputDir 'Robo.wasm')"
+    Write-Host "Built: $(Join-Path $outputDir 'Index.html')"
 }
 
 function Find-VcVars64 {
