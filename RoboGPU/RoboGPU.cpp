@@ -1,6 +1,7 @@
 #include "RoboGPU.hpp"
 
 #include "RoboBootInfo.hpp"
+#include "RoboGPUVendor.hpp"
 
 static uint32_t RoboGPUPack(const RoboGPU* gpu, uint32_t rgb) {
     uint32_t red = (rgb >> 16) & 0xFFu;
@@ -32,6 +33,13 @@ static void RoboGPUStoreSpan(uint8_t* row, int32_t x, int32_t width, uint32_t pa
 }
 
 void RoboGPUBind(RoboGPU* gpu, const RoboBootInfo* info) {
+    if (gpu == nullptr || info == nullptr) {
+        return;
+    }
+    if (RoboGPUVendorBind(gpu, info)) {
+        return;
+    }
+    RoboGPUVendorFallback();
     gpu->base = reinterpret_cast<uint8_t*>(info->frameBufferBase);
     gpu->width = static_cast<int32_t>(info->width);
     gpu->height = static_cast<int32_t>(info->height);

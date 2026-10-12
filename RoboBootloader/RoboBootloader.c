@@ -4,7 +4,11 @@
 #define ROBO_EFI_LOADER_DATA 1u
 #define ROBO_EFI_ALLOCATE_ADDRESS 2u
 #define ROBO_ELF_PT_LOAD 1u
-#define ROBO_ELF_MACHINE_X86_64 62u
+#if defined(ROBO_ARCH_ARM64)
+#define ROBO_ELF_MACHINE 183u
+#else
+#define ROBO_ELF_MACHINE 62u
+#endif
 #define ROBO_GOP_RGBX 0u
 #define ROBO_GOP_BGRX 1u
 #define ROBO_GOP_BITMASK 2u
@@ -21,11 +25,20 @@ static void RoboPrint(EfiSystemTable* system, uint16_t* text) {
     }
 }
 
+static void RoboCpuHalt(void) __attribute__((noreturn));
+static void RoboCpuHalt(void) {
+    for (;;) {
+#if defined(ROBO_ARCH_ARM64)
+        __asm__ volatile("wfi");
+#else
+        __asm__ volatile("hlt");
+#endif
+    }
+}
+
 static void RoboFail(EfiSystemTable* system, uint16_t* text) {
     RoboPrint(system, text);
-    for (;;) {
-        __asm__ volatile("hlt");
-    }
+    RoboCpuHalt();
 }
 
 static int RoboPixelFormatFromInfo(const EfiGraphicsOutputModeInformation* info, uint32_t* format) {
@@ -148,7 +161,7 @@ static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t i
     if (header->ident[0] != 0x7F || header->ident[1] != 'E' || header->ident[2] != 'L' || header->ident[3] != 'F') {
         return 0;
     }
-    if (header->ident[4] != 2 || header->machine != ROBO_ELF_MACHINE_X86_64) {
+    if (header->ident[4] != 2 || header->machine != ROBO_ELF_MACHINE) {
         return 0;
     }
     if (header->phOff + (uint64_t)header->phNum * header->phEntSize > imageSize || header->phEntSize < sizeof(Elf64Phdr)) {
@@ -255,7 +268,11 @@ static int RoboExitBoot(EfiBootServices* boot, EfiHandle imageHandle) {
     return status == ROBO_EFI_SUCCESS;
 }
 
+#if defined(ROBO_ARCH_ARM64)
+typedef void (*RoboKernelEntry)(RoboBootInfo* info);
+#else
 typedef void (__attribute__((sysv_abi)) *RoboKernelEntry)(RoboBootInfo* info);
+#endif
 
 void __chkstk(void) {
 }
@@ -298,7 +315,5 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
 
     RoboKernelEntry kernel = (RoboKernelEntry)(uintptr_t)entry;
     kernel(&info);
-    for (;;) {
-        __asm__ volatile("hlt");
-    }
+    RoboCpuHalt();
 }

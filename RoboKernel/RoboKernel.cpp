@@ -9,6 +9,8 @@
 #include "RoboSchedule.hpp"
 #include "RoboTimer.hpp"
 #include "RoboUsb.hpp"
+#include "RoboAta.hpp"
+#include "RoboFS.hpp"
 
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
     if (info == nullptr || info->frameBufferBase == 0) {
@@ -39,9 +41,28 @@ constexpr uint32_t ROBO_APP_WIDGET_ON = 0xD1A15Cu;
 constexpr uint64_t ROBO_APP_WIDGET_TICKS = 50;
 
 uint32_t gAppPixels[ROBO_APP_WINDOW_WIDTH * ROBO_APP_WINDOW_HEIGHT];
+uint32_t gWidgetOn = ROBO_APP_WIDGET_ON;
+
+void RoboAppLoad(void) {
+    uint8_t file[16];
+    uint32_t fileSize = 0;
+    if (!RoboAtaStart() || !RoboFsStart(RoboAtaReadSector)) {
+        return;
+    }
+    if (!RoboFsReadFile("ROBOAPP.BIN", file, sizeof(file), &fileSize) || fileSize < 8u) {
+        return;
+    }
+    if (file[0] != 'R' || file[1] != 'O' || file[2] != 'B' || file[3] != 'O') {
+        return;
+    }
+    gWidgetOn = static_cast<uint32_t>(file[4])
+        | (static_cast<uint32_t>(file[5]) << 8)
+        | (static_cast<uint32_t>(file[6]) << 16)
+        | (static_cast<uint32_t>(file[7]) << 24);
+}
 
 void RoboAppPaintWidget(RoboWindow* window, bool on) {
-    RoboWindowFill(window, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT, on ? ROBO_APP_WIDGET_ON : ROBO_APP_WIDGET_OFF);
+    RoboWindowFill(window, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT, on ? gWidgetOn : ROBO_APP_WIDGET_OFF);
 }
 
 extern "C" void RoboKernelMain(RoboBootInfo* info) {
@@ -58,6 +79,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
 
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
+    RoboAppLoad();
     RoboWindow appWindow{};
     appWindow.pixels = gAppPixels;
     RoboDesktopOpenWindow(&desktop, &appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);

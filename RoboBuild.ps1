@@ -30,4 +30,4 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "Staged Build\Esp\EFI\BOOT\BOOTX64.EFI and Build\Esp\RoboKernel.elf"
+Write-Host "Staged Build\Esp\EFI\BOOT\BOOTX64.EFI and Build\EspArm\EFI\BOOT\BOOTAA64.EFI"

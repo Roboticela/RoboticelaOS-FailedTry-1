@@ -61,11 +61,11 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] A widget repaint appends damage rects and never fills the whole screen
 
 ## Stage 7 — Storage
-- [ ] Disk or USB mass-storage driver
-- [ ] RoboFS so an app can be loaded from media
-- [ ] Python only where a host tool needs it, such as downloading Unicode data
+- [x] Disk or USB mass-storage driver
+- [x] RoboFS so an app can be loaded from media
+- [x] Python only where a host tool needs it, such as downloading Unicode data
 
 ## Stage 8 — Other CPUs and faster GPUs
-- [ ] RoboArch/ARM64 and its bootloader; GPU, desktop, and damage list stay shared
-- [ ] A vendor GPU path behind RoboGPU that still accepts rectangles
-- [ ] The firmware framebuffer remains the default when no vendor path exists
+- [x] RoboArch/ARM64 and its bootloader; GPU, desktop, and damage list stay shared
+- [x] A vendor GPU path behind RoboGPU that still accepts rectangles
+- [x] The firmware framebuffer remains the default when no vendor path exists
