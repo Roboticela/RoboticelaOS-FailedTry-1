@@ -1,6 +1,7 @@
 #include "RoboArch.hpp"
 #include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
+#include "RoboSchedule.hpp"
 #include "RoboTimer.hpp"
 
 namespace {
@@ -107,6 +108,7 @@ __attribute__((interrupt)) void RoboInterruptExceptionError(RoboInterruptFrame* 
 __attribute__((interrupt)) void RoboInterruptTimer(RoboInterruptFrame* frame) {
     (void)frame;
     RoboTimerAdvance();
+    RoboScheduleNotify();
     RoboPicEndMaster();
 }
 

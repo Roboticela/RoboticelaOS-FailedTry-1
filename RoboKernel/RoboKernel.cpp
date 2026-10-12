@@ -1,9 +1,12 @@
 #include "RoboArch.hpp"
 #include "RoboBootInfo.hpp"
+#include "RoboCpu.hpp"
 #include "RoboDesktop.hpp"
 #include "RoboInput.hpp"
+#include "RoboMemory.hpp"
 #include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
+#include "RoboSchedule.hpp"
 
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
     if (info == nullptr || info->frameBufferBase == 0) {
@@ -27,6 +30,9 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         RoboHalt();
     }
 
+    RoboMemoryStart(info);
+    RoboArchCpuStart();
+
     RoboGPU gpu;
     RoboGPUBind(&gpu, info);
 
@@ -36,9 +42,13 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboArchInterruptsStart();
     RoboPS2MouseArm();
     RoboPS2KeyboardStart();
+    RoboScheduleStart();
 
     for (;;) {
         RoboArchCli();
+        RoboArenaReset(RoboArenaFrame());
+        (void)RoboArenaAlloc(RoboArenaFrame(), 32, 8);
+        RoboSchedule();
         RoboInputCollect();
         int32_t dx = 0;
         int32_t dy = 0;

@@ -30,22 +30,22 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] Idle waits on the timer or the mouse IRQ and still does not repaint when nothing moved
 
 ## Stage 2 — Keyboard
-- [ ] PS/2 keyboard on the same RoboInput queue as the mouse
-- [ ] Key events do not clear the desktop; they dirty only what changed
+- [x] PS/2 keyboard on the same RoboInput queue as the mouse
+- [x] Key events do not clear the desktop; they dirty only what changed
 
 ## Stage 3 — Virtual memory
-- [ ] Physical page allocator
-- [ ] Kernel page tables, replacing the firmware map
-- [ ] Two arenas: one reset each frame, one for long-lived objects
-- [ ] Paint and cursor movement still do not call a general allocator
-- [ ] User address spaces and a privilege switch
-- [ ] Syscall entry only for work that must cross rings; pixels stay damage rectangles
+- [x] Physical page allocator
+- [x] Kernel page tables, replacing the firmware map
+- [x] Two arenas: one reset each frame, one for long-lived objects
+- [x] Paint and cursor movement still do not call a general allocator
+- [x] User address spaces and a privilege switch
+- [x] Syscall entry only for work that must cross rings; pixels stay damage rectangles
 
 ## Stage 4 — Scheduling
-- [ ] Run queue and a context switch on the timer
-- [ ] Kernel threads, then user processes
-- [ ] Sleep until input or timer; wake does not redraw the screen
-- [ ] One core first; more cores only after the single-core switch is solid
+- [x] Run queue and a context switch on the timer
+- [x] Kernel threads, then user processes
+- [x] Sleep until input or timer; wake does not redraw the screen
+- [x] One core first; more cores only after the single-core switch is solid
 
 ## Stage 5 — Touchpad, touch, and USB
 - [ ] PCI scan for real-hardware controllers

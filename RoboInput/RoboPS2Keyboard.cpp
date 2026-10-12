@@ -31,15 +31,6 @@ bool RoboKeyWaitInput(void) {
     return false;
 }
 
-bool RoboKeyWaitOutput(void) {
-    for (uint32_t spin = 0; spin < ROBO_PS2_TIMEOUT; ++spin) {
-        if ((RoboPortIn8(ROBO_PS2_STATUS_PORT) & ROBO_PS2_STATUS_OUTPUT) != 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool RoboKeyCommand(uint8_t command) {
     if (!RoboKeyWaitInput()) {
         return false;
@@ -96,7 +87,6 @@ void RoboPS2KeyboardInterrupt(void) {
         return;
     }
     RoboKeyPush(RoboPortIn8(ROBO_PS2_DATA_PORT));
-    RoboPortOut8(0xE9, 'K');
 }
 
 bool RoboPS2KeyboardStart(void) {

@@ -25,10 +25,12 @@ BOOT_CFLAGS := -std=c11 -ffreestanding -fno-stack-protector -fshort-wchar -mno-r
 KERNEL_SRCS := RoboKernel/RoboKernel.cpp RoboKernel/RoboSupport.cpp RoboGPU/RoboGPU.cpp \
 	RoboDesktop/RoboDesktop.cpp RoboInput/RoboInput.cpp RoboInput/RoboPS2Mouse.cpp \
 	RoboInput/RoboPS2Keyboard.cpp RoboArch/X64/RoboArch.cpp \
-	RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.cpp
+	RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.cpp RoboArch/X64/RoboMemory.cpp \
+	RoboArch/X64/RoboCpu.cpp RoboKernel/RoboSchedule.cpp
 KERNEL_OBJS := $(OBJ)/RoboKernel.o $(OBJ)/RoboSupport.o $(OBJ)/RoboGPU.o \
 	$(OBJ)/RoboDesktop.o $(OBJ)/RoboInput.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboPS2Keyboard.o \
-	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o
+	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o $(OBJ)/RoboMemory.o \
+	$(OBJ)/RoboCpu.o $(OBJ)/RoboSchedule.o
 
 .PHONY: all clean
 
@@ -76,6 +78,15 @@ $(OBJ)/RoboInterrupt.o: RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.hp
 
 $(OBJ)/RoboTimer.o: RoboArch/X64/RoboTimer.cpp RoboArch/X64/RoboTimer.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboTimer.cpp -o $(OBJ)/RoboTimer.o
+
+$(OBJ)/RoboMemory.o: RoboArch/X64/RoboMemory.cpp RoboArch/X64/RoboMemory.hpp RoboInclude/RoboBootInfo.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboMemory.cpp -o $(OBJ)/RoboMemory.o
+
+$(OBJ)/RoboCpu.o: RoboArch/X64/RoboCpu.cpp RoboArch/X64/RoboCpu.hpp RoboArch/X64/RoboMemory.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboCpu.cpp -o $(OBJ)/RoboCpu.o
+
+$(OBJ)/RoboSchedule.o: RoboKernel/RoboSchedule.cpp RoboInclude/RoboSchedule.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboSchedule.cpp -o $(OBJ)/RoboSchedule.o
 
 clean:
 	powershell -NoProfile -Command "if (Test-Path '$(BUILD)') { Remove-Item -Recurse -Force '$(BUILD)' }"

@@ -90,6 +90,7 @@ static int RoboCaptureGop(EfiBootServices* boot, RoboBootInfo* info) {
     info->height = gop->mode->info->verticalResolution;
     info->stride = gop->mode->info->pixelsPerScanLine * 4u;
     info->pixelFormat = format;
+    info->memoryRangeCount = 0;
     return 1;
 }
 
@@ -180,6 +181,50 @@ static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t i
     return header->entry;
 }
 
+static int RoboCaptureMemory(EfiBootServices* boot, RoboBootInfo* info) {
+    typedef struct EfiMemoryDescriptor {
+        uint32_t type;
+        uint32_t pad;
+        uint64_t physicalStart;
+        uint64_t virtualStart;
+        uint64_t numberOfPages;
+        uint64_t attribute;
+    } EfiMemoryDescriptor;
+
+    uint8_t probe[8];
+    uint64_t mapSize = sizeof(probe);
+    uint64_t mapKey = 0;
+    uint64_t descSize = 0;
+    uint32_t descVersion = 0;
+    info->memoryRangeCount = 0;
+    EfiStatus status = boot->getMemoryMap(&mapSize, probe, &mapKey, &descSize, &descVersion);
+    if (status != ROBO_EFI_BUFFER_TOO_SMALL || mapSize == 0 || descSize == 0) {
+        return 0;
+    }
+    mapSize += 4096;
+    void* map = 0;
+    if (boot->allocatePool(ROBO_EFI_LOADER_DATA, mapSize, &map) != ROBO_EFI_SUCCESS) {
+        return 0;
+    }
+    status = boot->getMemoryMap(&mapSize, map, &mapKey, &descSize, &descVersion);
+    if (status != ROBO_EFI_SUCCESS) {
+        return 0;
+    }
+    uint64_t offset = 0;
+    while (offset + sizeof(EfiMemoryDescriptor) <= mapSize && info->memoryRangeCount < ROBO_MEMORY_RANGE_MAX) {
+        EfiMemoryDescriptor* desc = (EfiMemoryDescriptor*)((uint8_t*)map + offset);
+        if (desc->type == 3 || desc->type == 4 || desc->type == 7) {
+            RoboMemoryRange* range = &info->memoryRanges[info->memoryRangeCount];
+            range->base = desc->physicalStart;
+            range->pageCount = desc->numberOfPages;
+            range->type = desc->type;
+            info->memoryRangeCount += 1;
+        }
+        offset += descSize;
+    }
+    return 1;
+}
+
 static int RoboExitBoot(EfiBootServices* boot, EfiHandle imageHandle) {
     uint8_t probe[8];
     uint64_t mapSize = sizeof(probe);
@@ -246,6 +291,7 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     if (entry == 0) {
         RoboFail(system, badKernel);
     }
+    RoboCaptureMemory(boot, &info);
     if (!RoboExitBoot(boot, imageHandle)) {
         RoboFail(system, noExit);
     }
