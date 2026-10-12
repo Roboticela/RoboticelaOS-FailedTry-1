@@ -24,10 +24,10 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] Makefile, RoboBuild.ps1, RoboRun.ps1 (QEMU + OVMF), RoboFlash.ps1 (only when a drive letter is given)
 
 ## Stage 1 — Interrupts and time
-- [ ] Minimal IDT and interrupt stubs
-- [ ] Timer (APIC or PIT) as the clock for later scheduling
-- [ ] Mouse IRQ instead of a spin on the status port
-- [ ] Idle waits on the timer or the mouse IRQ and still does not repaint when nothing moved
+- [x] Minimal IDT and interrupt stubs
+- [x] Timer (APIC or PIT) as the clock for later scheduling
+- [x] Mouse IRQ instead of a spin on the status port
+- [x] Idle waits on the timer or the mouse IRQ and still does not repaint when nothing moved
 
 ## Stage 2 — Keyboard
 - [ ] PS/2 keyboard on the same RoboInput queue as the mouse

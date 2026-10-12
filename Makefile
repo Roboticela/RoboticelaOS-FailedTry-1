@@ -23,9 +23,12 @@ BOOT_CFLAGS := -std=c11 -ffreestanding -fno-stack-protector -fshort-wchar -mno-r
 	-IRoboBootloader -IRoboInclude
 
 KERNEL_SRCS := RoboKernel/RoboKernel.cpp RoboKernel/RoboSupport.cpp RoboGPU/RoboGPU.cpp \
-	RoboDesktop/RoboDesktop.cpp RoboInput/RoboPS2Mouse.cpp RoboArch/X64/RoboArch.cpp
+	RoboDesktop/RoboDesktop.cpp RoboInput/RoboInput.cpp RoboInput/RoboPS2Mouse.cpp \
+	RoboInput/RoboPS2Keyboard.cpp RoboArch/X64/RoboArch.cpp \
+	RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.cpp
 KERNEL_OBJS := $(OBJ)/RoboKernel.o $(OBJ)/RoboSupport.o $(OBJ)/RoboGPU.o \
-	$(OBJ)/RoboDesktop.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboArch.o
+	$(OBJ)/RoboDesktop.o $(OBJ)/RoboInput.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboPS2Keyboard.o \
+	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o
 
 .PHONY: all clean
 
@@ -56,11 +59,23 @@ $(OBJ)/RoboGPU.o: RoboGPU/RoboGPU.cpp RoboGPU/RoboGPU.hpp
 $(OBJ)/RoboDesktop.o: RoboDesktop/RoboDesktop.cpp RoboDesktop/RoboDesktop.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboDesktop/RoboDesktop.cpp -o $(OBJ)/RoboDesktop.o
 
+$(OBJ)/RoboInput.o: RoboInput/RoboInput.cpp RoboInput/RoboInput.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboInput/RoboInput.cpp -o $(OBJ)/RoboInput.o
+
 $(OBJ)/RoboPS2Mouse.o: RoboInput/RoboPS2Mouse.cpp RoboInput/RoboPS2Mouse.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboInput/RoboPS2Mouse.cpp -o $(OBJ)/RoboPS2Mouse.o
 
+$(OBJ)/RoboPS2Keyboard.o: RoboInput/RoboPS2Keyboard.cpp RoboInput/RoboPS2Keyboard.hpp RoboInput/RoboInput.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboInput/RoboPS2Keyboard.cpp -o $(OBJ)/RoboPS2Keyboard.o
+
 $(OBJ)/RoboArch.o: RoboArch/X64/RoboArch.cpp RoboArch/X64/RoboArch.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboArch.cpp -o $(OBJ)/RoboArch.o
+
+$(OBJ)/RoboInterrupt.o: RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.hpp RoboInput/RoboPS2Mouse.hpp RoboInput/RoboPS2Keyboard.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboInterrupt.cpp -o $(OBJ)/RoboInterrupt.o
+
+$(OBJ)/RoboTimer.o: RoboArch/X64/RoboTimer.cpp RoboArch/X64/RoboTimer.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboTimer.cpp -o $(OBJ)/RoboTimer.o
 
 clean:
 	powershell -NoProfile -Command "if (Test-Path '$(BUILD)') { Remove-Item -Recurse -Force '$(BUILD)' }"

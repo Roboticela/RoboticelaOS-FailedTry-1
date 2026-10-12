@@ -1,6 +1,8 @@
 #include "RoboArch.hpp"
 #include "RoboBootInfo.hpp"
 #include "RoboDesktop.hpp"
+#include "RoboInput.hpp"
+#include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
 
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
@@ -31,13 +33,29 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
     RoboPS2MouseStart();
+    RoboArchInterruptsStart();
+    RoboPS2MouseArm();
+    RoboPS2KeyboardStart();
 
     for (;;) {
+        RoboArchCli();
+        RoboInputCollect();
         int32_t dx = 0;
         int32_t dy = 0;
-        RoboPS2MouseDrain(&dx, &dy);
-        if (dx != 0 || dy != 0) {
-            RoboDesktopMoveCursor(&desktop, dx, dy);
+        bool moved = false;
+        RoboInputEvent event{};
+        while (RoboInputPop(&event)) {
+            if (event.kind == ROBO_INPUT_MOTION) {
+                dx += event.dx;
+                dy += event.dy;
+                moved = true;
+            }
         }
+        if (!moved) {
+            RoboArchIdle();
+            continue;
+        }
+        RoboArchSti();
+        RoboDesktopMoveCursor(&desktop, dx, dy);
     }
 }

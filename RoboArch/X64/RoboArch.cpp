@@ -14,6 +14,14 @@ void RoboArchCli(void) {
     __asm__ volatile("cli");
 }
 
+void RoboArchSti(void) {
+    __asm__ volatile("sti");
+}
+
+void RoboArchIdle(void) {
+    __asm__ volatile("sti; hlt");
+}
+
 void RoboHalt(void) {
     for (;;) {
         __asm__ volatile("cli");

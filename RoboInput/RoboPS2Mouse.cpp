@@ -2,12 +2,11 @@
 
 #include "RoboArch.hpp"
 
-namespace {
-
 constexpr uint16_t ROBO_PS2_DATA_PORT = 0x60;
 constexpr uint16_t ROBO_PS2_STATUS_PORT = 0x64;
 constexpr uint8_t ROBO_PS2_STATUS_OUTPUT = 0x01;
 constexpr uint8_t ROBO_PS2_STATUS_INPUT = 0x02;
+constexpr uint8_t ROBO_PS2_STATUS_AUX = 0x20;
 constexpr uint32_t ROBO_PS2_TIMEOUT = 100000u;
 constexpr int32_t ROBO_PS2_DRAIN_LIMIT = 96;
 
@@ -65,10 +64,40 @@ void RoboPS2Flush(void) {
     }
 }
 
+constexpr uint32_t ROBO_MOUSE_RING = 128;
+
+uint8_t gRing[ROBO_MOUSE_RING];
+volatile uint32_t gRingHead = 0;
+volatile uint32_t gRingTail = 0;
 uint8_t gPacket[3];
 int32_t gPacketIndex = 0;
+bool gMouseReady = false;
 
-}  // namespace
+void RoboMousePush(uint8_t byte) {
+    uint32_t next = (gRingHead + 1u) & (ROBO_MOUSE_RING - 1u);
+    if (next == gRingTail) {
+        return;
+    }
+    gRing[gRingHead] = byte;
+    gRingHead = next;
+}
+
+bool RoboMousePop(uint8_t* byte) {
+    if (gRingHead == gRingTail) {
+        return false;
+    }
+    *byte = gRing[gRingTail];
+    gRingTail = (gRingTail + 1u) & (ROBO_MOUSE_RING - 1u);
+    return true;
+}
+
+void RoboPS2MouseInterrupt(void) {
+    uint8_t status = RoboPortIn8(ROBO_PS2_STATUS_PORT);
+    if ((status & ROBO_PS2_STATUS_OUTPUT) == 0 || (status & ROBO_PS2_STATUS_AUX) == 0) {
+        return;
+    }
+    RoboMousePush(RoboPortIn8(ROBO_PS2_DATA_PORT));
+}
 
 bool RoboPS2MouseStart(void) {
     gPacketIndex = 0;
@@ -107,15 +136,43 @@ bool RoboPS2MouseStart(void) {
     if (!RoboPS2Read(&ack) || ack != 0xFA) {
         return false;
     }
+    gMouseReady = true;
     return true;
+}
+
+void RoboPS2MouseArm(void) {
+    if (!gMouseReady) {
+        return;
+    }
+    if (!RoboPS2WriteCommand(0xA7)) {
+        gMouseReady = false;
+        return;
+    }
+    RoboPS2Flush();
+    if (!RoboPS2WriteCommand(0x20)) {
+        gMouseReady = false;
+        return;
+    }
+    uint8_t config = 0;
+    if (!RoboPS2Read(&config)) {
+        gMouseReady = false;
+        return;
+    }
+    config = static_cast<uint8_t>((config | 0x02u) & ~0x20u);
+    if (!RoboPS2WriteCommand(0x60) || !RoboPS2WaitInput()) {
+        gMouseReady = false;
+        return;
+    }
+    RoboPortOut8(ROBO_PS2_DATA_PORT, config);
+    RoboPS2WriteCommand(0xA8);
 }
 
 void RoboPS2MouseDrain(int32_t* dx, int32_t* dy) {
     *dx = 0;
     *dy = 0;
     int32_t reads = 0;
-    while (reads < ROBO_PS2_DRAIN_LIMIT && (RoboPortIn8(ROBO_PS2_STATUS_PORT) & ROBO_PS2_STATUS_OUTPUT) != 0) {
-        uint8_t byte = RoboPortIn8(ROBO_PS2_DATA_PORT);
+    uint8_t byte = 0;
+    while (reads < ROBO_PS2_DRAIN_LIMIT && RoboMousePop(&byte)) {
         reads += 1;
         if (gPacketIndex == 0 && (byte & 0x08u) == 0) {
             continue;
