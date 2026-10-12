@@ -7,6 +7,7 @@
 #include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
 #include "RoboSchedule.hpp"
+#include "RoboTimer.hpp"
 #include "RoboUsb.hpp"
 
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
@@ -25,6 +26,24 @@ static bool RoboBootInfoValid(const RoboBootInfo* info) {
     return true;
 }
 
+constexpr int32_t ROBO_APP_WINDOW_X = 64;
+constexpr int32_t ROBO_APP_WINDOW_Y = 48;
+constexpr int32_t ROBO_APP_WINDOW_WIDTH = 280;
+constexpr int32_t ROBO_APP_WINDOW_HEIGHT = 160;
+constexpr int32_t ROBO_APP_WIDGET_X = 20;
+constexpr int32_t ROBO_APP_WIDGET_Y = 48;
+constexpr int32_t ROBO_APP_WIDGET_WIDTH = 88;
+constexpr int32_t ROBO_APP_WIDGET_HEIGHT = 36;
+constexpr uint32_t ROBO_APP_WIDGET_OFF = 0x3E6D8Eu;
+constexpr uint32_t ROBO_APP_WIDGET_ON = 0xD1A15Cu;
+constexpr uint64_t ROBO_APP_WIDGET_TICKS = 50;
+
+uint32_t gAppPixels[ROBO_APP_WINDOW_WIDTH * ROBO_APP_WINDOW_HEIGHT];
+
+void RoboAppPaintWidget(RoboWindow* window, bool on) {
+    RoboWindowFill(window, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT, on ? ROBO_APP_WIDGET_ON : ROBO_APP_WIDGET_OFF);
+}
+
 extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboArchCli();
     if (!RoboBootInfoValid(info)) {
@@ -39,12 +58,19 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
 
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
+    RoboWindow appWindow{};
+    appWindow.pixels = gAppPixels;
+    RoboDesktopOpenWindow(&desktop, &appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);
+    RoboAppPaintWidget(&appWindow, false);
+    RoboDesktopPresentWindow(&desktop, &appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
     RoboPS2MouseStart();
     RoboArchInterruptsStart();
     RoboPS2MouseArm();
     RoboPS2KeyboardStart();
     RoboUsbStart();
     RoboScheduleStart();
+    uint64_t nextWidgetTick = ROBO_APP_WIDGET_TICKS;
+    bool widgetOn = false;
 
     for (;;) {
         RoboArchCli();
@@ -58,6 +84,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         int32_t placeY = 0;
         bool moved = false;
         bool placed = false;
+        bool widgetDue = RoboTimerTicks() >= nextWidgetTick;
         RoboInputEvent event{};
         while (RoboInputPop(&event)) {
             if (event.kind == ROBO_INPUT_MOTION) {
@@ -88,11 +115,17 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                 placed = true;
             }
         }
-        if (!moved && !placed) {
+        if (!moved && !placed && !widgetDue) {
             RoboArchIdle();
             continue;
         }
         RoboArchSti();
+        if (widgetDue) {
+            widgetOn = !widgetOn;
+            nextWidgetTick = RoboTimerTicks() + ROBO_APP_WIDGET_TICKS;
+            RoboAppPaintWidget(&appWindow, widgetOn);
+            RoboDesktopPresentWindow(&desktop, &appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
+        }
         if (moved) {
             RoboDesktopMoveCursor(&desktop, dx, dy);
         }

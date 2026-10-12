@@ -92,3 +92,56 @@ void RoboGPUFillRect(RoboGPU* gpu, RoboRect rect, uint32_t rgb) {
         RoboGPUStoreSpan(row, rect.x, rect.width, packed);
     }
 }
+
+void RoboGPUCopyRect(RoboGPU* gpu, int32_t screenX, int32_t screenY, const uint32_t* pixels, int32_t pixelWidth, int32_t pixelHeight, int32_t srcX, int32_t srcY, int32_t width, int32_t height) {
+    if (gpu == nullptr || pixels == nullptr || pixelWidth <= 0 || pixelHeight <= 0 || width <= 0 || height <= 0) {
+        return;
+    }
+    if (srcX < 0) {
+        width += srcX;
+        screenX -= srcX;
+        srcX = 0;
+    }
+    if (srcY < 0) {
+        height += srcY;
+        screenY -= srcY;
+        srcY = 0;
+    }
+    if (screenX < 0) {
+        width += screenX;
+        srcX -= screenX;
+        screenX = 0;
+    }
+    if (screenY < 0) {
+        height += screenY;
+        srcY -= screenY;
+        screenY = 0;
+    }
+    if (width <= 0 || height <= 0 || srcX >= pixelWidth || srcY >= pixelHeight) {
+        return;
+    }
+    if (srcX + width > pixelWidth) {
+        width = pixelWidth - srcX;
+    }
+    if (srcY + height > pixelHeight) {
+        height = pixelHeight - srcY;
+    }
+    if (screenX >= gpu->width || screenY >= gpu->height || width <= 0 || height <= 0) {
+        return;
+    }
+    if (screenX + width > gpu->width) {
+        width = gpu->width - screenX;
+    }
+    if (screenY + height > gpu->height) {
+        height = gpu->height - screenY;
+    }
+    for (int32_t y = 0; y < height; ++y) {
+        const uint32_t* source = pixels + static_cast<int64_t>(srcY + y) * pixelWidth + srcX;
+        uint8_t* row = gpu->base + static_cast<int64_t>(screenY + y) * gpu->stride;
+        uint8_t* pixel = row + static_cast<int64_t>(screenX) * 4;
+        for (int32_t x = 0; x < width; ++x) {
+            *reinterpret_cast<uint32_t*>(pixel) = RoboGPUPack(gpu, source[x]);
+            pixel += 4;
+        }
+    }
+}

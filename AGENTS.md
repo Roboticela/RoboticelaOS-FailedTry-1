@@ -55,10 +55,10 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] A missing USB device still boots the desktop
 
 ## Stage 6 — Compiler apps
-- [ ] OS platform beside Web and Windows; generated C++ does not change
-- [ ] Present copies only the app's dirty rectangle into RoboGPU
-- [ ] RoboDesktop hosts those apps as windows
-- [ ] A widget repaint appends damage rects and never fills the whole screen
+- [x] OS platform beside Web and Windows; generated C++ does not change
+- [x] Present copies only the app's dirty rectangle into RoboGPU
+- [x] RoboDesktop hosts those apps as windows
+- [x] A widget repaint appends damage rects and never fills the whole screen
 
 ## Stage 7 — Storage
 - [ ] Disk or USB mass-storage driver

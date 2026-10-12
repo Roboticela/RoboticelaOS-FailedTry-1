@@ -71,6 +71,12 @@ function Get-CoreSources {
     )
 }
 
+function Get-OsPlatformSources {
+    return @(
+        (Join-Path $Root "RoboPlatforms\OS\OsPlatform.cpp")
+    )
+}
+
 function Get-IncludeArgs([string]$CompilerStyle) {
     $paths = @(
         (Join-Path $Root "Compiler\Include"),

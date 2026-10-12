@@ -182,3 +182,78 @@ void RoboDesktopPlaceCursor(RoboDesktop* desktop, int32_t x, int32_t y) {
     desktop->cursorY = RoboClamp(y, desktop->gpu->height);
     RoboDesktopPaintCursor(desktop, previousX, previousY);
 }
+
+namespace {
+
+constexpr uint32_t ROBO_WINDOW_PAPER = 0xF3F0E8u;
+constexpr uint32_t ROBO_WINDOW_TITLE = 0x243044u;
+constexpr uint32_t ROBO_WINDOW_EDGE = 0x1A2230u;
+constexpr int32_t ROBO_WINDOW_TITLE_HEIGHT = 28;
+
+}  // namespace
+
+void RoboWindowFill(RoboWindow* window, int32_t x, int32_t y, int32_t width, int32_t height, uint32_t rgb) {
+    if (window == nullptr || window->pixels == nullptr || window->width <= 0 || window->height <= 0) {
+        return;
+    }
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    if (width <= 0 || height <= 0 || x >= window->width || y >= window->height) {
+        return;
+    }
+    if (x + width > window->width) {
+        width = window->width - x;
+    }
+    if (y + height > window->height) {
+        height = window->height - y;
+    }
+    for (int32_t row = 0; row < height; ++row) {
+        uint32_t* pixel = window->pixels + static_cast<int64_t>(y + row) * window->width + x;
+        for (int32_t column = 0; column < width; ++column) {
+            pixel[column] = rgb;
+        }
+    }
+}
+
+void RoboDesktopPresentWindow(RoboDesktop* desktop, RoboWindow* window, int32_t localX, int32_t localY, int32_t width, int32_t height) {
+    if (desktop == nullptr || desktop->gpu == nullptr || window == nullptr || window->pixels == nullptr) {
+        return;
+    }
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+    RoboGPUCopyRect(desktop->gpu, window->x + localX, window->y + localY, window->pixels, window->width, window->height, localX, localY, width, height);
+    RoboRect damage;
+    damage.x = window->x + localX;
+    damage.y = window->y + localY;
+    damage.width = width;
+    damage.height = height;
+    damage = RoboRectClip(damage, desktop->gpu->width, desktop->gpu->height);
+    RoboRect cursor = RoboRectClip(RoboCursorBounds(desktop->cursorX, desktop->cursorY), desktop->gpu->width, desktop->gpu->height);
+    if (RoboRectsOverlap(damage, cursor)) {
+        RoboDrawCursor(desktop);
+    }
+}
+
+void RoboDesktopOpenWindow(RoboDesktop* desktop, RoboWindow* window, int32_t x, int32_t y, int32_t width, int32_t height) {
+    if (window == nullptr || window->pixels == nullptr || width <= 0 || height <= 0) {
+        return;
+    }
+    window->x = x;
+    window->y = y;
+    window->width = width;
+    window->height = height;
+    RoboWindowFill(window, 0, 0, width, height, ROBO_WINDOW_PAPER);
+    RoboWindowFill(window, 0, 0, width, ROBO_WINDOW_TITLE_HEIGHT, ROBO_WINDOW_TITLE);
+    RoboWindowFill(window, 0, 0, width, 1, ROBO_WINDOW_EDGE);
+    RoboWindowFill(window, 0, height - 1, width, 1, ROBO_WINDOW_EDGE);
+    RoboWindowFill(window, 0, 0, 1, height, ROBO_WINDOW_EDGE);
+    RoboWindowFill(window, width - 1, 0, 1, height, ROBO_WINDOW_EDGE);
+    RoboDesktopPresentWindow(desktop, window, 0, 0, width, height);
+}
