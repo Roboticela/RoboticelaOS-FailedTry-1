@@ -104,6 +104,7 @@ public:
     void SetAppShellTitle(const std::string& title);
     void AddDockItem(DockItem item);
     void Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding);
+    void SetPaintPump(void (*pump)(void*), void* cookie);
 
     void SetFoundation(const std::string& name);
     void SetFoundationForTheme(Theme theme, const std::string& name);
@@ -245,6 +246,8 @@ private:
     Scrollbar pageVertical_;
     Scrollbar pageHorizontal_;
     bool pageBarsReady_ = false;
+    void (*paintPump_)(void*) = nullptr;
+    void* paintPumpCookie_ = nullptr;
     IPlatform* platform_ = nullptr;
     FontEngine* fonts_ = nullptr;
     FrameBuffer frame_;

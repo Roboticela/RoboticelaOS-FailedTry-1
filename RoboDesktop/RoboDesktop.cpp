@@ -197,6 +197,9 @@ void RoboCursorWrite(RoboDesktop* desktop, int32_t originX, int32_t originY) {
             if (screenX < 0 || screenY < 0 || screenX >= gpu->width || screenY >= gpu->height) {
                 continue;
             }
+            if (ROBO_CURSOR_PIXELS[y * 12 + x] == ROBO_CURSOR_EMPTY) {
+                continue;
+            }
             uint8_t* saved = desktop->cursorSave + (static_cast<int64_t>(y) * 12 + x) * 4;
             uint8_t* pixel = gpu->base + static_cast<int64_t>(screenY) * gpu->stride + static_cast<int64_t>(screenX) * 4;
             pixel[0] = saved[0];
@@ -216,11 +219,18 @@ void RoboDesktopHideCursor(RoboDesktop* desktop) {
 }
 
 void RoboDesktopShowCursor(RoboDesktop* desktop) {
-    if (desktop == nullptr || desktop->gpu == nullptr || desktop->picture != nullptr) {
+    if (desktop == nullptr || desktop->gpu == nullptr || desktop->picture != nullptr || desktop->cursorHeld != 0) {
         return;
     }
     RoboCursorRead(desktop, desktop->cursorX, desktop->cursorY);
     desktop->cursorHeld = 1;
+    RoboDrawCursor(desktop);
+}
+
+void RoboDesktopRedrawCursor(RoboDesktop* desktop) {
+    if (desktop == nullptr || desktop->gpu == nullptr || desktop->cursorHeld == 0 || desktop->picture != nullptr) {
+        return;
+    }
     RoboDrawCursor(desktop);
 }
 

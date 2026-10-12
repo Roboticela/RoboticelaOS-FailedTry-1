@@ -2,6 +2,7 @@
 
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
+#include "RoboPS2Mouse.hpp"
 #include "RoboticelaOSPlatform.hpp"
 #include "Robo/Color.hpp"
 #include "Robo/FontEngine.hpp"
@@ -19,6 +20,31 @@ Robo::FontEngine* gFonts = nullptr;
 Robo::RoboScene* gScene = nullptr;
 RoboDesktop* gDesktop = nullptr;
 bool gShift = false;
+bool gCursorMovedDuringPaint = false;
+int gClickDuringPaint = 0;
+
+void RoboShellTrackCursor(void* cookie) {
+    (void)cookie;
+    if (gDesktop == nullptr) {
+        return;
+    }
+    for (int32_t count = 0; count < 32; ++count) {
+        int32_t dx = 0;
+        int32_t dy = 0;
+        uint8_t pressed = 0;
+        uint8_t changed = 0;
+        if (!RoboPS2MouseReadPacket(&dx, &dy, &pressed, &changed)) {
+            return;
+        }
+        if (dx != 0 || dy != 0) {
+            RoboDesktopMoveCursor(gDesktop, dx, dy);
+            gCursorMovedDuringPaint = true;
+        }
+        if (changed != 0) {
+            gClickDuringPaint = pressed != 0 ? 1 : 2;
+        }
+    }
+}
 
 bool RoboLoadFace(Robo::FontFaceId face, const char* name) {
     uint8_t* file = static_cast<uint8_t*>(malloc(96u * 1024u));
@@ -96,6 +122,7 @@ bool RoboShellStart(RoboDesktop* desktop) {
     RoboLoadFace(Robo::FontFaceId::SemiBold, "INTERS.TTF");
     RoboLoadFace(Robo::FontFaceId::Italic, "INTERI.TTF");
     gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
+    gScene->SetPaintPump(RoboShellTrackCursor, nullptr);
     gPlatform->SetSurfaceSize(desktop->gpu->width, desktop->gpu->height);
     gPlatform->SetPixelScale(1.0f);
     gPlatform->SetScanout(desktop->gpu->base, desktop->gpu->width, desktop->gpu->height, desktop->gpu->stride, desktop->gpu->pixelFormat);
@@ -161,9 +188,25 @@ void RoboShellKey(uint16_t code, bool pressed) {
 }
 
 bool RoboShellFlush(RoboDesktop* desktop) {
-    if (gScene == nullptr || gPlatform == nullptr || gFonts == nullptr || !gScene->NeedsRender()) {
+    if (gScene == nullptr || gPlatform == nullptr || gFonts == nullptr || desktop == nullptr || !gScene->NeedsRender()) {
         return false;
     }
-    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    for (int pass = 0; pass < 2; ++pass) {
+        if (pass > 0 && !gScene->NeedsRender()) {
+            break;
+        }
+        gCursorMovedDuringPaint = false;
+        gClickDuringPaint = 0;
+        gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+        if (gCursorMovedDuringPaint) {
+            RoboShellPointerMove(desktop->cursorX, desktop->cursorY);
+        }
+        if (gClickDuringPaint == 1) {
+            RoboShellPointerDown(desktop->cursorX, desktop->cursorY, false);
+        } else if (gClickDuringPaint == 2) {
+            RoboShellPointerUp(desktop->cursorX, desktop->cursorY);
+        }
+    }
+    RoboDesktopRedrawCursor(desktop);
     return true;
 }

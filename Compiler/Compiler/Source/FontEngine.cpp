@@ -381,7 +381,12 @@ void FontEngine::PaintSelectionBands(FrameBuffer& buffer, const std::vector<Text
 }
 
 void FontEngine::PaintGlyphDraws(FrameBuffer& buffer, const std::vector<TextGlyphDraw>& draws) const {
+    int painted = 0;
     for (const TextGlyphDraw& item : draws) {
+        if ((painted & 7) == 0) {
+            buffer.Pump();
+        }
+        painted += 1;
         const bool onScreen = item.baseline > -item.fontSize * 2.0f &&
                               item.baseline < static_cast<float>(buffer.GetHeight()) + item.fontSize * 2.0f;
         if (onScreen) {

@@ -2047,6 +2047,11 @@ Color LerpPageColor(const Color& light, const Color& dark, float mix) {
 
 }  // namespace
 
+void RoboScene::SetPaintPump(void (*pump)(void*), void* cookie) {
+    paintPump_ = pump;
+    paintPumpCookie_ = cookie;
+}
+
 void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding) {
     const FoundationScope foundationScope(ActiveFoundation(), theme_, themeMix_);
     platform_ = &platform;
@@ -2091,6 +2096,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         frame_.Resize(width, height);
     }
     FrameBuffer& frame = frame_;
+    frame.SetPump(paintPump_, paintPumpCookie_);
     const bool partial = CanPaintPartial(paintScale, width, height);
     int damageX = 0;
     int damageY = 0;
@@ -2141,6 +2147,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         }
 
         for (int i = 0; i < static_cast<int>(items_.size()); ++i) {
+            frame.Pump();
             SceneItem& item = items_[static_cast<std::size_t>(i)];
             const float yBefore = cursorY;
             bool edgeSet = false;
@@ -2290,6 +2297,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         }
         if (desktopClip) {
             frame.PopClip();
+            frame.Pump();
             DesktopPainter::Paint(frame, fonts, desktop_, desktopChrome, paintScale, hoveredDock_);
         }
         if (titleClip) {
@@ -2388,6 +2396,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         damageWidth = width;
         damageHeight = height;
     }
+    frame.SetPump(nullptr, nullptr);
     frame.SetPresentRect(damageX, damageY, damageWidth, damageHeight);
     fullDirty_ = false;
     damageOpen_ = false;

@@ -91,6 +91,17 @@ int FrameBuffer::GetPresentHeight() const {
     return presentHeight_;
 }
 
+void FrameBuffer::SetPump(void (*pump)(void*), void* cookie) {
+    pump_ = pump;
+    pumpCookie_ = cookie;
+}
+
+void FrameBuffer::Pump() {
+    if (pump_ != nullptr) {
+        pump_(pumpCookie_);
+    }
+}
+
 bool FrameBuffer::MissesClip(int x, int y, int width, int height) const {
     if (clips_.empty() || width <= 0 || height <= 0) {
         return false;

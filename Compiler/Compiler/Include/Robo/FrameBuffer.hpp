@@ -30,6 +30,8 @@ public:
 
     // True when a clip is active and the rectangle cannot affect any pixel.
     bool MissesClip(int x, int y, int width, int height) const;
+    void SetPump(void (*pump)(void*), void* cookie);
+    void Pump();
 
     void BlendPixel(int x, int y, const Color& color, float opacity = 1.0f);
     void FillRect(int x, int y, int width, int height, const Color& color, float opacity = 1.0f);
@@ -60,6 +62,8 @@ private:
     int presentHeight_ = 0;
     std::vector<std::uint8_t> pixels_;
     std::vector<ClipRect> clips_;
+    void (*pump_)(void*) = nullptr;
+    void* pumpCookie_ = nullptr;
 };
 
 }  // namespace Robo

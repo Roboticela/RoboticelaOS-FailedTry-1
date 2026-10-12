@@ -28,6 +28,7 @@ void RoboDesktopBoot(RoboDesktop* desktop, RoboGPU* gpu);
 void RoboDesktopShowPicture(RoboDesktop* desktop, const uint8_t* pixels, int32_t width, int32_t height);
 void RoboDesktopHideCursor(RoboDesktop* desktop);
 void RoboDesktopShowCursor(RoboDesktop* desktop);
+void RoboDesktopRedrawCursor(RoboDesktop* desktop);
 bool RoboDesktopKeepCursor(RoboDesktop* desktop, int32_t x, int32_t y, const uint8_t* pixel);
 void RoboDesktopMoveCursor(RoboDesktop* desktop, int32_t dx, int32_t dy);
 void RoboDesktopPlaceCursor(RoboDesktop* desktop, int32_t x, int32_t y);

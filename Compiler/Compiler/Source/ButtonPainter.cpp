@@ -212,6 +212,20 @@ ButtonPaintResult ButtonPainter::Paint(FrameBuffer& buffer,
     }
 
     const float buttonY = originY;
+    ButtonPaintResult result;
+    result.bounds.x = buttonX;
+    result.bounds.y = buttonY;
+    result.bounds.width = buttonWidth;
+    result.bounds.height = buttonHeight;
+    result.advanceY = buttonHeight + 16.0f * scale;
+    button.SetBounds(result.bounds);
+    buffer.Pump();
+    if (buffer.MissesClip(static_cast<int>(std::floor(buttonX)) - 4,
+                          static_cast<int>(std::floor(buttonY)) - 4,
+                          static_cast<int>(std::ceil(buttonWidth)) + 8,
+                          static_cast<int>(std::ceil(buttonHeight)) + 8)) {
+        return result;
+    }
     const float radius = static_cast<float>(style.cornerRadius) * scale;
     if (button.IsFocusVisible() && button.CanActivate()) {
         const float ring = 2.0f * scale;
@@ -262,13 +276,6 @@ ButtonPaintResult ButtonPainter::Paint(FrameBuffer& buffer,
         fonts.DrawString(buffer, contentX, baseline, visibleLabel, fontSize, faceId, textColor, opacity, letterSpacing);
     }
 
-    ButtonPaintResult result;
-    result.bounds.x = buttonX;
-    result.bounds.y = buttonY;
-    result.bounds.width = buttonWidth;
-    result.bounds.height = buttonHeight;
-    result.advanceY = buttonHeight + 16.0f * scale;
-    button.SetBounds(result.bounds);
     return result;
 }
 

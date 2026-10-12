@@ -432,6 +432,16 @@ float TextPainter::Paint(FrameBuffer& buffer,
             }
         }
 
+        buffer.Pump();
+        const int lineX = static_cast<int>(std::floor(originX));
+        const int lineY = static_cast<int>(std::floor(cursorY));
+        const int lineWidth = std::max(1, static_cast<int>(std::ceil(blockWidth)) + 2);
+        const int lineHeight = std::max(1, static_cast<int>(std::ceil(baseLineHeight)) + 2);
+        if (buffer.MissesClip(lineX, lineY, lineWidth, lineHeight)) {
+            cursorY += baseLineHeight;
+            continue;
+        }
+
         float penX = startX;
         const float baseline = cursorY + maxAscent;
         const float opacity = static_cast<float>(style.opacity);

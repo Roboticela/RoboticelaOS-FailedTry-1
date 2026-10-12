@@ -219,8 +219,11 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                 }
             }
         }
-        if (gShellLive && RoboShellFlush(&desktop)) {
-            shellInput = true;
+        if (gShellLive) {
+            RoboArchSti();
+            if (RoboShellFlush(&desktop)) {
+                shellInput = true;
+            }
         }
         if (!moved && !placed && !widgetDue && !shellInput) {
             RoboArchIdle();

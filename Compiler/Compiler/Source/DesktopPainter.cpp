@@ -4,6 +4,7 @@
 #include "Robo/SvgPainter.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace Robo {
@@ -82,7 +83,9 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
     const Color tile = ResolveColor(Color::FromHex("#FFFFFF"), "color.bg.primary");
     const Color selected = ResolveColor(Color::FromHex("#0E7AFF"), "color.brand.primary");
 
-    if (desktop.HasAppShell()) {
+    if (desktop.HasAppShell() &&
+        !buffer.MissesClip(0, 0, buffer.GetWidth(), std::max(1, static_cast<int>(std::ceil(chrome.shellHeight))))) {
+        buffer.Pump();
         buffer.FillRect(0, 0, buffer.GetWidth(), static_cast<int>(chrome.shellHeight), panel);
         DrawLine(buffer, fonts, desktop.GetAppShell().GetTitle(), 20.0f * scale, 0.0f,
                  static_cast<float>(buffer.GetWidth()) - 40.0f * scale, chrome.shellHeight, SHELL_TITLE * scale,
@@ -105,7 +108,14 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
     const float barX = std::max(pad, (static_cast<float>(buffer.GetWidth()) - barWidth) * 0.5f);
     const float barY = static_cast<float>(buffer.GetHeight()) - barHeight - DOCK_MARGIN * scale;
     desktop.SetDockBar(barX, barY, barWidth, barHeight);
-    buffer.FillRoundedRect(barX, barY, barWidth, barHeight, DOCK_RADIUS * scale, panel, 0.94f);
+    const bool paintDock = !buffer.MissesClip(static_cast<int>(std::floor(barX)) - 2,
+                                               static_cast<int>(std::floor(barY)) - 2,
+                                               static_cast<int>(std::ceil(barWidth)) + 4,
+                                               static_cast<int>(std::ceil(barHeight)) + 4);
+    if (paintDock) {
+        buffer.Pump();
+        buffer.FillRoundedRect(barX, barY, barWidth, barHeight, DOCK_RADIUS * scale, panel, 0.94f);
+    }
 
     for (int index = 0; index < static_cast<int>(items.size()); ++index) {
         DockItem& item = items[static_cast<std::size_t>(index)];
@@ -117,6 +127,10 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         bounds.width = itemWidth;
         bounds.height = itemHeight;
         item.SetBounds(bounds);
+        if (!paintDock) {
+            continue;
+        }
+        buffer.Pump();
 
         Color fill = tile;
         if (item.IsSelected()) {
