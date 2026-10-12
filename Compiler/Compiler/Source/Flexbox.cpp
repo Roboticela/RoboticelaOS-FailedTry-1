@@ -1,0 +1,238 @@
+#include "Robo/Flexbox.hpp"
+#include "Robo/Container.hpp"
+
+#include <algorithm>
+
+namespace Robo {
+
+bool FlexboxBounds::Contains(float pointX, float pointY) const {
+    return pointX >= x && pointX <= (x + width) && pointY >= y && pointY <= (y + height);
+}
+
+Flexbox::Flexbox() = default;
+
+void Flexbox::SetStyle(const FlexboxStyle& style) {
+    style_ = style;
+}
+
+const FlexboxStyle& Flexbox::GetStyle() const {
+    return style_;
+}
+
+FlexboxStyle& Flexbox::GetStyle() {
+    return style_;
+}
+
+void Flexbox::AddText(Text text, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Text;
+    item.text = std::move(text);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddSvg(Svg svg, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Svg;
+    item.svg = std::move(svg);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddBrandLogo(BrandLogo logo, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::BrandLogo;
+    item.brandLogo = std::move(logo);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddTitleBar(TitleBar bar, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::TitleBar;
+    item.titleBar = std::move(bar);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddSidebar(Sidebar pane, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Sidebar;
+    item.sidebar = std::move(pane);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddSidebarItem(SidebarItem item, const FlexItemProps& props) {
+    FlexboxItem entry;
+    entry.kind = FlexItemKind::SidebarItem;
+    entry.sidebarItem = std::move(item);
+    entry.props = props;
+    items_.push_back(std::move(entry));
+}
+
+void Flexbox::AddThemeToggle(ThemeToggle toggle, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::ThemeToggle;
+    item.themeToggle = std::move(toggle);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddThemeIconToggle(ThemeIconToggle toggle, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::ThemeIconToggle;
+    item.themeIconToggle = std::move(toggle);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddSeparator(Separator separator, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Separator;
+    item.separator = std::move(separator);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddMotionShape(MotionShape shape, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::MotionShape;
+    item.motionShape = std::move(shape);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddButton(Button button, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Button;
+    item.button = std::move(button);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddInput(Input input, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Input;
+    item.input = std::move(input);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddScrollbar(Scrollbar scrollbar, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Scrollbar;
+    item.scrollbar = std::move(scrollbar);
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddFlexbox(Flexbox flexbox, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Flexbox;
+    item.flexbox = std::make_shared<Flexbox>(std::move(flexbox));
+    item.props = props;
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddContainer(Container container, const FlexItemProps& props) {
+    FlexboxItem item;
+    item.kind = FlexItemKind::Container;
+    item.props = props;
+    item.container = std::make_shared<Container>(std::move(container));
+    items_.push_back(std::move(item));
+}
+
+void Flexbox::AddItem(FlexboxItem item) {
+    items_.push_back(std::move(item));
+}
+
+const std::vector<FlexboxItem>& Flexbox::GetItems() const {
+    return items_;
+}
+
+std::vector<FlexboxItem>& Flexbox::GetItems() {
+    return items_;
+}
+
+void Flexbox::SetBounds(const FlexboxBounds& bounds) {
+    bounds_ = bounds;
+}
+
+const FlexboxBounds& Flexbox::GetBounds() const {
+    return bounds_;
+}
+
+float Flexbox::ResolveGapX(float pixelScale) const {
+    if (style_.columnGap >= 0.0f) {
+        return style_.columnGap * pixelScale;
+    }
+    return style_.gap * pixelScale;
+}
+
+float Flexbox::ResolveGapY(float pixelScale) const {
+    if (style_.rowGap >= 0.0f) {
+        return style_.rowGap * pixelScale;
+    }
+    return style_.gap * pixelScale;
+}
+
+FlexDirection ParseFlexDirection(const std::string& value) {
+    if (value == "column" || value == "col") {
+        return FlexDirection::Column;
+    }
+    if (value == "column-reverse" || value == "col-reverse") {
+        return FlexDirection::ColumnReverse;
+    }
+    if (value == "row-reverse") {
+        return FlexDirection::RowReverse;
+    }
+    return FlexDirection::Row;
+}
+
+FlexJustify ParseFlexJustify(const std::string& value) {
+    if (value == "center") {
+        return FlexJustify::Center;
+    }
+    if (value == "flex-end" || value == "end" || value == "right") {
+        return FlexJustify::FlexEnd;
+    }
+    if (value == "space-between" || value == "between") {
+        return FlexJustify::SpaceBetween;
+    }
+    if (value == "space-around" || value == "around") {
+        return FlexJustify::SpaceAround;
+    }
+    if (value == "space-evenly" || value == "evenly") {
+        return FlexJustify::SpaceEvenly;
+    }
+    return FlexJustify::FlexStart;
+}
+
+FlexAlign ParseFlexAlign(const std::string& value) {
+    if (value == "flex-start" || value == "start" || value == "top") {
+        return FlexAlign::FlexStart;
+    }
+    if (value == "center" || value == "middle") {
+        return FlexAlign::Center;
+    }
+    if (value == "flex-end" || value == "end" || value == "bottom") {
+        return FlexAlign::FlexEnd;
+    }
+    if (value == "auto") {
+        return FlexAlign::Auto;
+    }
+    return FlexAlign::Stretch;
+}
+
+FlexWrap ParseFlexWrap(const std::string& value) {
+    if (value == "wrap") {
+        return FlexWrap::Wrap;
+    }
+    if (value == "wrap-reverse") {
+        return FlexWrap::WrapReverse;
+    }
+    return FlexWrap::NoWrap;
+}
+
+}  // namespace Robo

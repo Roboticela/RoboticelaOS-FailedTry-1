@@ -1,0 +1,19 @@
+icon FlagFrance 0 0 24 16
+<svg>
+  <rect x="0" y="0" width="8" height="16" fill="#0055A4"/>
+  <rect x="8" y="0" width="8" height="16" fill="#FFFFFF"/>
+  <rect x="16" y="0" width="8" height="16" fill="#EF4135"/>
+</svg>
+
+icon FlagJapan 0 0 24 16
+<svg>
+  <rect x="0" y="0" width="24" height="16" fill="#FFFFFF"/>
+  <circle cx="12" cy="8" r="4.2" fill="#BC002D"/>
+</svg>
+
+icon FlagGermany 0 0 24 16
+<svg>
+  <rect x="0" y="0" width="24" height="5.333" fill="#000000"/>
+  <rect x="0" y="5.333" width="24" height="5.334" fill="#DD0000"/>
+  <rect x="0" y="10.667" width="24" height="5.333" fill="#FFCE00"/>
+</svg>
