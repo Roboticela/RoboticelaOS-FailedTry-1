@@ -55,6 +55,11 @@ struct RoboUsbDevice {
     uint64_t buffers;
     RoboHidField fields[ROBO_HID_FIELD_MAX];
     uint8_t fieldCount;
+    uint8_t contact;
+    int32_t lastX;
+    int32_t lastY;
+    int32_t lastXMax;
+    int32_t lastYMax;
 };
 
 RoboPciDevice gPci{};
@@ -346,12 +351,18 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
     int32_t y = RoboHidValue(report, length, yField);
     RoboInputEvent event{};
     if (xField->relative != 0) {
-        if (x == 0 && y == 0) {
+        const RoboHidField* button = RoboHidFind(device, 0x09u, 0x01u, reportId);
+        uint8_t left = button != nullptr && RoboHidValue(report, length, button) != 0 ? 1u : 0u;
+        uint8_t changed = left != device->contact ? 1u : 0u;
+        if (x == 0 && y == 0 && changed == 0) {
             return;
         }
+        device->contact = left;
         event.kind = ROBO_INPUT_MOTION;
         event.dx = x;
         event.dy = y;
+        event.pressed = left;
+        event.code = changed;
         RoboInputPush(&event);
         return;
     }
@@ -360,9 +371,30 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
     if (tip != nullptr) {
         pressed = RoboHidValue(report, length, tip) != 0 ? 1u : 0u;
     }
-    if (pressed == 0 || xField->logicalMax <= 0 || yField->logicalMax <= 0) {
+    if (pressed == 0) {
+        if (device->contact == 0) {
+            return;
+        }
+        device->contact = 0;
+        event.kind = device->kind == ROBO_USB_KIND_TOUCH ? ROBO_INPUT_TOUCH : ROBO_INPUT_TOUCHPAD;
+        event.pressed = 0;
+        event.code = 1;
+        event.x = device->lastX;
+        event.y = device->lastY;
+        event.xMax = device->lastXMax;
+        event.yMax = device->lastYMax;
+        RoboInputPush(&event);
         return;
     }
+    if (xField->logicalMax <= 0 || yField->logicalMax <= 0) {
+        return;
+    }
+    event.code = device->contact == 0 ? 1u : 0u;
+    device->contact = 1;
+    device->lastX = x;
+    device->lastY = y;
+    device->lastXMax = xField->logicalMax;
+    device->lastYMax = yField->logicalMax;
     event.kind = device->kind == ROBO_USB_KIND_TOUCH ? ROBO_INPUT_TOUCH : ROBO_INPUT_TOUCHPAD;
     event.pressed = pressed;
     event.x = x;

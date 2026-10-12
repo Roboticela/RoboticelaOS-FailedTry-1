@@ -2,6 +2,8 @@
 #include "Robo/Motion.hpp"
 #include "Robo/TextSelection.hpp"
 #include "Robo/BrandLogoPainter.hpp"
+#include "Robo/DesktopPainter.hpp"
+#include "Robo/Foundation.hpp"
 #include "Robo/TitleBarPainter.hpp"
 #include "Robo/SidebarPainter.hpp"
 #include "Robo/SeparatorPainter.hpp"
@@ -1672,6 +1674,8 @@ void CollectButtonsInContainer(Container& container, std::vector<Button*>& out) 
 
 void RoboScene::Clear() {
     items_.clear();
+    desktop_ = Desktop();
+    hoveredDock_ = -1;
     hoveredButton_ = nullptr;
     hoveredInput_ = nullptr;
     hoveredScrollbar_ = nullptr;
@@ -1801,6 +1805,31 @@ void RoboScene::AddSeparator(Separator separator) {
     items_.push_back(std::move(item));
 }
 
+void RoboScene::EnableDesktop() {
+    desktop_.SetEnabled(true);
+}
+
+void RoboScene::SetDesktopBackground(const Color& color, const std::string& token) {
+    desktop_.SetEnabled(true);
+    desktop_.SetBackground(color, token);
+}
+
+void RoboScene::SetAppShell(AppShell shell) {
+    desktop_.SetEnabled(true);
+    desktop_.SetAppShell(std::move(shell));
+}
+
+void RoboScene::SetAppShellTitle(const std::string& title) {
+    AppShell shell;
+    shell.SetTitle(title);
+    SetAppShell(std::move(shell));
+}
+
+void RoboScene::AddDockItem(DockItem item) {
+    desktop_.SetEnabled(true);
+    desktop_.AddDockItem(std::move(item));
+}
+
 void RoboScene::AddMotionShape(MotionShape shape) {
     SceneItem item;
     item.kind = SceneItemKind::MotionShape;
@@ -1859,6 +1888,10 @@ void RoboScene::DirtyButton(const Button* button) {
         return;
     }
     const ButtonBounds& bounds = button->GetBounds();
+    if (bounds.width < 1.0f || bounds.height < 1.0f) {
+        MarkFullDirty();
+        return;
+    }
     MarkDirty(bounds.x - 8.0f, bounds.y - 8.0f, bounds.width + 16.0f, bounds.height + 16.0f);
 }
 
@@ -2023,6 +2056,9 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     ActiveFoundation().LookupColor("bg.primary", Theme::Light, lightPage);
     ActiveFoundation().LookupColor("bg.primary", Theme::Dark, darkPage);
     background_ = LerpPageColor(lightPage, darkPage, themeMix_);
+    if (desktop_.IsEnabled() && desktop_.HasBackground()) {
+        background_ = ResolveColor(desktop_.GetBackground(), desktop_.GetBackgroundToken());
+    }
     if (!pagePaddingSet_) {
         padding_ = padding;
     }
@@ -2093,6 +2129,16 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         float flowEdge = cursorY;
         float contentRight = originX + scrollX_;
         bool titleClip = false;
+        DesktopChrome desktopChrome{};
+        bool desktopClip = false;
+        if (desktop_.IsEnabled()) {
+            desktopChrome = DesktopPainter::Layout(static_cast<float>(width), static_cast<float>(height), paintScale,
+                                                   desktop_.HasAppShell(), !desktop_.Dock().empty());
+            frame.PushClipRect(0.0f, desktopChrome.contentY, static_cast<float>(width), desktopChrome.contentHeight);
+            desktopClip = true;
+            cursorY = desktopChrome.contentY + pad - scrollY_;
+            flowEdge = cursorY;
+        }
 
         for (int i = 0; i < static_cast<int>(items_.size()); ++i) {
             SceneItem& item = items_[static_cast<std::size_t>(i)];
@@ -2242,12 +2288,20 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 flowEdge = cursorY;
             }
         }
+        if (desktopClip) {
+            frame.PopClip();
+            DesktopPainter::Paint(frame, fonts, desktop_, desktopChrome, paintScale, hoveredDock_);
+        }
         if (titleClip) {
             frame.PopClip();
         }
 
-        const float contentHeight = cursorY + scrollY_ + pad;
-        const float viewportHeight = std::max(1.0f, static_cast<float>(height) - horizontalReserve);
+        float contentHeight = cursorY + scrollY_ + pad;
+        float viewportHeight = std::max(1.0f, static_cast<float>(height) - horizontalReserve);
+        if (desktop_.IsEnabled()) {
+            contentHeight = (cursorY + scrollY_) - desktopChrome.contentY + pad;
+            viewportHeight = std::max(1.0f, desktopChrome.contentHeight);
+        }
         const float viewportWidth = std::max(1.0f, static_cast<float>(width) - verticalReserve);
         const float nextMaxY = std::max(0.0f, contentHeight - viewportHeight);
         const float nextMaxX = std::max(0.0f, contentRight + pad - viewportWidth);
@@ -3931,6 +3985,21 @@ bool RoboScene::SetFocusedInput(Input* input) {
 bool RoboScene::PointerMove(float x, float y) {
     selectX_ = x;
     selectY_ = y;
+    if (desktop_.IsEnabled()) {
+        const int hover = desktop_.HitDock(x, y);
+        if (hover != hoveredDock_) {
+            hoveredDock_ = hover;
+            if (desktop_.DockBarHeight() > 0.0f) {
+                MarkDirty(desktop_.DockBarX(), desktop_.DockBarY(), desktop_.DockBarWidth(), desktop_.DockBarHeight());
+            } else {
+                MarkFullDirty();
+            }
+        }
+        if (hover >= 0) {
+            SetHoveredButton(nullptr);
+            return true;
+        }
+    }
     if (TextSelection::IsDragging()) {
         DirtySelectionVisual();
         TextSelection::MovePointer(x, y);
@@ -4010,13 +4079,15 @@ bool RoboScene::PointerMove(float x, float y) {
     changed = SetHoveredSidebarItem(pane) || changed;
     changed = SetHoveredButton(button) || changed;
     changed = SetHoveredInput(input) || changed;
+    bool motionChanged = false;
     VisitSceneMotion(items_, [&](MotionShape& shape) {
         if (shape.UpdatePointer(x, y)) {
-            changed = true;
+            motionChanged = true;
         }
     });
-    if (changed) {
+    if (motionChanged) {
         MarkFullDirty();
+        changed = true;
     }
     if (SyncThemeHot(*this, items_, x, y)) {
         MarkFullDirty();
@@ -4058,6 +4129,19 @@ bool RoboScene::LongPressSelect(float x, float y) {
 }
 
 bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
+    if (desktop_.IsEnabled()) {
+        const int dock = desktop_.HitDock(x, y);
+        if (dock >= 0) {
+            if (desktop_.SelectDock(dock)) {
+                if (desktop_.DockBarHeight() > 0.0f) {
+                    MarkDirty(desktop_.DockBarX(), desktop_.DockBarY(), desktop_.DockBarWidth(), desktop_.DockBarHeight());
+                } else {
+                    MarkFullDirty();
+                }
+            }
+            return true;
+        }
+    }
     panningContainer_ = nullptr;
     selectX_ = x;
     selectY_ = y;

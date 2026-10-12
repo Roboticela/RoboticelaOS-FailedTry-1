@@ -9,7 +9,6 @@ constexpr uint16_t ROBO_PS2_STATUS_PORT = 0x64;
 constexpr uint8_t ROBO_PS2_STATUS_OUTPUT = 0x01;
 constexpr uint8_t ROBO_PS2_STATUS_INPUT = 0x02;
 constexpr uint8_t ROBO_PS2_STATUS_AUX = 0x20;
-constexpr uint8_t ROBO_PS2_CONFIG_TRANSLATE = 0x40;
 constexpr uint32_t ROBO_PS2_TIMEOUT = 100000u;
 constexpr uint32_t ROBO_KEY_RING = 64;
 constexpr uint16_t ROBO_KEY_EXTENDED = 0xE000u;
@@ -21,6 +20,8 @@ bool gKeyTranslated = true;
 bool gKeyExtended = false;
 bool gKeyBreak = false;
 uint8_t gKeySkip = 0;
+bool gKeyDown[128];
+bool gKeyDownExtended[128];
 
 bool RoboKeyWaitInput(void) {
     for (uint32_t spin = 0; spin < ROBO_PS2_TIMEOUT; ++spin) {
@@ -82,27 +83,43 @@ bool RoboKeyPop(uint8_t* byte) {
 }
 
 void RoboPS2KeyboardInterrupt(void) {
-    uint8_t status = RoboPortIn8(ROBO_PS2_STATUS_PORT);
-    if ((status & ROBO_PS2_STATUS_OUTPUT) == 0 || (status & ROBO_PS2_STATUS_AUX) != 0) {
-        return;
+    for (uint32_t spin = 0; spin < 8u; ++spin) {
+        uint8_t status = RoboPortIn8(ROBO_PS2_STATUS_PORT);
+        if ((status & ROBO_PS2_STATUS_OUTPUT) == 0 || (status & ROBO_PS2_STATUS_AUX) != 0) {
+            return;
+        }
+        RoboKeyPush(RoboPortIn8(ROBO_PS2_DATA_PORT));
     }
-    RoboKeyPush(RoboPortIn8(ROBO_PS2_DATA_PORT));
+}
+
+void RoboKeyFlush(void) {
+    for (uint32_t spin = 0; spin < 32u; ++spin) {
+        if ((RoboPortIn8(ROBO_PS2_STATUS_PORT) & ROBO_PS2_STATUS_OUTPUT) == 0) {
+            return;
+        }
+        RoboPortIn8(ROBO_PS2_DATA_PORT);
+    }
 }
 
 bool RoboPS2KeyboardStart(void) {
-    if (!RoboKeyCommand(0xAE) || !RoboKeyCommand(0x20)) {
+    if (!RoboKeyCommand(0xAE)) {
+        return false;
+    }
+    RoboKeyFlush();
+    if (!RoboKeyCommand(0x20)) {
         return false;
     }
     uint8_t config = 0;
     if (!RoboKeyRead(&config)) {
         return false;
     }
-    gKeyTranslated = (config & ROBO_PS2_CONFIG_TRANSLATE) != 0;
-    config = static_cast<uint8_t>((config | 0x01u) & ~0x10u);
+    config = static_cast<uint8_t>((config | 0x41u) & ~0x10u);
+    gKeyTranslated = true;
     if (!RoboKeyCommand(0x60) || !RoboKeyWaitInput()) {
         return false;
     }
     RoboPortOut8(ROBO_PS2_DATA_PORT, config);
+    RoboKeyFlush();
     if (!RoboKeyWrite(0xF4)) {
         return false;
     }
@@ -114,6 +131,13 @@ bool RoboPS2KeyboardStart(void) {
 }
 
 void RoboPS2KeyboardCollect(void) {
+    for (uint32_t spin = 0; spin < 16u; ++spin) {
+        uint8_t status = RoboPortIn8(ROBO_PS2_STATUS_PORT);
+        if ((status & ROBO_PS2_STATUS_OUTPUT) == 0 || (status & ROBO_PS2_STATUS_AUX) != 0) {
+            break;
+        }
+        RoboKeyPush(RoboPortIn8(ROBO_PS2_DATA_PORT));
+    }
     uint8_t byte = 0;
     while (RoboKeyPop(&byte)) {
         if (gKeySkip > 0) {
@@ -148,10 +172,17 @@ void RoboPS2KeyboardCollect(void) {
             code = static_cast<uint16_t>(code | ROBO_KEY_EXTENDED);
             gKeyExtended = false;
         }
+        bool* held = (code & ROBO_KEY_EXTENDED) != 0 ? gKeyDownExtended : gKeyDown;
+        uint16_t plain = static_cast<uint16_t>(code & 0x7Fu);
         RoboInputEvent key{};
         key.kind = ROBO_INPUT_KEY;
-        key.pressed = pressed ? 1u : 0u;
         key.code = code;
+        if (!pressed && !held[plain]) {
+            key.pressed = 1u;
+            RoboInputPush(&key);
+        }
+        held[plain] = pressed;
+        key.pressed = pressed ? 1u : 0u;
         RoboInputPush(&key);
     }
 }

@@ -4,7 +4,7 @@ namespace {
 
 constexpr uint32_t ROBO_FS_SECTOR = 512;
 constexpr uint32_t ROBO_FS_DIR_LIMIT = 512;
-constexpr uint32_t ROBO_FS_CLUSTER_LIMIT = 4096;
+constexpr uint32_t ROBO_FS_CLUSTER_LIMIT = 16384;
 
 RoboFsSectorRead gRead = nullptr;
 uint32_t gVolumeLba = 0;

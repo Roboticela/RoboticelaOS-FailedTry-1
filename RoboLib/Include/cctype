@@ -1,0 +1,2 @@
+#pragma once
+namespace std { inline int isspace(int ch) { return ch==' '||ch=='\t'||ch=='\n'||ch=='\r'||ch=='\f'||ch=='\v'; } inline int isdigit(int ch) { return ch>='0' && ch<='9'; } inline int isalpha(int ch) { return (ch>='a'&&ch<='z')||(ch>='A'&&ch<='Z'); } inline int tolower(int ch) { return (ch>='A'&&ch<='Z') ? ch-'A'+'a' : ch; } }

@@ -158,7 +158,7 @@ void RoboPS2MouseArm(void) {
         gMouseReady = false;
         return;
     }
-    config = static_cast<uint8_t>((config | 0x02u) & ~0x20u);
+    config = static_cast<uint8_t>((config | 0x43u) & ~0x30u);
     if (!RoboPS2WriteCommand(0x60) || !RoboPS2WaitInput()) {
         gMouseReady = false;
         return;
@@ -167,9 +167,17 @@ void RoboPS2MouseArm(void) {
     RoboPS2WriteCommand(0xA8);
 }
 
-void RoboPS2MouseDrain(int32_t* dx, int32_t* dy) {
+uint8_t gLeftButton = 0;
+
+void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged) {
     *dx = 0;
     *dy = 0;
+    if (leftPressed != nullptr) {
+        *leftPressed = gLeftButton;
+    }
+    if (leftChanged != nullptr) {
+        *leftChanged = 0;
+    }
     int32_t reads = 0;
     uint8_t byte = 0;
     while (reads < ROBO_PS2_DRAIN_LIMIT && RoboMousePop(&byte)) {
@@ -197,5 +205,15 @@ void RoboPS2MouseDrain(int32_t* dx, int32_t* dy) {
         }
         *dx += packetX;
         *dy -= packetY;
+        uint8_t left = (flags & 0x01u) != 0 ? 1u : 0u;
+        if (left != gLeftButton) {
+            gLeftButton = left;
+            if (leftPressed != nullptr) {
+                *leftPressed = left;
+            }
+            if (leftChanged != nullptr) {
+                *leftChanged = 1u;
+            }
+        }
     }
 }

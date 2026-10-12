@@ -6,8 +6,8 @@
 #include <string>
 
 int main(int argc, char** argv) {
-    if (argc != 3) {
-        std::cerr << "Usage: XmlCompile <input.xml> <output.cpp>\n";
+    if (argc != 3 && argc != 4) {
+        std::cerr << "Usage: XmlCompile <input.xml> <output.cpp> [asset-directory]\n";
         return 1;
     }
 
@@ -22,14 +22,16 @@ int main(int argc, char** argv) {
         std::string assetDirectory = "Assets";
         const std::string inputPath = argv[1];
         const std::size_t slash = inputPath.find_last_of("/\\");
-        if (slash != std::string::npos) {
+        if (argc == 4 && argv[3][0] != '\0') {
+            assetDirectory = argv[3];
+        } else if (slash != std::string::npos) {
             assetDirectory = inputPath.substr(0, slash) + "/Assets";
         }
         auto packExists = [](const std::string& directory) {
             std::ifstream pack(directory + "/RoboIcons.pack", std::ios::binary);
             return static_cast<bool>(pack);
         };
-        if (!packExists(assetDirectory) && slash != std::string::npos) {
+        if (argc != 4 && !packExists(assetDirectory) && slash != std::string::npos) {
             const std::string parent = inputPath.substr(0, slash);
             const std::size_t parentSlash = parent.find_last_of("/\\");
             if (parentSlash != std::string::npos) {

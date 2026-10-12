@@ -785,6 +785,11 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
         return code.str();
     }
 
+    if (node.name == "Desktop") {
+        EmitDesktop(code, node, indent);
+        return code.str();
+    }
+
     if (node.name == "TitleBar" || node.name == "Navbar" || node.name == "NavBar") {
         code << Indent(indent) << "{\n";
         EmitTitleBar(code, node, indent + 1, "titleBar");
@@ -2179,6 +2184,101 @@ void XmlToCpp::EmitSeparator(std::ostringstream& code,
     }
     if (!label.empty()) {
         code << Indent(indent) << variable << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
+    }
+}
+
+void XmlToCpp::EmitDockItem(std::ostringstream& code,
+                            const XmlNode& node,
+                            int indent,
+                            const std::string& variable) const {
+    code << Indent(indent) << "Robo::DockItem " << variable << ";\n";
+    std::string label;
+    std::string iconName;
+    bool selected = false;
+    if (node.attributes.count("label") != 0) {
+        label = node.attributes.at("label");
+    }
+    for (const auto& attribute : node.attributes) {
+        if (attribute.first == "icon") {
+            iconName = attribute.second;
+        } else if (attribute.first == "selected" && attribute.second != "false" && attribute.second != "0") {
+            selected = true;
+        }
+    }
+    for (const XmlNode& child : node.children) {
+        if (child.isText) {
+            label += child.text;
+        }
+    }
+    code << Indent(indent) << variable << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
+    if (selected) {
+        code << Indent(indent) << variable << ".SetSelected(true);\n";
+    }
+    const auto icon = icons_.find(iconName);
+    if (!iconName.empty() && icon != icons_.end()) {
+        code << Indent(indent) << "{\n";
+        code << Indent(indent + 1) << "Robo::Icon icon;\n";
+        code << Indent(indent + 1) << "icon.SetViewBox(" << FloatLiteral(std::to_string(icon->second.viewX)) << ", "
+             << FloatLiteral(std::to_string(icon->second.viewY)) << ", "
+             << FloatLiteral(std::to_string(icon->second.viewWidth)) << ", "
+             << FloatLiteral(std::to_string(icon->second.viewHeight)) << ");\n";
+        code << Indent(indent + 1) << "icon.SetWidth(22.0f);\n";
+        code << Indent(indent + 1) << "icon.SetHeight(22.0f);\n";
+        code << EmitCompiledShapes(icon->second.shapes, indent + 1, "icon", true);
+        code << Indent(indent + 1) << variable << ".SetIcon(icon.Bake());\n";
+        code << Indent(indent) << "}\n";
+    }
+}
+
+void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int indent) const {
+    code << Indent(indent) << "scene.EnableDesktop();\n";
+    int dockIndex = 0;
+    for (const XmlNode& child : node.children) {
+        if (child.name == "Background") {
+            std::string color = "{color.bg.primary}";
+            if (child.attributes.count("color") != 0) {
+                color = child.attributes.at("color");
+            } else if (child.attributes.count("fill") != 0) {
+                color = child.attributes.at("fill");
+            }
+            const std::string token = ExtractToken(color);
+            if (!token.empty()) {
+                code << Indent(indent) << "scene.SetDesktopBackground(Robo::Color::FromHex(\"#202838\"), \""
+                     << EscapeCpp(token) << "\");\n";
+            } else {
+                WarnLiteral("Background", "color", color);
+                code << Indent(indent) << "scene.SetDesktopBackground(Robo::Color::FromHex(\"" << EscapeCpp(color)
+                     << "\"), \"\");\n";
+            }
+        } else if (child.name == "AppShell") {
+            std::string title;
+            if (child.attributes.count("title") != 0) {
+                title = child.attributes.at("title");
+            } else {
+                for (const XmlNode& text : child.children) {
+                    if (text.isText) {
+                        title += text.text;
+                    }
+                }
+            }
+            code << Indent(indent) << "scene.SetAppShellTitle(\"" << EscapeCpp(title) << "\");\n";
+            for (const XmlNode& content : child.children) {
+                if (!content.isText) {
+                    code << ConvertNode(content, indent);
+                }
+            }
+        } else if (child.name == "Dock") {
+            for (const XmlNode& item : child.children) {
+                if (item.name != "DockItem") {
+                    continue;
+                }
+                const std::string itemName = "dockItem" + std::to_string(dockIndex++);
+                code << Indent(indent) << "{\n";
+                EmitDockItem(code, item, indent + 1, itemName);
+                code << Indent(indent + 1) << "scene.AddDockItem(std::move(" << itemName << "));\n";
+                code << Indent(indent) << "}\n";
+            }
+        }
     }
 }
 

@@ -1,0 +1,169 @@
+#include "RoboShell.hpp"
+
+#include "RoboDesktop.hpp"
+#include "RoboFS.hpp"
+#include "RoboticelaOSPlatform.hpp"
+#include "Robo/Color.hpp"
+#include "Robo/FontEngine.hpp"
+#include "Robo/RoboScene.hpp"
+
+#include <stdint.h>
+#include <string.h>
+
+void BuildPage(Robo::RoboScene& scene);
+
+namespace {
+
+Robo::RoboticelaOSPlatform* gPlatform = nullptr;
+Robo::FontEngine* gFonts = nullptr;
+Robo::RoboScene* gScene = nullptr;
+RoboDesktop* gDesktop = nullptr;
+bool gShift = false;
+
+bool RoboLoadFace(Robo::FontFaceId face, const char* name) {
+    uint8_t* file = static_cast<uint8_t*>(malloc(96u * 1024u));
+    if (file == nullptr) {
+        return false;
+    }
+    uint32_t size = 0;
+    bool loaded = RoboFsReadFile(name, file, 96u * 1024u, &size) && size > 0;
+    if (loaded) {
+        std::vector<std::uint8_t> bytes(file, file + size);
+        loaded = gFonts->LoadFace(face, bytes);
+    }
+    free(file);
+    return loaded;
+}
+
+const char* RoboKeyName(uint16_t code, char* printable) {
+    *printable = 0;
+    if ((code & 0xE000u) != 0) {
+        uint16_t extended = static_cast<uint16_t>(code & 0x7Fu);
+        if (extended == 0x48) return "ArrowUp";
+        if (extended == 0x50) return "ArrowDown";
+        if (extended == 0x4B) return "ArrowLeft";
+        if (extended == 0x4D) return "ArrowRight";
+        if (extended == 0x47) return "Home";
+        if (extended == 0x4F) return "End";
+        if (extended == 0x53) return "Delete";
+        return nullptr;
+    }
+    static const char kLower[] = "qwertyuiop";
+    static const char kLower2[] = "asdfghjkl";
+    static const char kLower3[] = "zxcvbnm";
+    if (code >= 0x10 && code <= 0x19) {
+        *printable = kLower[code - 0x10];
+    } else if (code >= 0x1E && code <= 0x26) {
+        *printable = kLower2[code - 0x1E];
+    } else if (code >= 0x2C && code <= 0x32) {
+        *printable = kLower3[code - 0x2C];
+    } else if (code >= 0x02 && code <= 0x0B) {
+        *printable = code == 0x0B ? '0' : static_cast<char>('1' + (code - 0x02));
+    } else if (code == 0x39) {
+        *printable = ' ';
+        return " ";
+    } else if (code == 0x1C) {
+        return "Enter";
+    } else if (code == 0x0F) {
+        return "Tab";
+    } else if (code == 0x01) {
+        return "Escape";
+    } else if (code == 0x0E) {
+        return "Backspace";
+    }
+    if (*printable != 0 && gShift && *printable >= 'a' && *printable <= 'z') {
+        *printable = static_cast<char>(*printable - 'a' + 'A');
+    }
+    return nullptr;
+}
+
+}  // namespace
+
+bool RoboShellKeepCursor(void* cookie, int x, int y, const uint8_t* pixel) {
+    return RoboDesktopKeepCursor(static_cast<RoboDesktop*>(cookie), x, y, pixel);
+}
+
+bool RoboShellStart(RoboDesktop* desktop) {
+    if (desktop == nullptr || desktop->gpu == nullptr || desktop->gpu->base == nullptr) {
+        return false;
+    }
+    gDesktop = desktop;
+    gPlatform = new Robo::RoboticelaOSPlatform();
+    gFonts = new Robo::FontEngine();
+    gScene = new Robo::RoboScene();
+    RoboLoadFace(Robo::FontFaceId::Regular, "INTERR.TTF");
+    RoboLoadFace(Robo::FontFaceId::Medium, "INTERM.TTF");
+    RoboLoadFace(Robo::FontFaceId::SemiBold, "INTERS.TTF");
+    RoboLoadFace(Robo::FontFaceId::Italic, "INTERI.TTF");
+    gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
+    gPlatform->SetSurfaceSize(desktop->gpu->width, desktop->gpu->height);
+    gPlatform->SetPixelScale(1.0f);
+    gPlatform->SetScanout(desktop->gpu->base, desktop->gpu->width, desktop->gpu->height, desktop->gpu->stride, desktop->gpu->pixelFormat);
+    BuildPage(*gScene);
+    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    RoboDesktopShowCursor(desktop);
+    return true;
+}
+
+void RoboShellPointerMove(int32_t x, int32_t y) {
+    if (gScene != nullptr) {
+        gScene->PointerMove(static_cast<float>(x), static_cast<float>(y));
+    }
+}
+
+void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
+    if (gScene != nullptr) {
+        gScene->PointerDown(static_cast<float>(x), static_cast<float>(y), fromTouch, 1);
+    }
+}
+
+void RoboShellPointerUp(int32_t x, int32_t y) {
+    if (gScene != nullptr) {
+        gScene->PointerUp(static_cast<float>(x), static_cast<float>(y));
+    }
+}
+
+void RoboShellKey(uint16_t code, bool pressed) {
+    if (gScene == nullptr) {
+        return;
+    }
+    if (code == 0x2A || code == 0x36) {
+        gShift = pressed;
+        return;
+    }
+    char printable = 0;
+    const char* name = RoboKeyName(code, &printable);
+    if (!pressed) {
+        if (name != nullptr) {
+            gScene->KeyUp(name);
+        }
+        return;
+    }
+    if (name != nullptr && strcmp(name, "Backspace") == 0) {
+        gScene->KeyBackspace();
+        return;
+    }
+    if (name != nullptr && strcmp(name, "Delete") == 0) {
+        gScene->KeyDelete();
+        return;
+    }
+    if (name != nullptr) {
+        if (!gScene->KeyDown(name, gShift) && printable != 0) {
+            char text[2] = {printable, 0};
+            gScene->KeyInsert(text);
+        }
+        return;
+    }
+    if (printable != 0) {
+        char text[2] = {printable, 0};
+        gScene->KeyInsert(text);
+    }
+}
+
+bool RoboShellFlush(RoboDesktop* desktop) {
+    if (gScene == nullptr || gPlatform == nullptr || gFonts == nullptr || !gScene->NeedsRender()) {
+        return false;
+    }
+    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    return true;
+}

@@ -37,6 +37,9 @@ void RoboArchInterruptsStart(void) {
     __asm__ volatile("msr vbar_el1, %0" : : "r"(table));
 }
 
+void RoboArchFpuStart(void) {
+}
+
 void RoboHalt(void) {
     for (;;) {
         __asm__ volatile("msr daifset, #2");

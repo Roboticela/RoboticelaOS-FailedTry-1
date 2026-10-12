@@ -112,12 +112,149 @@ int32_t RoboClamp(int32_t value, int32_t limit) {
 
 }  // namespace
 
+void RoboDesktopRestoreRect(RoboDesktop* desktop, RoboRect rect);
+
 void RoboDesktopBoot(RoboDesktop* desktop, RoboGPU* gpu) {
     desktop->gpu = gpu;
     desktop->background = ROBO_DESKTOP_COLOR;
     desktop->cursorX = gpu->width / 2;
     desktop->cursorY = gpu->height / 2;
+    desktop->picture = nullptr;
+    desktop->pictureWidth = 0;
+    desktop->pictureHeight = 0;
+    desktop->cursorHeld = 0;
     RoboGPUFill(gpu, desktop->background);
+    RoboDrawCursor(desktop);
+}
+
+void RoboDesktopRestoreRect(RoboDesktop* desktop, RoboRect rect) {
+    RoboGPU* gpu = desktop->gpu;
+    rect = RoboRectClip(rect, gpu->width, gpu->height);
+    if (rect.width <= 0 || rect.height <= 0) {
+        return;
+    }
+    if (desktop->picture == nullptr || desktop->pictureWidth <= 0 || desktop->pictureHeight <= 0) {
+        RoboGPUFillRect(gpu, rect, desktop->background);
+        return;
+    }
+    if (rect.x >= desktop->pictureWidth || rect.y >= desktop->pictureHeight) {
+        RoboGPUFillRect(gpu, rect, desktop->background);
+        return;
+    }
+    if (rect.x + rect.width > desktop->pictureWidth) {
+        RoboRect outside = rect;
+        outside.x = desktop->pictureWidth;
+        outside.width = rect.x + rect.width - desktop->pictureWidth;
+        RoboGPUFillRect(gpu, outside, desktop->background);
+        rect.width = desktop->pictureWidth - rect.x;
+    }
+    if (rect.y + rect.height > desktop->pictureHeight) {
+        RoboRect outside = rect;
+        outside.y = desktop->pictureHeight;
+        outside.height = rect.y + rect.height - desktop->pictureHeight;
+        RoboGPUFillRect(gpu, outside, desktop->background);
+        rect.height = desktop->pictureHeight - rect.y;
+    }
+    for (int32_t row = 0; row < rect.height; ++row) {
+        const uint8_t* from = desktop->picture
+            + (static_cast<int64_t>(rect.y + row) * desktop->pictureWidth + rect.x) * 4;
+        uint8_t* to = gpu->base + static_cast<int64_t>(rect.y + row) * gpu->stride + static_cast<int64_t>(rect.x) * 4;
+        for (int32_t column = 0; column < rect.width * 4; ++column) {
+            to[column] = from[column];
+        }
+    }
+}
+
+void RoboCursorRead(RoboDesktop* desktop, int32_t originX, int32_t originY) {
+    RoboGPU* gpu = desktop->gpu;
+    for (int32_t y = 0; y < 17; ++y) {
+        for (int32_t x = 0; x < 12; ++x) {
+            uint8_t* saved = desktop->cursorSave + (static_cast<int64_t>(y) * 12 + x) * 4;
+            int32_t screenX = originX + x;
+            int32_t screenY = originY + y;
+            if (screenX < 0 || screenY < 0 || screenX >= gpu->width || screenY >= gpu->height) {
+                saved[0] = 0;
+                saved[1] = 0;
+                saved[2] = 0;
+                saved[3] = 0;
+                continue;
+            }
+            uint8_t* pixel = gpu->base + static_cast<int64_t>(screenY) * gpu->stride + static_cast<int64_t>(screenX) * 4;
+            saved[0] = pixel[0];
+            saved[1] = pixel[1];
+            saved[2] = pixel[2];
+            saved[3] = pixel[3];
+        }
+    }
+}
+
+void RoboCursorWrite(RoboDesktop* desktop, int32_t originX, int32_t originY) {
+    RoboGPU* gpu = desktop->gpu;
+    for (int32_t y = 0; y < 17; ++y) {
+        for (int32_t x = 0; x < 12; ++x) {
+            int32_t screenX = originX + x;
+            int32_t screenY = originY + y;
+            if (screenX < 0 || screenY < 0 || screenX >= gpu->width || screenY >= gpu->height) {
+                continue;
+            }
+            uint8_t* saved = desktop->cursorSave + (static_cast<int64_t>(y) * 12 + x) * 4;
+            uint8_t* pixel = gpu->base + static_cast<int64_t>(screenY) * gpu->stride + static_cast<int64_t>(screenX) * 4;
+            pixel[0] = saved[0];
+            pixel[1] = saved[1];
+            pixel[2] = saved[2];
+            pixel[3] = saved[3];
+        }
+    }
+}
+
+void RoboDesktopHideCursor(RoboDesktop* desktop) {
+    if (desktop == nullptr || desktop->cursorHeld == 0 || desktop->picture != nullptr) {
+        return;
+    }
+    RoboCursorWrite(desktop, desktop->cursorX, desktop->cursorY);
+    desktop->cursorHeld = 0;
+}
+
+void RoboDesktopShowCursor(RoboDesktop* desktop) {
+    if (desktop == nullptr || desktop->gpu == nullptr || desktop->picture != nullptr) {
+        return;
+    }
+    RoboCursorRead(desktop, desktop->cursorX, desktop->cursorY);
+    desktop->cursorHeld = 1;
+    RoboDrawCursor(desktop);
+}
+
+bool RoboDesktopKeepCursor(RoboDesktop* desktop, int32_t x, int32_t y, const uint8_t* pixel) {
+    if (desktop == nullptr || pixel == nullptr || desktop->cursorHeld == 0) {
+        return false;
+    }
+    int32_t localX = x - desktop->cursorX;
+    int32_t localY = y - desktop->cursorY;
+    if (localX < 0 || localY < 0 || localX >= ROBO_CURSOR_WIDTH || localY >= ROBO_CURSOR_HEIGHT) {
+        return false;
+    }
+    uint8_t* saved = desktop->cursorSave + (static_cast<int64_t>(localY) * ROBO_CURSOR_WIDTH + localX) * 4;
+    saved[0] = pixel[0];
+    saved[1] = pixel[1];
+    saved[2] = pixel[2];
+    saved[3] = pixel[3];
+    uint8_t sample = ROBO_CURSOR_PIXELS[localY * ROBO_CURSOR_WIDTH + localX];
+    return sample != ROBO_CURSOR_EMPTY;
+}
+
+void RoboDesktopShowPicture(RoboDesktop* desktop, const uint8_t* pixels, int32_t width, int32_t height) {
+    if (desktop == nullptr || desktop->gpu == nullptr || pixels == nullptr || width <= 0 || height <= 0) {
+        return;
+    }
+    desktop->picture = pixels;
+    desktop->pictureWidth = width;
+    desktop->pictureHeight = height;
+    RoboRect screen;
+    screen.x = 0;
+    screen.y = 0;
+    screen.width = desktop->gpu->width;
+    screen.height = desktop->gpu->height;
+    RoboDesktopRestoreRect(desktop, screen);
     RoboDrawCursor(desktop);
 }
 
@@ -167,10 +304,20 @@ void RoboDesktopPaintCursor(RoboDesktop* desktop, int32_t previousX, int32_t pre
         RoboGPUFillRect(gpu, oldRect, desktop->background);
         return;
     }
+    if (desktop->picture == nullptr) {
+        if (desktop->cursorHeld != 0) {
+            RoboCursorWrite(desktop, previousX, previousY);
+            desktop->cursorHeld = 0;
+        }
+        RoboCursorRead(desktop, desktop->cursorX, desktop->cursorY);
+        desktop->cursorHeld = 1;
+        RoboDrawCursor(desktop);
+        return;
+    }
     if (RoboRectsOverlap(oldRect, newRect)) {
-        RoboGPUFillRect(gpu, RoboRectUnion(oldRect, newRect), desktop->background);
+        RoboDesktopRestoreRect(desktop, RoboRectUnion(oldRect, newRect));
     } else {
-        RoboGPUFillRect(gpu, oldRect, desktop->background);
+        RoboDesktopRestoreRect(desktop, oldRect);
     }
     RoboDrawCursor(desktop);
 }

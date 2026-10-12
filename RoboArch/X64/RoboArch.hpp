@@ -14,3 +14,4 @@ void RoboArchSti(void);
 void RoboArchIdle(void);
 void RoboArchInterruptsStart(void);
 void RoboHalt(void);
+void RoboArchFpuStart(void);

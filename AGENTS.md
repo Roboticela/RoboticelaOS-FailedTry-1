@@ -2,7 +2,7 @@ The filenames must be PascalCase. The functions, classes, and structs must be Pa
 
 Use Robo in every name of the thing like RoboFS, RoboKernel, RoboBootloader and so on.
 
-I want basic Bootloader and Kernel which just Mouse, Touchpad, Touch and Keyboard support. For now, I want 64bit implementation but later on I want ARM64 etc also so write in such a way that it supports it. Also, my final goal is to create a desktop using the Compiler folder thing and the Compiler folder stuff is the apps of the OS. I want completely best kernel and bootloader and runtime so their performance is too much fast and reliable and never crashes. Also, for GPU make a RoboGPU for now which will be the basic driver for GPU by default and make it in such a way that it supports any GPU and can work on any hardware.
+I want basic Bootloader and Kernel which just Mouse, Touchpad, Touch and Keyboard support. For now, I want 64bit implementation but later on I want ARM64 etc also so write in such a way that it supports it. Also, my final goal is a complete desktop OS. The Compiler folder stuff is the apps. The kernel, bootloader, and runtime stay fast and reliable and do not crash. A fault in one app ends that app. The desktop, the other apps, and the kernel keep running. X64 and ARM64 run the same GPU, desktop, and damage list. Also, for GPU make a RoboGPU for now which will be the basic driver for GPU by default and make it in such a way that it supports any GPU and can work on any hardware.
 
 Use MakeFile and Powershell and Qemu.
 
@@ -69,3 +69,78 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] RoboArch/ARM64 and its bootloader; GPU, desktop, and damage list stay shared
 - [x] A vendor GPU path behind RoboGPU that still accepts rectangles
 - [x] The firmware framebuffer remains the default when no vendor path exists
+
+## Stage 9 — ARM64 matches X64
+- [ ] Kernel page tables replace the firmware map, with the same two arenas
+- [ ] Timer IRQ, syscall entry, and a one-core schedule
+- [ ] Idle waits on the timer and still does not repaint when nothing changed
+- [ ] GPU, desktop, and the damage list stay the shared code
+
+## Stage 10 — Disks on real machines
+- [ ] AHCI or NVMe beside ATA, and virtio-blk on ARM64
+- [ ] RoboFS mounts the first disk that answers
+- [ ] A missing disk still boots the desktop
+
+## Stage 11 — Files an app can write
+- [ ] Create, read, write, and delete a file
+- [ ] Directories, so an app can keep its own folder
+- [ ] A failed write returns an error and does not panic the kernel
+
+## Stage 12 — App processes
+- [ ] Load a Compiler app from RoboFS into its own user address space
+- [ ] The app heap is not the kernel heap; paint still does not call a general allocator
+- [ ] Exit, or a fault, ends that process and leaves the desktop up
+
+## Stage 13 — Syscalls for the OS platform
+- [ ] Present, input, clock, files, and exit cross rings; generated C++ does not change
+- [ ] Present still copies only the app's dirty rectangle
+- [ ] Keys and the pointer reach the app that owns the focused window
+
+## Stage 14 — Many windows
+- [ ] More than one window, with focus, drag, resize, and close
+- [ ] Z-order; a repaint dirties only the rectangles that changed
+- [ ] Closing a window stops its process and restores only the uncovered pixels
+
+## Stage 15 — Text
+- [ ] Unicode data stays a host download
+- [ ] Glyphs are drawn into damage rectangles
+- [ ] Windows show text and never fill the whole screen to do it
+
+## Stage 16 — Launcher
+- [ ] The desktop lists Compiler apps stored on RoboFS
+- [ ] Choosing one starts it in a window
+- [ ] An empty disk still shows the desktop
+
+## Stage 17 — USB keyboard and more pointers
+- [ ] USB keyboard on the same RoboInput queue
+- [ ] More than one mouse, touchpad, or touch device
+- [ ] A missing controller still boots
+
+## Stage 18 — More cores
+- [ ] Further cores join only after the one-core switch stays solid
+- [ ] A core with nothing to run sleeps
+- [ ] One painter owns the framebuffer
+
+## Stage 19 — GPUs that stay behind rectangles
+- [ ] Each vendor path, including virtio-gpu, accepts the same rectangles
+- [ ] An unknown GPU uses the firmware framebuffer
+- [ ] No vendor path blocks boot
+
+## Stage 20 — Network
+- [ ] One NIC, virtio-net or a common PCI Ethernet device
+- [ ] TCP and UDP sockets for an app
+- [ ] A missing NIC still boots the desktop
+
+## Stage 21 — Sound
+- [ ] One playback path
+- [ ] An app writes samples; audio does not repaint the desktop
+- [ ] A missing device still boots
+
+## Stage 22 — Power
+- [ ] Shutdown and reboot through the firmware tables
+- [ ] Halt remains the fallback when those tables are missing
+
+## Stage 23 — Install and boot
+- [ ] The installed volume holds the bootloader, the kernel, and the apps
+- [ ] RoboFlash.ps1 writes that layout, and still refuses the system drive
+- [ ] QEMU boots that image the same way it boots the build folder

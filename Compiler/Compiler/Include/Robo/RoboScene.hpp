@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BrandLogo.hpp"
+#include "Desktop.hpp"
 #include "TitleBar.hpp"
 #include "Sidebar.hpp"
 #include "Separator.hpp"
@@ -97,6 +98,11 @@ public:
     void AddThemeToggle(ThemeToggle toggle);
     void AddThemeIconToggle(ThemeIconToggle toggle);
     void AddMotionShape(MotionShape shape);
+    void EnableDesktop();
+    void SetDesktopBackground(const Color& color, const std::string& token);
+    void SetAppShell(AppShell shell);
+    void SetAppShellTitle(const std::string& title);
+    void AddDockItem(DockItem item);
     void Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding);
 
     void SetFoundation(const std::string& name);
@@ -208,6 +214,8 @@ private:
     const Scrollbar* PageScrollbarAt(float x, float y) const;
 
     std::vector<SceneItem> items_;
+    Desktop desktop_;
+    int hoveredDock_ = -1;
     Button* hoveredButton_ = nullptr;
     Input* hoveredInput_ = nullptr;
     Scrollbar* hoveredScrollbar_ = nullptr;

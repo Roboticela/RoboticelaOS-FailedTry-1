@@ -65,6 +65,14 @@ if (-not $code) {
     Write-Error "OVMF firmware was not found. Install QEMU's edk2 firmware, or place OVMF.fd in Build\OVMF."
 }
 
+$desktopImage = Join-Path $esp "DESKTOP.BIN"
+if (-not (Test-Path $desktopImage)) {
+    & powershell -NoProfile -File (Join-Path $Root "RoboCompileDesktop.ps1")
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
+
 $espPath = $esp -replace '\\', '/'
 $arguments = @(
     "-machine", "pc",

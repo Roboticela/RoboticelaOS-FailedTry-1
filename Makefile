@@ -26,11 +26,21 @@ KERNEL_SRCS := RoboKernel/RoboKernel.cpp RoboKernel/RoboSupport.cpp RoboGPU/Robo
 	RoboDesktop/RoboDesktop.cpp RoboInput/RoboInput.cpp RoboInput/RoboPS2Mouse.cpp \
 	RoboInput/RoboPS2Keyboard.cpp RoboArch/X64/RoboArch.cpp \
 	RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.cpp RoboArch/X64/RoboMemory.cpp \
-	RoboArch/X64/RoboCpu.cpp RoboArch/X64/RoboPci.cpp RoboArch/X64/RoboAta.cpp RoboArch/X64/RoboGPUVendor.cpp RoboKernel/RoboSchedule.cpp RoboInput/RoboUsb.cpp RoboFS/RoboFS.cpp
+	RoboArch/X64/RoboCpu.cpp RoboArch/X64/RoboPci.cpp RoboArch/X64/RoboAta.cpp RoboArch/X64/RoboGPUVendor.cpp 	RoboKernel/RoboSchedule.cpp RoboInput/RoboUsb.cpp RoboFS/RoboFS.cpp
+SHELL_DIR := $(OBJ)/Shell
+SHELL_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
+	-fno-asynchronous-unwind-tables -fno-unwind-tables -fno-threadsafe-statics -mno-red-zone \
+	-fno-pic -fno-pie -msse2 -mfpmath=sse -nostdinc++ -O2 -Wall -Wextra -Wno-unused-parameter \
+	-DROBO_KERNEL -IRoboLib/Include -ICompiler/Compiler/Include -ICompiler/Compiler/ThirdParty \
+	-ICompiler/RoboPlatforms/RoboticelaOS -IRoboInclude -IRoboGPU -IRoboDesktop -IRoboInput
+COMPILER_CPPS := $(wildcard Compiler/Compiler/Source/*.cpp)
+SHELL_OBJS := $(patsubst Compiler/Compiler/Source/%.cpp,$(SHELL_DIR)/%.o,$(COMPILER_CPPS)) \
+	$(SHELL_DIR)/DesktopPage.o $(SHELL_DIR)/RoboticelaOSPlatform.o $(SHELL_DIR)/RoboShell.o \
+	$(SHELL_DIR)/RoboHeap.o $(SHELL_DIR)/RoboStd.o
 KERNEL_OBJS := $(OBJ)/RoboKernel.o $(OBJ)/RoboSupport.o $(OBJ)/RoboGPU.o \
 	$(OBJ)/RoboDesktop.o $(OBJ)/RoboInput.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboPS2Keyboard.o \
 	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o $(OBJ)/RoboMemory.o \
-	$(OBJ)/RoboCpu.o $(OBJ)/RoboPci.o $(OBJ)/RoboAta.o $(OBJ)/RoboGPUVendor.o $(OBJ)/RoboSchedule.o $(OBJ)/RoboUsb.o $(OBJ)/RoboFS.o
+	$(OBJ)/RoboCpu.o $(OBJ)/RoboPci.o $(OBJ)/RoboAta.o $(OBJ)/RoboGPUVendor.o $(OBJ)/RoboSchedule.o $(OBJ)/RoboUsb.o $(OBJ)/RoboFS.o $(SHELL_OBJS)
 
 ARM_OBJ := $(BUILD)/Objects/ARM64
 ESP_ARM := $(BUILD)/EspArm
@@ -44,7 +54,7 @@ ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.
 	$(ARM_OBJ)/RoboDesktop.o $(ARM_OBJ)/RoboInput.o $(ARM_OBJ)/RoboFS.o \
 	$(ARM_OBJ)/RoboArch.o $(ARM_OBJ)/RoboVector.o $(ARM_OBJ)/RoboMemory.o \
 	$(ARM_OBJ)/RoboCpu.o $(ARM_OBJ)/RoboTimer.o $(ARM_OBJ)/RoboAta.o \
-	$(ARM_OBJ)/RoboSchedule.o $(ARM_OBJ)/RoboInputDevice.o $(ARM_OBJ)/RoboGPUVendor.o
+	$(ARM_OBJ)/RoboSchedule.o $(ARM_OBJ)/RoboInputDevice.o $(ARM_OBJ)/RoboGPUVendor.o $(ARM_OBJ)/RoboShellStub.o
 
 .PHONY: all clean
 
@@ -117,6 +127,30 @@ $(OBJ)/RoboGPUVendor.o: RoboArch/X64/RoboGPUVendor.cpp RoboInclude/RoboGPUVendor
 $(OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboFS/RoboFS.cpp -o $(OBJ)/RoboFS.o
 
+$(SHELL_DIR)/%.o: Compiler/Compiler/Source/%.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c $< -o $@
+
+$(SHELL_DIR)/DesktopPage.o: Build/Desktop/DesktopPage.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Build/Desktop/DesktopPage.cpp -o $(SHELL_DIR)/DesktopPage.o
+
+$(SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp -o $(SHELL_DIR)/RoboticelaOSPlatform.o
+
+$(SHELL_DIR)/RoboShell.o: RoboKernel/RoboShell.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboShell.cpp -o $(SHELL_DIR)/RoboShell.o
+
+$(SHELL_DIR)/RoboHeap.o: RoboLib/RoboHeap.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboLib/RoboHeap.cpp -o $(SHELL_DIR)/RoboHeap.o
+
+$(SHELL_DIR)/RoboStd.o: RoboLib/RoboStd.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboLib/RoboStd.cpp -o $(SHELL_DIR)/RoboStd.o
+
 $(OBJ)/RoboSchedule.o: RoboKernel/RoboSchedule.cpp RoboInclude/RoboSchedule.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboSchedule.cpp -o $(OBJ)/RoboSchedule.o
 
@@ -177,6 +211,9 @@ $(ARM_OBJ)/RoboSchedule.o: RoboArch/ARM64/RoboSchedule.cpp
 
 $(ARM_OBJ)/RoboInputDevice.o: RoboArch/ARM64/RoboInputDevice.cpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboArch/ARM64/RoboInputDevice.cpp -o $(ARM_OBJ)/RoboInputDevice.o
+
+$(ARM_OBJ)/RoboShellStub.o: RoboArch/ARM64/RoboShellStub.cpp RoboInclude/RoboShell.hpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboArch/ARM64/RoboShellStub.cpp -o $(ARM_OBJ)/RoboShellStub.o
 
 $(ARM_OBJ)/RoboGPUVendor.o: RoboArch/ARM64/RoboGPUVendor.cpp RoboInclude/RoboGPUVendor.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboArch/ARM64/RoboGPUVendor.cpp -o $(ARM_OBJ)/RoboGPUVendor.o

@@ -25,6 +25,11 @@ if (-not $make) {
     Write-Error "GNU Make is required. Install make or mingw32-make and reopen the shell so it is on PATH."
 }
 
+& powershell -NoProfile -File (Join-Path $Root "RoboCompileDesktop.ps1")
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 & $make
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE

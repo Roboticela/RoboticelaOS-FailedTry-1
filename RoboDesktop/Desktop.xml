@@ -1,0 +1,24 @@
+<Robo padding="24">
+  <Foundation name="Desktop" from="RoboFoundation"/>
+  <FoundationUse name="Desktop"/>
+
+  <Desktop>
+    <Background color="{color.bg.primary}"/>
+    <AppShell title="Roboticela">
+      <Heading level="1">Desktop</Heading>
+      <Paragraph>
+        This page is the RoboticelaOS shell. The compiler turns it into C++ for the native platform. Edit it here, then run RoboCompileDesktop.ps1.
+      </Paragraph>
+      <Flexbox direction="row" gap="{space.3}">
+        <Button variant="filled">Open</Button>
+        <Button variant="tinted">New folder</Button>
+      </Flexbox>
+    </AppShell>
+    <Dock>
+      <DockItem icon="Home" label="Home" selected="true"/>
+      <DockItem icon="Folder" label="Files"/>
+      <DockItem icon="Window" label="Apps"/>
+      <DockItem icon="Settings" label="Settings"/>
+    </Dock>
+  </Desktop>
+</Robo>

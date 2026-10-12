@@ -51,6 +51,18 @@ uint64_t RoboTssDescriptorLow(uint64_t base, uint64_t limit) {
 extern "C" uint64_t gRoboUserRsp = 0;
 extern "C" uint64_t gRoboKernelRsp = 0;
 
+void RoboArchFpuStart(void) {
+    uint64_t cr0 = 0;
+    uint64_t cr4 = 0;
+    __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
+    cr0 &= ~uint64_t{0xC};
+    cr0 |= 0x2;
+    __asm__ volatile("mov %0, %%cr0" : : "r"(cr0));
+    __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
+    cr4 |= 0x600;
+    __asm__ volatile("mov %0, %%cr4" : : "r"(cr4));
+}
+
 void RoboArchCpuStart(void) {
     gGdt[0] = 0;
     gGdt[1] = 0x00AF9A000000FFFFull;

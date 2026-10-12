@@ -47,6 +47,8 @@ function Get-CoreSources {
         (Join-Path $Root "Compiler\Source\BrandLogo.cpp"),
         (Join-Path $Root "Compiler\Source\BrandLogoPainter.cpp"),
         (Join-Path $Root "Compiler\Source\TitleBar.cpp"),
+        (Join-Path $Root "Compiler\Source\Desktop.cpp"),
+        (Join-Path $Root "Compiler\Source\DesktopPainter.cpp"),
         (Join-Path $Root "Compiler\Source\TitleBarPainter.cpp"),
         (Join-Path $Root "Compiler\Source\Sidebar.cpp"),
         (Join-Path $Root "Compiler\Source\SidebarPainter.cpp"),
@@ -71,9 +73,9 @@ function Get-CoreSources {
     )
 }
 
-function Get-OsPlatformSources {
+function Get-RoboticelaOSPlatformSources {
     return @(
-        (Join-Path $Root "RoboPlatforms\OS\OsPlatform.cpp")
+        (Join-Path $Root "RoboPlatforms\RoboticelaOS\RoboticelaOSPlatform.cpp")
     )
 }
 

@@ -1,0 +1,18 @@
+#pragma once
+
+#include <stddef.h>
+
+void* operator new(size_t bytes);
+void* operator new[](size_t bytes);
+void operator delete(void* pointer) noexcept;
+void operator delete[](void* pointer) noexcept;
+void operator delete(void* pointer, size_t bytes) noexcept;
+void operator delete[](void* pointer, size_t bytes) noexcept;
+
+inline void* operator new(size_t, void* pointer) noexcept {
+    return pointer;
+}
+
+inline void* operator new[](size_t, void* pointer) noexcept {
+    return pointer;
+}

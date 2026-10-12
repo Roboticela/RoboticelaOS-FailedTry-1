@@ -36,12 +36,16 @@ bool RoboInputPop(RoboInputEvent* event) {
 void RoboInputCollect(void) {
     int32_t dx = 0;
     int32_t dy = 0;
-    RoboPS2MouseDrain(&dx, &dy);
-    if (dx != 0 || dy != 0) {
+    uint8_t leftPressed = 0;
+    uint8_t leftChanged = 0;
+    RoboPS2MouseDrain(&dx, &dy, &leftPressed, &leftChanged);
+    if (dx != 0 || dy != 0 || leftChanged != 0) {
         RoboInputEvent motion{};
         motion.kind = ROBO_INPUT_MOTION;
         motion.dx = dx;
         motion.dy = dy;
+        motion.pressed = leftPressed;
+        motion.code = leftChanged;
         RoboInputPush(&motion);
     }
     RoboPS2KeyboardCollect();

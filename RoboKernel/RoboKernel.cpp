@@ -11,6 +11,8 @@
 #include "RoboUsb.hpp"
 #include "RoboAta.hpp"
 #include "RoboFS.hpp"
+#include "RoboDesktopImage.hpp"
+#include "RoboShell.hpp"
 
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
     if (info == nullptr || info->frameBufferBase == 0) {
@@ -42,6 +44,48 @@ constexpr uint64_t ROBO_APP_WIDGET_TICKS = 50;
 
 uint32_t gAppPixels[ROBO_APP_WINDOW_WIDTH * ROBO_APP_WINDOW_HEIGHT];
 uint32_t gWidgetOn = ROBO_APP_WIDGET_ON;
+uint8_t gDesktopFile[16u + ROBO_DESKTOP_IMAGE_WIDTH * ROBO_DESKTOP_IMAGE_HEIGHT * 4u];
+bool gShellLoaded = false;
+bool gShellLive = false;
+
+uint32_t RoboLoad32(const uint8_t* bytes) {
+    return static_cast<uint32_t>(bytes[0])
+        | (static_cast<uint32_t>(bytes[1]) << 8)
+        | (static_cast<uint32_t>(bytes[2]) << 16)
+        | (static_cast<uint32_t>(bytes[3]) << 24);
+}
+
+bool RoboShellLoad(RoboDesktop* desktop) {
+    uint32_t fileSize = 0;
+    if (!RoboFsReadFile("DESKTOP.BIN", gDesktopFile, sizeof(gDesktopFile), &fileSize) || fileSize < 16u) {
+        return false;
+    }
+    if (RoboLoad32(gDesktopFile) != ROBO_DESKTOP_IMAGE_MAGIC) {
+        return false;
+    }
+    uint32_t width = RoboLoad32(gDesktopFile + 4);
+    uint32_t height = RoboLoad32(gDesktopFile + 8);
+    uint32_t format = RoboLoad32(gDesktopFile + 12);
+    if (width == 0 || height == 0 || width > ROBO_DESKTOP_IMAGE_WIDTH || height > ROBO_DESKTOP_IMAGE_HEIGHT) {
+        return false;
+    }
+    uint64_t need = 16ull + static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * 4ull;
+    if (fileSize < need) {
+        return false;
+    }
+    uint8_t* pixels = gDesktopFile + 16;
+    if (format != desktop->gpu->pixelFormat) {
+        uint32_t count = width * height;
+        for (uint32_t index = 0; index < count; ++index) {
+            uint8_t* pixel = pixels + static_cast<uint64_t>(index) * 4u;
+            uint8_t red = pixel[0];
+            pixel[0] = pixel[2];
+            pixel[2] = red;
+        }
+    }
+    RoboDesktopShowPicture(desktop, pixels, static_cast<int32_t>(width), static_cast<int32_t>(height));
+    return true;
+}
 
 void RoboAppLoad(void) {
     uint8_t file[16];
@@ -73,6 +117,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
 
     RoboMemoryStart(info);
     RoboArchCpuStart();
+    RoboArchFpuStart();
 
     RoboGPU gpu;
     RoboGPUBind(&gpu, info);
@@ -80,11 +125,15 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
     RoboAppLoad();
+    gShellLive = RoboShellStart(&desktop);
+    gShellLoaded = gShellLive || RoboShellLoad(&desktop);
     RoboWindow appWindow{};
     appWindow.pixels = gAppPixels;
-    RoboDesktopOpenWindow(&desktop, &appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);
-    RoboAppPaintWidget(&appWindow, false);
-    RoboDesktopPresentWindow(&desktop, &appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
+    if (!gShellLoaded) {
+        RoboDesktopOpenWindow(&desktop, &appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);
+        RoboAppPaintWidget(&appWindow, false);
+        RoboDesktopPresentWindow(&desktop, &appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
+    }
     RoboPS2MouseStart();
     RoboArchInterruptsStart();
     RoboPS2MouseArm();
@@ -106,14 +155,34 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         int32_t placeY = 0;
         bool moved = false;
         bool placed = false;
-        bool widgetDue = RoboTimerTicks() >= nextWidgetTick;
+        bool widgetDue = !gShellLoaded && RoboTimerTicks() >= nextWidgetTick;
+        bool shellInput = false;
         RoboInputEvent event{};
         while (RoboInputPop(&event)) {
             if (event.kind == ROBO_INPUT_MOTION) {
-                dx += event.dx;
-                dy += event.dy;
-                moved = true;
-            } else if ((event.kind == ROBO_INPUT_TOUCHPAD || event.kind == ROBO_INPUT_TOUCH) && event.pressed != 0 && event.xMax > 0 && event.yMax > 0) {
+                if (gShellLive) {
+                    if (event.dx != 0 || event.dy != 0) {
+                        RoboDesktopMoveCursor(&desktop, event.dx, event.dy);
+                        RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
+                    }
+                    if (event.code != 0) {
+                        RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
+                        if (event.pressed != 0) {
+                            RoboShellPointerDown(desktop.cursorX, desktop.cursorY, false);
+                        } else {
+                            RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
+                        }
+                    }
+                    shellInput = true;
+                } else {
+                    dx += event.dx;
+                    dy += event.dy;
+                    moved = true;
+                }
+            } else if (event.kind == ROBO_INPUT_KEY && gShellLive) {
+                RoboShellKey(event.code, event.pressed != 0);
+                shellInput = true;
+            } else if ((event.kind == ROBO_INPUT_TOUCHPAD || event.kind == ROBO_INPUT_TOUCH) && event.xMax > 0 && event.yMax > 0) {
                 int32_t width = desktop.gpu->width;
                 int32_t height = desktop.gpu->height;
                 if (event.x < 0) {
@@ -134,10 +203,26 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                 if (height > 1) {
                     placeY = static_cast<int32_t>((static_cast<int64_t>(event.y) * (height - 1)) / event.yMax);
                 }
-                placed = true;
+                if (gShellLive) {
+                    RoboDesktopPlaceCursor(&desktop, placeX, placeY);
+                    RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
+                    if (event.code != 0) {
+                        if (event.pressed != 0) {
+                            RoboShellPointerDown(desktop.cursorX, desktop.cursorY, true);
+                        } else {
+                            RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
+                        }
+                    }
+                    shellInput = true;
+                } else if (event.pressed != 0) {
+                    placed = true;
+                }
             }
         }
-        if (!moved && !placed && !widgetDue) {
+        if (gShellLive && RoboShellFlush(&desktop)) {
+            shellInput = true;
+        }
+        if (!moved && !placed && !widgetDue && !shellInput) {
             RoboArchIdle();
             continue;
         }
