@@ -3,6 +3,7 @@
 #include "RoboPS2Mouse.hpp"
 #include "RoboSchedule.hpp"
 #include "RoboTimer.hpp"
+#include "RoboUsb.hpp"
 
 namespace {
 
@@ -49,6 +50,9 @@ struct RoboIdtPointer {
 
 alignas(16) RoboIdtEntry gIdt[256];
 uint16_t gCodeSelector = 0;
+uint8_t gPicMasterMask = ROBO_PIC_MASTER_MASK;
+uint8_t gPicSlaveMask = 0xEF;
+uint8_t gClaimedIrq = 0;
 
 void RoboPicDelay(void) {
     RoboPortOut8(0x80, 0);
@@ -90,8 +94,8 @@ void RoboPicStart(void) {
     RoboPicDelay();
     RoboPortOut8(ROBO_PIC_SLAVE_DATA, ROBO_PIC_ICW4);
     RoboPicDelay();
-    RoboPortOut8(ROBO_PIC_MASTER_DATA, ROBO_PIC_MASTER_MASK);
-    RoboPortOut8(ROBO_PIC_SLAVE_DATA, 0xEF);
+    RoboPortOut8(ROBO_PIC_MASTER_DATA, gPicMasterMask);
+    RoboPortOut8(ROBO_PIC_SLAVE_DATA, gPicSlaveMask);
 }
 
 __attribute__((interrupt)) void RoboInterruptException(RoboInterruptFrame* frame) {
@@ -122,6 +126,16 @@ __attribute__((interrupt)) void RoboInterruptMouse(RoboInterruptFrame* frame) {
     (void)frame;
     RoboPS2MouseInterrupt();
     RoboPicEndSlave();
+}
+
+__attribute__((interrupt)) void RoboInterruptUsb(RoboInterruptFrame* frame) {
+    (void)frame;
+    RoboUsbCollect();
+    if (gClaimedIrq >= 8u) {
+        RoboPicEndSlave();
+    } else {
+        RoboPicEndMaster();
+    }
 }
 
 __attribute__((interrupt)) void RoboInterruptMaster(RoboInterruptFrame* frame) {
@@ -190,4 +204,19 @@ void RoboArchInterruptsStart(void) {
     RoboApicDisable();
     RoboPicStart();
     RoboTimerStart();
+}
+
+void RoboArchIrqClaim(uint8_t irq) {
+    if (irq < 1u || irq > 15u) {
+        return;
+    }
+    gClaimedIrq = irq;
+    RoboIdtSet(static_cast<uint8_t>(0x20u + irq), RoboInterruptUsb);
+    if (irq < 8u) {
+        gPicMasterMask = static_cast<uint8_t>(gPicMasterMask & ~(1u << irq));
+        RoboPortOut8(ROBO_PIC_MASTER_DATA, gPicMasterMask);
+    } else {
+        gPicSlaveMask = static_cast<uint8_t>(gPicSlaveMask & ~(1u << (irq - 8u)));
+        RoboPortOut8(ROBO_PIC_SLAVE_DATA, gPicSlaveMask);
+    }
 }

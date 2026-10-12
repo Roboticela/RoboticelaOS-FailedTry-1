@@ -13,3 +13,4 @@ struct RoboDesktop {
 
 void RoboDesktopBoot(RoboDesktop* desktop, RoboGPU* gpu);
 void RoboDesktopMoveCursor(RoboDesktop* desktop, int32_t dx, int32_t dy);
+void RoboDesktopPlaceCursor(RoboDesktop* desktop, int32_t x, int32_t y);

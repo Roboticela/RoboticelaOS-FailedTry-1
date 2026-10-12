@@ -2,6 +2,7 @@
 
 #include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
+#include "RoboUsb.hpp"
 
 namespace {
 
@@ -44,4 +45,5 @@ void RoboInputCollect(void) {
         RoboInputPush(&motion);
     }
     RoboPS2KeyboardCollect();
+    RoboUsbCollect();
 }

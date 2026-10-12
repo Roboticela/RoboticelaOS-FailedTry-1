@@ -72,6 +72,7 @@ $arguments = @(
     "-smp", "1",
     "-net", "none",
     "-vga", "std",
+    "-device", "qemu-xhci,id=xhci",
     "-drive", "if=ide,format=raw,file=fat:rw:$espPath"
 )
 

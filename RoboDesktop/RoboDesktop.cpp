@@ -121,6 +121,8 @@ void RoboDesktopBoot(RoboDesktop* desktop, RoboGPU* gpu) {
     RoboDrawCursor(desktop);
 }
 
+void RoboDesktopPaintCursor(RoboDesktop* desktop, int32_t previousX, int32_t previousY);
+
 void RoboDesktopMoveCursor(RoboDesktop* desktop, int32_t dx, int32_t dy) {
     if (dx == 0 && dy == 0) {
         return;
@@ -144,9 +146,14 @@ void RoboDesktopMoveCursor(RoboDesktop* desktop, int32_t dx, int32_t dy) {
     }
     desktop->cursorX = RoboClamp(static_cast<int32_t>(nextX), gpu->width);
     desktop->cursorY = RoboClamp(static_cast<int32_t>(nextY), gpu->height);
+    RoboDesktopPaintCursor(desktop, previousX, previousY);
+}
+
+void RoboDesktopPaintCursor(RoboDesktop* desktop, int32_t previousX, int32_t previousY) {
     if (desktop->cursorX == previousX && desktop->cursorY == previousY) {
         return;
     }
+    RoboGPU* gpu = desktop->gpu;
     RoboRect oldRect = RoboRectClip(RoboCursorBounds(previousX, previousY), gpu->width, gpu->height);
     RoboRect newRect = RoboRectClip(RoboCursorBounds(desktop->cursorX, desktop->cursorY), gpu->width, gpu->height);
     if (oldRect.width <= 0 && newRect.width <= 0) {
@@ -166,4 +173,12 @@ void RoboDesktopMoveCursor(RoboDesktop* desktop, int32_t dx, int32_t dy) {
         RoboGPUFillRect(gpu, oldRect, desktop->background);
     }
     RoboDrawCursor(desktop);
+}
+
+void RoboDesktopPlaceCursor(RoboDesktop* desktop, int32_t x, int32_t y) {
+    int32_t previousX = desktop->cursorX;
+    int32_t previousY = desktop->cursorY;
+    desktop->cursorX = RoboClamp(x, desktop->gpu->width);
+    desktop->cursorY = RoboClamp(y, desktop->gpu->height);
+    RoboDesktopPaintCursor(desktop, previousX, previousY);
 }

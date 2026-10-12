@@ -7,6 +7,7 @@
 #include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
 #include "RoboSchedule.hpp"
+#include "RoboUsb.hpp"
 
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
     if (info == nullptr || info->frameBufferBase == 0) {
@@ -42,6 +43,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboArchInterruptsStart();
     RoboPS2MouseArm();
     RoboPS2KeyboardStart();
+    RoboUsbStart();
     RoboScheduleStart();
 
     for (;;) {
@@ -52,20 +54,50 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         RoboInputCollect();
         int32_t dx = 0;
         int32_t dy = 0;
+        int32_t placeX = 0;
+        int32_t placeY = 0;
         bool moved = false;
+        bool placed = false;
         RoboInputEvent event{};
         while (RoboInputPop(&event)) {
             if (event.kind == ROBO_INPUT_MOTION) {
                 dx += event.dx;
                 dy += event.dy;
                 moved = true;
+            } else if ((event.kind == ROBO_INPUT_TOUCHPAD || event.kind == ROBO_INPUT_TOUCH) && event.pressed != 0 && event.xMax > 0 && event.yMax > 0) {
+                int32_t width = desktop.gpu->width;
+                int32_t height = desktop.gpu->height;
+                if (event.x < 0) {
+                    event.x = 0;
+                }
+                if (event.y < 0) {
+                    event.y = 0;
+                }
+                if (event.x > event.xMax) {
+                    event.x = event.xMax;
+                }
+                if (event.y > event.yMax) {
+                    event.y = event.yMax;
+                }
+                if (width > 1) {
+                    placeX = static_cast<int32_t>((static_cast<int64_t>(event.x) * (width - 1)) / event.xMax);
+                }
+                if (height > 1) {
+                    placeY = static_cast<int32_t>((static_cast<int64_t>(event.y) * (height - 1)) / event.yMax);
+                }
+                placed = true;
             }
         }
-        if (!moved) {
+        if (!moved && !placed) {
             RoboArchIdle();
             continue;
         }
         RoboArchSti();
-        RoboDesktopMoveCursor(&desktop, dx, dy);
+        if (moved) {
+            RoboDesktopMoveCursor(&desktop, dx, dy);
+        }
+        if (placed) {
+            RoboDesktopPlaceCursor(&desktop, placeX, placeY);
+        }
     }
 }

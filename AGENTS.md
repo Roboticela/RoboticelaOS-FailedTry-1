@@ -48,11 +48,11 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] One core first; more cores only after the single-core switch is solid
 
 ## Stage 5 — Touchpad, touch, and USB
-- [ ] PCI scan for real-hardware controllers
-- [ ] xHCI and USB HID mouse on the same input queue
-- [ ] Touchpad as absolute points
-- [ ] Touch as absolute points
-- [ ] A missing USB device still boots the desktop
+- [x] PCI scan for real-hardware controllers
+- [x] xHCI and USB HID mouse on the same input queue
+- [x] Touchpad as absolute points
+- [x] Touch as absolute points
+- [x] A missing USB device still boots the desktop
 
 ## Stage 6 — Compiler apps
 - [ ] OS platform beside Web and Windows; generated C++ does not change

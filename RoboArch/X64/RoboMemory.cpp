@@ -7,6 +7,7 @@ namespace {
 constexpr uint64_t ROBO_PAGE_PRESENT = 1ull;
 constexpr uint64_t ROBO_PAGE_WRITE = 2ull;
 constexpr uint64_t ROBO_PAGE_USER = 4ull;
+constexpr uint64_t ROBO_PAGE_PWT = 1ull << 3;
 constexpr uint64_t ROBO_PAGE_PCD = 1ull << 4;
 constexpr uint64_t ROBO_PAGE_SIZE = 1ull << 7;
 constexpr uint64_t ROBO_PAGE_BYTES = 4096ull;
@@ -127,6 +128,27 @@ void RoboMemoryStart(const RoboBootInfo* info) {
 
 uint64_t RoboMemoryKernelCr3(void) {
     return gKernelCr3;
+}
+
+void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes) {
+    if (bytes == 0 || gKernelCr3 == 0) {
+        return;
+    }
+    uint64_t end = address + bytes;
+    if (end < address) {
+        end = ROBO_MAP_BYTES;
+    }
+    uint64_t page = address & ~(ROBO_TWO_MB - 1ull);
+    while (page < end && page < ROBO_MAP_BYTES) {
+        uint32_t directory = static_cast<uint32_t>(page / (512ull * ROBO_TWO_MB));
+        uint32_t entry = static_cast<uint32_t>((page / ROBO_TWO_MB) & 511ull);
+        if (directory < 4u) {
+            uint64_t* directoryEntries = RoboTable(2u + directory);
+            directoryEntries[entry] |= ROBO_PAGE_PCD | ROBO_PAGE_PWT;
+        }
+        page += ROBO_TWO_MB;
+    }
+    __asm__ volatile("mov %0, %%cr3" : : "r"(gKernelCr3) : "memory");
 }
 
 void RoboArenaReset(RoboArena* arena) {
