@@ -71,10 +71,10 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] The firmware framebuffer remains the default when no vendor path exists
 
 ## Stage 9 — ARM64 matches X64
-- [ ] Kernel page tables replace the firmware map, with the same two arenas
-- [ ] Timer IRQ, syscall entry, and a one-core schedule
-- [ ] Idle waits on the timer and still does not repaint when nothing changed
-- [ ] GPU, desktop, and the damage list stay the shared code
+- [x] Kernel page tables replace the firmware map, with the same two arenas
+- [x] Timer IRQ, syscall entry, and a one-core schedule
+- [x] Idle waits on the timer and still does not repaint when nothing changed
+- [x] GPU, desktop, and the damage list stay the shared code
 
 ## Stage 10 — Disks on real machines
 - [ ] AHCI or NVMe beside ATA, and virtio-blk on ARM64
