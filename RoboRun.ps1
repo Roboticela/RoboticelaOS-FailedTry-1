@@ -75,11 +75,13 @@ if (-not (Test-Path $desktopImage)) {
 
 $espPath = $esp -replace '\\', '/'
 $arguments = @(
+    "-cpu", "qemu64,svm=off",
     "-machine", "pc",
-    "-m", "256",
-    "-smp", "1",
+    "-m", "1024",
+    "-smp", "4",
     "-net", "none",
-    "-vga", "std",
+    "-vga", "none",
+    "-device", "virtio-vga",
     "-device", "qemu-xhci,id=xhci",
     "-drive", "if=ide,format=raw,file=fat:rw:$espPath"
 )

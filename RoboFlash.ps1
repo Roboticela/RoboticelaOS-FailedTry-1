@@ -22,14 +22,28 @@ if (-not (Test-Path $destination)) {
 }
 
 $esp = Join-Path $Root "Build\Esp"
-$bootloader = Join-Path $esp "EFI\BOOT\BOOTX64.EFI"
-$kernel = Join-Path $esp "RoboKernel.elf"
-if (-not (Test-Path $bootloader) -or -not (Test-Path $kernel)) {
-    Write-Error "The ESP image is missing. Run .\RoboBuild.ps1 first."
+$files = @(
+    "EFI\BOOT\BOOTX64.EFI",
+    "RoboKernel.elf",
+    "DESKTOP.BIN",
+    "RoboApp.bin",
+    "INTERR.TTF",
+    "INTERM.TTF",
+    "INTERS.TTF",
+    "INTERI.TTF",
+    "BACKGROU.RJP",
+    "BACKGROU.MP4"
+)
+foreach ($relative in $files) {
+    $source = Join-Path $esp $relative
+    if (-not (Test-Path $source)) {
+        Write-Error "Build\Esp is missing $relative. Run .\RoboBuild.ps1 first."
+    }
+    $target = Join-Path $destination $relative
+    $parent = Split-Path -Parent $target
+    if (-not (Test-Path $parent)) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
+    Copy-Item -Force $source $target
 }
-
-Copy-Item -Force $kernel (Join-Path $destination "RoboKernel.elf")
-$bootDir = Join-Path $destination "EFI\BOOT"
-New-Item -ItemType Directory -Force -Path $bootDir | Out-Null
-Copy-Item -Force $bootloader (Join-Path $bootDir "BOOTX64.EFI")
-Write-Host "Copied the bootloader and kernel to $destination"
+Write-Host "Copied the bootloader, kernel, desktop, fonts, and background to $destination"

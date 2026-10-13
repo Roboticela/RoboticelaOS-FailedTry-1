@@ -12,6 +12,8 @@ struct RoboArena {
 
 void RoboMemoryStart(const RoboBootInfo* info);
 void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes);
+void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes);
+uint64_t RoboMemoryVideoBuffer(void);
 uint64_t RoboMemoryKernelCr3(void);
 uint64_t RoboPageAlloc(void);
 void RoboArenaReset(RoboArena* arena);

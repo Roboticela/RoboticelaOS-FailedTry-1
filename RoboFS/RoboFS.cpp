@@ -1,6 +1,7 @@
 #include "RoboFS.hpp"
 
 #include "RoboAta.hpp"
+#include "RoboBootInfo.hpp"
 
 namespace {
 
@@ -20,6 +21,48 @@ uint32_t gRootCluster = 0;
 uint8_t gFatKind = 0;
 alignas(2) uint8_t gSector[ROBO_FS_SECTOR];
 bool gMounted = false;
+
+struct RoboHeldFile {
+    uint8_t name[11];
+    const uint8_t* data;
+    uint32_t size;
+};
+
+RoboHeldFile gHeldFiles[ROBO_BOOT_FILE_MAX];
+uint32_t gHeldCount = 0;
+
+bool RoboHeldRead(const uint8_t wanted[11], uint8_t* dest, uint32_t capacity, uint32_t* size) {
+    for (uint32_t file = 0; file < gHeldCount; ++file) {
+        bool same = true;
+        for (uint32_t index = 0; index < 11u; ++index) {
+            if (gHeldFiles[file].name[index] != wanted[index]) {
+                same = false;
+                break;
+            }
+        }
+        if (!same || gHeldFiles[file].data == nullptr || gHeldFiles[file].size == 0) {
+            continue;
+        }
+        uint32_t copy = gHeldFiles[file].size < capacity ? gHeldFiles[file].size : capacity;
+        const uint8_t* source = gHeldFiles[file].data;
+        uint32_t index = 0;
+        if ((reinterpret_cast<uintptr_t>(source) & 7u) == 0 && (reinterpret_cast<uintptr_t>(dest) & 7u) == 0) {
+            while (index + 8u <= copy) {
+                *reinterpret_cast<uint64_t*>(dest + index) = *reinterpret_cast<const uint64_t*>(source + index);
+                index += 8u;
+            }
+        }
+        while (index < copy) {
+            dest[index] = source[index];
+            index += 1u;
+        }
+        if (size != nullptr) {
+            *size = gHeldFiles[file].size;
+        }
+        return true;
+    }
+    return false;
+}
 
 uint16_t RoboFsLoad16(const uint8_t* bytes) {
     return static_cast<uint16_t>(bytes[0] | (static_cast<uint16_t>(bytes[1]) << 8));
@@ -267,12 +310,53 @@ bool RoboFsStart(RoboFsSectorRead read) {
     return false;
 }
 
+void RoboFsUseBootFiles(const RoboBootInfo* info) {
+    gHeldCount = 0;
+    if (info == nullptr || info->fileCount == 0) {
+        return;
+    }
+    uint32_t count = info->fileCount;
+    if (count > ROBO_BOOT_FILE_MAX) {
+        count = ROBO_BOOT_FILE_MAX;
+    }
+    for (uint32_t index = 0; index < count; ++index) {
+        const RoboBootFile* file = &info->files[index];
+        if (file->address < 0x100000ull || file->size == 0 || file->address >= 0x100000000ull) {
+            continue;
+        }
+        if (file->size > 24u * 1024u * 1024u || file->address + file->size > 0x100000000ull) {
+            continue;
+        }
+        bool named = false;
+        for (uint32_t letter = 0; letter < ROBO_BOOT_FILE_NAME; ++letter) {
+            if (file->name[letter] == 0) {
+                named = letter > 0;
+                break;
+            }
+        }
+        if (!named) {
+            continue;
+        }
+        RoboHeldFile* held = &gHeldFiles[gHeldCount];
+        RoboFsName83(file->name, held->name);
+        held->data = reinterpret_cast<const uint8_t*>(file->address);
+        held->size = file->size;
+        gHeldCount += 1;
+    }
+}
+
 bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t* size) {
-    if (!gMounted || name == nullptr || dest == nullptr || capacity == 0) {
+    if (name == nullptr || dest == nullptr || capacity == 0) {
         return false;
     }
     uint8_t wanted[11];
     RoboFsName83(name, wanted);
+    if (RoboHeldRead(wanted, dest, capacity, size)) {
+        return true;
+    }
+    if (!gMounted) {
+        return false;
+    }
     uint32_t cluster = 0;
     uint32_t fileSize = 0;
     if (!RoboFsFind(wanted, &cluster, &fileSize)) {

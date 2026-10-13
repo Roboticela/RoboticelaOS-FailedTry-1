@@ -4,6 +4,74 @@
 
 namespace {
 
+constexpr uint64_t ROBO_APIC_BASE = 0xFEE00000ull;
+constexpr uint32_t ROBO_APIC_ID = 0x20;
+constexpr uint32_t ROBO_APIC_ICR_LOW = 0x300;
+constexpr uint32_t ROBO_APIC_ICR_HIGH = 0x310;
+constexpr uint64_t ROBO_AP_TRAMPOLINE = 0x8000ull;
+constexpr uint32_t ROBO_CPU_LIMIT = 4u;
+
+volatile uint32_t gRoboCpuReady = 1;
+alignas(16) uint8_t gVideoStack[64u * 1024u];
+
+const uint8_t gRoboApTrampoline[] = {
+    0xFA, 0xFC, 0x31, 0xC0, 0x8E, 0xD8, 0x0F, 0x01, 0x16, 0xB8, 0x80, 0x66, 0x0F, 0x20, 0xC0, 0x66, 0x83, 0xC8, 0x01, 0x66, 0x0F, 0x22, 0xC0, 0x66, 0xEA, 0x1F, 0x80, 0x00, 0x00, 0x08, 0x00, 0xB8, 0x10, 0x00, 0x00, 0x00, 0x8E, 0xD8, 0x8E, 0xC0, 0x8E, 0xD0, 0x0F, 0x20, 0xE0, 0x83, 0xC8, 0x20, 0x0F, 0x22, 0xE0, 0xA1, 0x78, 0x80, 0x00, 0x00, 0x0F, 0x22, 0xD8, 0xB9, 0x80, 0x00, 0x00, 0xC0, 0x0F, 0x32, 0x0D, 0x00, 0x01, 0x00, 0x00, 0x0F, 0x30, 0x0F, 0x20, 0xC0, 0x0D, 0x00, 0x00, 0x00, 0x80, 0x0F, 0x22, 0xC0, 0xEA, 0x5B, 0x80, 0x00, 0x00, 0x18, 0x00, 0x66, 0xB8, 0x20, 0x00, 0x8E, 0xD8, 0x8E, 0xC0, 0x8E, 0xD0, 0x48, 0x8B, 0x24, 0x25, 0x80, 0x80, 0x00, 0x00, 0x48, 0x8B, 0x04, 0x25, 0x88, 0x80, 0x00, 0x00, 0xFF, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x9A, 0xCF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x92, 0xCF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x9A, 0xAF, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x92, 0xAF, 0x00, 0x27, 0x00, 0x90, 0x80, 0x00, 0x00};
+
+void RoboApicWrite(uint32_t offset, uint32_t value) {
+    *reinterpret_cast<volatile uint32_t*>(ROBO_APIC_BASE + offset) = value;
+}
+
+uint32_t RoboApicRead(uint32_t offset) {
+    return *reinterpret_cast<volatile uint32_t*>(ROBO_APIC_BASE + offset);
+}
+
+void RoboCpuPause(void) {
+    for (uint32_t count = 0; count < 2000000u; ++count) {
+        __asm__ volatile("pause");
+    }
+}
+
+void RoboApicIpi(uint32_t apicId, uint32_t command) {
+    RoboApicWrite(ROBO_APIC_ICR_HIGH, apicId << 24);
+    RoboApicWrite(ROBO_APIC_ICR_LOW, command);
+    for (uint32_t count = 0; count < 100000u; ++count) {
+        if ((RoboApicRead(ROBO_APIC_ICR_LOW) & (1u << 12)) == 0) {
+            return;
+        }
+        __asm__ volatile("pause");
+    }
+}
+
+void RoboApStore(uint32_t offset, uint64_t value) {
+    uint8_t* slot = reinterpret_cast<uint8_t*>(ROBO_AP_TRAMPOLINE + offset);
+    for (uint32_t index = 0; index < 8u; ++index) {
+        slot[index] = static_cast<uint8_t>(value >> (index * 8u));
+    }
+}
+
+}  // namespace
+
+extern "C" void RoboVideoPoll(void);
+void RoboArchFpuStart(void);
+
+extern "C" void RoboApMain(void) {
+    RoboArchFpuStart();
+    uint32_t slot = gRoboCpuReady;
+    gRoboCpuReady += 1;
+    if (slot == 1u) {
+        for (;;) {
+            RoboVideoPoll();
+            __asm__ volatile("pause");
+        }
+    }
+    for (;;) {
+        __asm__ volatile("cli");
+        __asm__ volatile("hlt");
+    }
+}
+
+namespace {
+
 struct RoboTss {
     uint32_t reserved0;
     uint64_t rsp0;
@@ -160,4 +228,43 @@ extern "C" __attribute__((naked)) void RoboContextSwitch(uint64_t*, uint64_t, ui
         "popq %rbp\n"
         "popq %rbx\n"
         "ret\n");
+}
+
+void RoboCpuJoin(void) {
+    RoboMemoryMarkUncached(ROBO_APIC_BASE, 4096);
+    uint8_t* dest = reinterpret_cast<uint8_t*>(ROBO_AP_TRAMPOLINE);
+    for (uint32_t index = 0; index < sizeof(gRoboApTrampoline); ++index) {
+        dest[index] = gRoboApTrampoline[index];
+    }
+    uint32_t bsp = RoboApicRead(ROBO_APIC_ID) >> 24;
+    for (uint32_t apicId = 0; apicId < ROBO_CPU_LIMIT; ++apicId) {
+        if (apicId == bsp) {
+            continue;
+        }
+        uint64_t stackTop = 0;
+        if (gRoboCpuReady == 1u) {
+            stackTop = reinterpret_cast<uint64_t>(gVideoStack) + sizeof(gVideoStack) - 8ull;
+        } else {
+            uint64_t stack = RoboPageAlloc();
+            if (stack == 0) {
+                return;
+            }
+            stackTop = stack + 4096ull - 8ull;
+        }
+        uint32_t before = gRoboCpuReady;
+        RoboApStore(0x78, RoboMemoryKernelCr3());
+        RoboApStore(0x80, stackTop);
+        RoboApStore(0x88, reinterpret_cast<uint64_t>(&RoboApMain));
+        RoboApicIpi(apicId, 0x00004500u);
+        RoboCpuPause();
+        RoboApicIpi(apicId, 0x00004608u);
+        RoboCpuPause();
+        RoboApicIpi(apicId, 0x00004608u);
+        for (uint32_t spin = 0; spin < 20000000u; ++spin) {
+            if (gRoboCpuReady != before) {
+                break;
+            }
+            __asm__ volatile("pause");
+        }
+    }
 }

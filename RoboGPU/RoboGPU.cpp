@@ -53,6 +53,7 @@ void RoboGPUFill(RoboGPU* gpu, uint32_t rgb) {
         uint8_t* row = gpu->base + static_cast<int64_t>(y) * gpu->stride;
         RoboGPUStoreSpan(row, 0, gpu->width, packed);
     }
+    __asm__ volatile("sfence" ::: "memory");
 }
 
 RoboRect RoboRectClip(RoboRect rect, int32_t width, int32_t height) {

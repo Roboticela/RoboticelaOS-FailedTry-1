@@ -21,6 +21,7 @@ alignas(4096) uint8_t gTablePages[7 * 4096];
 uint64_t gFreePages[ROBO_FREE_LIMIT];
 uint32_t gFreeCount = 0;
 uint64_t gKernelCr3 = 0;
+bool gPatReady = false;
 RoboArena gFrameArena{};
 RoboArena gLongArena{};
 
@@ -56,10 +57,6 @@ void RoboMapFourGigabytes(const RoboBootInfo* info) {
         for (uint32_t entry = 0; entry < 512; ++entry) {
             uint64_t address = (static_cast<uint64_t>(directory) * 512ull + entry) * ROBO_TWO_MB;
             uint64_t flags = ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE | ROBO_PAGE_SIZE;
-            uint64_t frame = info->frameBufferBase & ~(ROBO_TWO_MB - 1ull);
-            if (address == frame) {
-                flags |= ROBO_PAGE_PCD;
-            }
             pd[entry] = address | flags;
         }
         pdpt[directory] = reinterpret_cast<uint64_t>(pd) | ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE;
@@ -128,6 +125,48 @@ void RoboMemoryStart(const RoboBootInfo* info) {
 
 uint64_t RoboMemoryKernelCr3(void) {
     return gKernelCr3;
+}
+
+void RoboPatWriteCombine(void) {
+    if (gPatReady) {
+        return;
+    }
+    uint32_t low = 0;
+    uint32_t high = 0;
+    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(0x277));
+    high = (high & 0xFF00FFFFu) | (0x01u << 16);
+    __asm__ volatile("wrmsr" : : "a"(low), "d"(high), "c"(0x277) : "memory");
+    __asm__ volatile("wbinvd" ::: "memory");
+    gPatReady = true;
+}
+
+void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes) {
+    if (bytes == 0 || gKernelCr3 == 0) {
+        return;
+    }
+    RoboPatWriteCombine();
+    uint64_t end = address + bytes;
+    if (end < address) {
+        end = ROBO_MAP_BYTES;
+    }
+    uint64_t page = address & ~(ROBO_TWO_MB - 1ull);
+    while (page < end && page < ROBO_MAP_BYTES) {
+        uint32_t directory = static_cast<uint32_t>(page / (512ull * ROBO_TWO_MB));
+        uint32_t entry = static_cast<uint32_t>((page / ROBO_TWO_MB) & 511ull);
+        if (directory < 4u) {
+            uint64_t* directoryEntries = RoboTable(2u + directory);
+            uint64_t flags = directoryEntries[entry];
+            flags &= ~(ROBO_PAGE_PWT);
+            flags |= ROBO_PAGE_PCD | (1ull << 12);
+            directoryEntries[entry] = flags;
+        }
+        page += ROBO_TWO_MB;
+    }
+    __asm__ volatile("mov %0, %%cr3" : : "r"(gKernelCr3) : "memory");
+}
+
+uint64_t RoboMemoryVideoBuffer(void) {
+    return 0;
 }
 
 void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes) {

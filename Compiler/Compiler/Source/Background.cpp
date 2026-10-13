@@ -4,6 +4,9 @@
 
 #include <cstdlib>
 #include <cstring>
+#ifdef ROBO_KERNEL
+#include "RoboVideo.hpp"
+#endif
 
 namespace Robo {
 
@@ -918,11 +921,20 @@ bool Background::ShowVideoFrame(int index) {
     if (frames_.empty()) {
         frames_.push_back({});
     }
+#ifdef ROBO_KERNEL
+    if (!frames_[0].empty() && RoboVideoCollect(index, frames_[0].data(), static_cast<uint32_t>(frames_[0].size()))) {
+        return true;
+    }
+#endif
     if (!RoboDecodeJpeg(video_.data() + start, static_cast<std::size_t>(end - start), frames_[0], width, height)) {
         return false;
     }
     width_ = width;
     height_ = height;
+#ifdef ROBO_KERNEL
+    RoboVideoArm(video_.data(), static_cast<uint32_t>(video_.size()), videoFrames_, width_, height_);
+    RoboVideoRequest(index + 1);
+#endif
     return true;
 }
 

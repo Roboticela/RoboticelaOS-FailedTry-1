@@ -3,6 +3,9 @@
 void RoboArchCpuStart(void) {
 }
 
+void RoboCpuJoin(void) {
+}
+
 void RoboArchEnterUser(uint64_t instructionPointer, uint64_t stackPointer) {
     (void)instructionPointer;
     (void)stackPointer;

@@ -2,7 +2,10 @@
 #include "RoboBootInfo.hpp"
 
 #define ROBO_EFI_LOADER_DATA 1u
+#define ROBO_EFI_ALLOCATE_ANY 0u
+#define ROBO_EFI_ALLOCATE_MAX 1u
 #define ROBO_EFI_ALLOCATE_ADDRESS 2u
+#define ROBO_BOOT_FILE_BYTES (24u * 1024u * 1024u)
 #define ROBO_ELF_PT_LOAD 1u
 #if defined(ROBO_ARCH_ARM64)
 #define ROBO_ELF_MACHINE 183u
@@ -107,7 +110,7 @@ static int RoboCaptureGop(EfiBootServices* boot, RoboBootInfo* info) {
     return 1;
 }
 
-static uint8_t* RoboLoadFile(EfiBootServices* boot, EfiHandle imageHandle, uint64_t* fileSize) {
+static EfiFileProtocol* RoboOpenRoot(EfiBootServices* boot, EfiHandle imageHandle) {
     EfiLoadedImageProtocol* loaded = 0;
     if (boot->handleProtocol(imageHandle, &gLoadedImageGuid, (void**)&loaded) != ROBO_EFI_SUCCESS || loaded == 0) {
         return 0;
@@ -117,20 +120,34 @@ static uint8_t* RoboLoadFile(EfiBootServices* boot, EfiHandle imageHandle, uint6
         return 0;
     }
     EfiFileProtocol* root = 0;
-    if (volume->openVolume(volume, &root) != ROBO_EFI_SUCCESS || root == 0) {
+    if (volume->openVolume(volume, &root) != ROBO_EFI_SUCCESS) {
         return 0;
     }
+    return root;
+}
+
+static int RoboReadWhole(EfiFileProtocol* file, uint8_t* dest, uint64_t fileSize) {
+    uint64_t done = 0;
+    while (done < fileSize) {
+        uint64_t chunk = fileSize - done;
+        if (file->read(file, &chunk, dest + done) != ROBO_EFI_SUCCESS || chunk == 0) {
+            return 0;
+        }
+        done += chunk;
+    }
+    return 1;
+}
+
+static uint8_t* RoboLoadFile(EfiBootServices* boot, EfiFileProtocol* root, uint64_t* fileSize) {
     static uint16_t kernelPath[] = u"\\RoboKernel.elf";
     EfiFileProtocol* file = 0;
     if (root->open(root, &file, kernelPath, 1, 0) != ROBO_EFI_SUCCESS || file == 0) {
-        root->close(root);
         return 0;
     }
     uint8_t infoBytes[256];
     uint64_t infoSize = sizeof(infoBytes);
     if (file->getInfo(file, &gFileInfoGuid, &infoSize, infoBytes) != ROBO_EFI_SUCCESS) {
         file->close(file);
-        root->close(root);
         return 0;
     }
     EfiFileInfo* fileInfo = (EfiFileInfo*)infoBytes;
@@ -138,19 +155,76 @@ static uint8_t* RoboLoadFile(EfiBootServices* boot, EfiHandle imageHandle, uint6
     void* buffer = 0;
     if (*fileSize == 0 || boot->allocatePool(ROBO_EFI_LOADER_DATA, *fileSize, &buffer) != ROBO_EFI_SUCCESS) {
         file->close(file);
-        root->close(root);
         return 0;
     }
-    uint64_t readSize = *fileSize;
-    if (file->read(file, &readSize, buffer) != ROBO_EFI_SUCCESS || readSize != *fileSize) {
+    if (!RoboReadWhole(file, (uint8_t*)buffer, *fileSize)) {
         boot->freePool(buffer);
         file->close(file);
-        root->close(root);
         return 0;
     }
     file->close(file);
-    root->close(root);
     return (uint8_t*)buffer;
+}
+
+static void RoboBootFileName(char* dest, const char* name) {
+    uint32_t index = 0;
+    while (name[index] != 0 && index + 1u < ROBO_BOOT_FILE_NAME) {
+        dest[index] = name[index];
+        index += 1u;
+    }
+    while (index < ROBO_BOOT_FILE_NAME) {
+        dest[index] = 0;
+        index += 1u;
+    }
+}
+
+static void RoboLoadBootFile(EfiBootServices* boot, EfiFileProtocol* root, uint16_t* path, const char* name, RoboBootInfo* info) {
+    if (info->fileCount >= ROBO_BOOT_FILE_MAX) {
+        return;
+    }
+    EfiFileProtocol* file = 0;
+    if (root->open(root, &file, path, 1, 0) != ROBO_EFI_SUCCESS || file == 0) {
+        return;
+    }
+    uint8_t infoBytes[256];
+    uint64_t infoSize = sizeof(infoBytes);
+    if (file->getInfo(file, &gFileInfoGuid, &infoSize, infoBytes) != ROBO_EFI_SUCCESS) {
+        file->close(file);
+        return;
+    }
+    uint64_t fileSize = ((EfiFileInfo*)infoBytes)->fileSize;
+    if (fileSize == 0 || fileSize > ROBO_BOOT_FILE_BYTES) {
+        file->close(file);
+        return;
+    }
+    uint64_t pages = (fileSize + 0xFFFu) >> 12;
+    uint64_t address = 0xFFFFFFFFull;
+    if (boot->allocatePages(ROBO_EFI_ALLOCATE_MAX, ROBO_EFI_LOADER_DATA, pages, &address) != ROBO_EFI_SUCCESS) {
+        address = 0;
+        if (boot->allocatePages(ROBO_EFI_ALLOCATE_ANY, ROBO_EFI_LOADER_DATA, pages, &address) != ROBO_EFI_SUCCESS) {
+            file->close(file);
+            return;
+        }
+    }
+    if (address < 0x100000ull || address >= 0x100000000ull || address + fileSize > 0x100000000ull) {
+        if (address != 0) {
+            boot->freePages(address, pages);
+        }
+        file->close(file);
+        return;
+    }
+    if (!RoboReadWhole(file, (uint8_t*)(uintptr_t)address, fileSize)) {
+        boot->freePages(address, pages);
+        file->close(file);
+        return;
+    }
+    file->close(file);
+    RoboBootFile* slot = &info->files[info->fileCount];
+    RoboBootFileName(slot->name, name);
+    slot->size = (uint32_t)fileSize;
+    slot->reserved = 0;
+    slot->address = address;
+    info->fileCount += 1u;
 }
 
 static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t imageSize) {
@@ -294,20 +368,42 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     info.height = 0;
     info.stride = 0;
     info.pixelFormat = 0;
+    info.fileCount = 0;
     if (!RoboCaptureGop(boot, &info)) {
         RoboFail(system, noGop);
     }
 
+    EfiFileProtocol* root = RoboOpenRoot(boot, imageHandle);
+    if (root == 0) {
+        RoboFail(system, noKernel);
+    }
     uint64_t fileSize = 0;
-    uint8_t* image = RoboLoadFile(boot, imageHandle, &fileSize);
+    uint8_t* image = RoboLoadFile(boot, root, &fileSize);
     if (image == 0) {
+        root->close(root);
         RoboFail(system, noKernel);
     }
     uint64_t entry = RoboLoadKernel(boot, image, fileSize);
     boot->freePool(image);
     if (entry == 0) {
+        root->close(root);
         RoboFail(system, badKernel);
     }
+    static uint16_t regularPath[] = u"\\INTERR.TTF";
+    static uint16_t mediumPath[] = u"\\INTERM.TTF";
+    static uint16_t semiPath[] = u"\\INTERS.TTF";
+    static uint16_t italicPath[] = u"\\INTERI.TTF";
+    static uint16_t desktopPath[] = u"\\DESKTOP.BIN";
+    static uint16_t appPath[] = u"\\RoboApp.bin";
+    static uint16_t reelPath[] = u"\\BACKGROU.RJP";
+    RoboLoadBootFile(boot, root, regularPath, "INTERR.TTF", &info);
+    RoboLoadBootFile(boot, root, mediumPath, "INTERM.TTF", &info);
+    RoboLoadBootFile(boot, root, semiPath, "INTERS.TTF", &info);
+    RoboLoadBootFile(boot, root, italicPath, "INTERI.TTF", &info);
+    RoboLoadBootFile(boot, root, desktopPath, "DESKTOP.BIN", &info);
+    RoboLoadBootFile(boot, root, appPath, "RoboApp.bin", &info);
+    RoboLoadBootFile(boot, root, reelPath, "BACKGROU.RJP", &info);
+    root->close(root);
     RoboCaptureMemory(boot, &info);
     if (!RoboExitBoot(boot, imageHandle)) {
         RoboFail(system, noExit);

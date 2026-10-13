@@ -26,6 +26,15 @@ void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes) {
     (void)bytes;
 }
 
+void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes) {
+    (void)address;
+    (void)bytes;
+}
+
+uint64_t RoboMemoryVideoBuffer(void) {
+    return 0;
+}
+
 uint64_t RoboMemoryKernelCr3(void) {
     return 0;
 }

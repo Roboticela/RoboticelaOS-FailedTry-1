@@ -62,6 +62,22 @@ extern "C" void* malloc(size_t bytes) {
     return nullptr;
 }
 
+extern "C" int RoboHeapHas(size_t bytes) {
+    RoboHeapStart();
+    if (bytes == 0) {
+        bytes = 1;
+    }
+    bytes = (bytes + 15u) & ~size_t{15};
+    RoboBlock* block = gFree;
+    while (block != nullptr) {
+        if (block->free != 0 && block->size >= bytes) {
+            return 1;
+        }
+        block = block->next;
+    }
+    return 0;
+}
+
 extern "C" int __cxa_atexit(void (*)(void*), void*, void*) {
     return 0;
 }

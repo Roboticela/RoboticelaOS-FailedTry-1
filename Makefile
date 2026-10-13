@@ -36,7 +36,11 @@ SHELL_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-p
 COMPILER_CPPS := $(wildcard Compiler/Compiler/Source/*.cpp)
 SHELL_OBJS := $(patsubst Compiler/Compiler/Source/%.cpp,$(SHELL_DIR)/%.o,$(COMPILER_CPPS)) \
 	$(SHELL_DIR)/DesktopPage.o $(SHELL_DIR)/RoboticelaOSPlatform.o $(SHELL_DIR)/RoboShell.o \
-	$(SHELL_DIR)/RoboHeap.o $(SHELL_DIR)/RoboStd.o
+	$(SHELL_DIR)/RoboVideo.o $(SHELL_DIR)/RoboHeap.o $(SHELL_DIR)/RoboStd.o
+BLIT_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
+	-fno-asynchronous-unwind-tables -fno-unwind-tables -mno-red-zone \
+	-fno-pic -fno-pie -fno-builtin -msse2 -mfpmath=sse -O2 -Wall -Wextra -Wno-unused-parameter \
+	-IRoboInclude -IRoboGPU -IRoboDesktop -IRoboInput -IRoboArch/X64
 KERNEL_OBJS := $(OBJ)/RoboKernel.o $(OBJ)/RoboSupport.o $(OBJ)/RoboGPU.o \
 	$(OBJ)/RoboDesktop.o $(OBJ)/RoboInput.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboPS2Keyboard.o \
 	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o $(OBJ)/RoboMemory.o \
@@ -83,10 +87,10 @@ $(OBJ)/RoboSupport.o: RoboKernel/RoboSupport.cpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboSupport.cpp -o $(OBJ)/RoboSupport.o
 
 $(OBJ)/RoboGPU.o: RoboGPU/RoboGPU.cpp RoboGPU/RoboGPU.hpp
-	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboGPU/RoboGPU.cpp -o $(OBJ)/RoboGPU.o
+	$(CLANG) --target=x86_64-unknown-none-elf $(BLIT_CFLAGS) -c RoboGPU/RoboGPU.cpp -o $(OBJ)/RoboGPU.o
 
 $(OBJ)/RoboDesktop.o: RoboDesktop/RoboDesktop.cpp RoboDesktop/RoboDesktop.hpp
-	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboDesktop/RoboDesktop.cpp -o $(OBJ)/RoboDesktop.o
+	$(CLANG) --target=x86_64-unknown-none-elf $(BLIT_CFLAGS) -c RoboDesktop/RoboDesktop.cpp -o $(OBJ)/RoboDesktop.o
 
 $(OBJ)/RoboInput.o: RoboInput/RoboInput.cpp RoboInput/RoboInput.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboInput/RoboInput.cpp -o $(OBJ)/RoboInput.o
@@ -142,6 +146,10 @@ $(SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/Robotic
 $(SHELL_DIR)/RoboShell.o: RoboKernel/RoboShell.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboShell.cpp -o $(SHELL_DIR)/RoboShell.o
+
+$(SHELL_DIR)/RoboVideo.o: RoboKernel/RoboVideo.cpp RoboInclude/RoboVideo.hpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboVideo.cpp -o $(SHELL_DIR)/RoboVideo.o
 
 $(SHELL_DIR)/RoboHeap.o: RoboLib/RoboHeap.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"

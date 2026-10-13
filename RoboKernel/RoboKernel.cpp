@@ -91,8 +91,8 @@ bool RoboShellLoad(RoboDesktop* desktop) {
 void RoboAppLoad(void) {
     uint8_t file[16];
     uint32_t fileSize = 0;
-    if (!RoboAtaStart() || !RoboFsStart(RoboAtaReadSector)) {
-        return;
+    if (RoboAtaStart()) {
+        RoboFsStart(RoboAtaReadSector);
     }
     if (!RoboFsReadFile("ROBOAPP.BIN", file, sizeof(file), &fileSize) || fileSize < 8u) {
         return;
@@ -116,6 +116,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         RoboHalt();
     }
 
+    RoboFsUseBootFiles(info);
     RoboMemoryStart(info);
     RoboArchCpuStart();
     RoboArchFpuStart();
@@ -126,6 +127,13 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
     RoboAppLoad();
+    RoboCpuJoin();
+    RoboPS2MouseStart();
+    RoboArchInterruptsStart();
+    RoboPS2MouseArm();
+    RoboPS2KeyboardStart();
+    RoboUsbStart();
+    RoboScheduleStart();
     gShellLive = RoboShellStart(&desktop);
     gShellLoaded = gShellLive || RoboShellLoad(&desktop);
     RoboWindow appWindow{};
@@ -135,12 +143,6 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         RoboAppPaintWidget(&appWindow, false);
         RoboDesktopPresentWindow(&desktop, &appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
     }
-    RoboPS2MouseStart();
-    RoboArchInterruptsStart();
-    RoboPS2MouseArm();
-    RoboPS2KeyboardStart();
-    RoboUsbStart();
-    RoboScheduleStart();
     uint64_t nextWidgetTick = ROBO_APP_WIDGET_TICKS;
     bool widgetOn = false;
 

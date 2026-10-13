@@ -3,6 +3,7 @@
 #include <algorithm>
 #ifdef ROBO_KERNEL
 #include "RoboFS.hpp"
+#include "RoboGPUVendor.hpp"
 #else
 #include <fstream>
 #include <iterator>
@@ -105,27 +106,25 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
     if (copyWidth <= 0 || copyHeight <= 0) {
         return;
     }
+#ifdef ROBO_KERNEL
+    const int pixelStride = width_ * 4;
+    if (RoboGPUVendorPresent(source + (static_cast<std::size_t>(damageY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(damageX)) * 4u,
+                             pixelStride, damageX, damageY, copyWidth, copyHeight, width_, height_, pixelFormat_)) {
+        return;
+    }
+#endif
     for (int row = 0; row < copyHeight; ++row) {
         const std::uint8_t* from = source + (static_cast<std::size_t>(damageY + row) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(damageX)) * 4u;
         std::uint8_t* to = scanout_ + static_cast<std::size_t>(damageY + row) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(damageX) * 4u;
+        auto* packed = reinterpret_cast<std::uint32_t*>(to);
         for (int column = 0; column < copyWidth; ++column) {
-            const std::uint32_t packed = Pack(from[0], from[1], from[2]);
-            const std::uint8_t pixel[4] = {
-                static_cast<std::uint8_t>(packed),
-                static_cast<std::uint8_t>(packed >> 8),
-                static_cast<std::uint8_t>(packed >> 16),
-                0,
-            };
-            if (keepPixel_ == nullptr || !keepPixel_(keepCookie_, damageX + column, damageY + row, pixel)) {
-                to[0] = pixel[0];
-                to[1] = pixel[1];
-                to[2] = pixel[2];
-                to[3] = pixel[3];
-            }
+            packed[column] = Pack(from[0], from[1], from[2]);
             from += 4;
-            to += 4;
         }
     }
+#ifdef ROBO_KERNEL
+    __asm__ volatile("sfence" ::: "memory");
+#endif
 }
 
 void RoboticelaOSPlatform::CopyText(const std::string& text) {

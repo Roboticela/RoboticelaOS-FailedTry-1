@@ -209,6 +209,10 @@ private:
     void DirtyScrollbar(const Scrollbar* scrollbar);
     void DirtySelectionVisual();
     bool CanPaintPartial(float paintScale, int width, int height) const;
+    bool PresentVideoFrame(IPlatform& platform);
+    bool ChromeFits(std::size_t bytes, std::size_t maskBytes) const;
+    void CaptureChrome();
+    void ApplyChrome(FrameBuffer& frame);
     void ConfigurePageBars();
     void PullPageScroll();
     void PullSidebarScroll(const Scrollbar* bar);
@@ -257,6 +261,11 @@ private:
     bool needsRender_ = false;
     bool fullDirty_ = true;
     bool frameReady_ = false;
+    bool videoOnly_ = false;
+    bool chromeReady_ = false;
+    std::vector<std::uint8_t> chromeBase_;
+    std::vector<std::uint8_t> chromePixels_;
+    std::vector<std::uint8_t> chromeMask_;
     bool damageOpen_ = false;
     float dirtyLeft_ = 0.0f;
     float dirtyTop_ = 0.0f;

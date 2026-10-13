@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <functional>
 
 namespace Robo {
@@ -2076,7 +2077,105 @@ void RoboScene::SetPaintPump(void (*pump)(void*), void* cookie) {
     paintPumpCookie_ = cookie;
 }
 
+bool RoboScene::PresentVideoFrame(IPlatform& platform) {
+    if (!chromeReady_ || platform_ == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
+        return false;
+    }
+    if (frame_.GetWidth() != paintedWidth_ || frame_.GetHeight() != paintedHeight_) {
+        return false;
+    }
+    BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), paintedWidth_, paintedHeight_, 0, 0, paintedWidth_, paintedHeight_);
+    ApplyChrome(frame_);
+    frame_.SetPresentRect(0, 0, paintedWidth_, paintedHeight_);
+    platform.Present(frame_);
+    needsRender_ = false;
+    fullDirty_ = false;
+    damageOpen_ = false;
+    frameReady_ = true;
+    return true;
+}
+
+#ifdef ROBO_KERNEL
+extern "C" int RoboHeapHas(size_t bytes);
+#endif
+
+bool RoboScene::ChromeFits(std::size_t bytes, std::size_t maskBytes) const {
+#ifdef ROBO_KERNEL
+    std::size_t need = 64u;
+    if (chromeBase_.size() != bytes) {
+        need += bytes + 64u;
+    }
+    if (chromePixels_.size() != bytes) {
+        need += bytes + 64u;
+    }
+    if (chromeMask_.size() != maskBytes) {
+        need += maskBytes + 64u;
+    }
+    return need <= 64u || RoboHeapHas(need) != 0;
+#else
+    (void)bytes;
+    (void)maskBytes;
+    return true;
+#endif
+}
+
+void RoboScene::CaptureChrome() {
+    const std::uint8_t* frame = frame_.GetPixels();
+    const int width = frame_.GetWidth();
+    const int height = frame_.GetHeight();
+    const std::size_t count = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (frame == nullptr || count == 0 || chromeBase_.size() != count * 4u) {
+        chromeReady_ = false;
+        return;
+    }
+    if (!ChromeFits(count * 4u, count)) {
+        chromeReady_ = false;
+        return;
+    }
+    if (chromePixels_.size() != count * 4u) {
+        chromePixels_.assign(count * 4u, 0);
+    }
+    if (chromeMask_.size() != count) {
+        chromeMask_.assign(count, 0);
+    }
+    for (std::size_t index = 0; index < count; ++index) {
+        const std::uint8_t* painted = frame + index * 4u;
+        const std::uint8_t* base = chromeBase_.data() + index * 4u;
+        const bool widget = painted[0] != base[0] || painted[1] != base[1] || painted[2] != base[2];
+        chromeMask_[index] = widget ? 1u : 0u;
+        if (widget) {
+            chromePixels_[index * 4u] = painted[0];
+            chromePixels_[index * 4u + 1u] = painted[1];
+            chromePixels_[index * 4u + 2u] = painted[2];
+            chromePixels_[index * 4u + 3u] = painted[3];
+        }
+    }
+    chromeReady_ = true;
+}
+
+void RoboScene::ApplyChrome(FrameBuffer& frame) {
+    std::uint8_t* pixels = frame.GetPixels();
+    const std::size_t count = chromeMask_.size();
+    if (pixels == nullptr || chromePixels_.size() != count * 4u) {
+        return;
+    }
+    for (std::size_t index = 0; index < count; ++index) {
+        if (chromeMask_[index] == 0) {
+            continue;
+        }
+        pixels[index * 4u] = chromePixels_[index * 4u];
+        pixels[index * 4u + 1u] = chromePixels_[index * 4u + 1u];
+        pixels[index * 4u + 2u] = chromePixels_[index * 4u + 2u];
+        pixels[index * 4u + 3u] = chromePixels_[index * 4u + 3u];
+    }
+}
+
 void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding) {
+    if (videoOnly_ && !fullDirty_ && PresentVideoFrame(platform)) {
+        videoOnly_ = false;
+        return;
+    }
+    videoOnly_ = false;
     const FoundationScope foundationScope(ActiveFoundation(), theme_, themeMix_);
     platform_ = &platform;
     fonts_ = &fonts;
@@ -2156,6 +2255,17 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 BackgroundPainter::Paint(frame, desktop_.GetBackgroundSource(), width, height, 0, 0, width, height);
             } else {
                 frame.Clear(background_);
+            }
+        }
+        if (frame.GetPixels() != nullptr) {
+            const std::size_t bytes = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u;
+            if (ChromeFits(bytes, static_cast<std::size_t>(width) * static_cast<std::size_t>(height))) {
+                if (chromeBase_.size() != bytes) {
+                    chromeBase_.assign(bytes, 0);
+                }
+                memcpy(chromeBase_.data(), frame.GetPixels(), bytes);
+            } else {
+                chromeReady_ = false;
             }
         }
         TextSelection::BeginFrame();
@@ -2422,6 +2532,9 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     }
     if (partial) {
         frame.PopClip();
+    }
+    if (!partial && desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
+        CaptureChrome();
     }
     if (!partial || damageWidth <= 0 || damageHeight <= 0) {
         damageX = 0;
@@ -4453,8 +4566,9 @@ bool RoboScene::PointerLeave() {
 
 bool RoboScene::Tick(double deltaMs) {
     bool changed = false;
+    bool videoAdvanced = false;
     if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().Advance(deltaMs)) {
-        MarkSurfaceDirty();
+        videoAdvanced = true;
         changed = true;
     }
     bool contentMoved = false;
@@ -4590,6 +4704,15 @@ bool RoboScene::Tick(double deltaMs) {
     }
     if (contentMoved) {
         MarkFullDirty();
+    }
+    if (videoAdvanced && !contentMoved && !motionChanged && chromeReady_ && !fullDirty_) {
+        videoOnly_ = true;
+        needsRender_ = true;
+    } else if (videoAdvanced && !fullDirty_) {
+        videoOnly_ = false;
+        MarkSurfaceDirty();
+    } else if (videoAdvanced) {
+        videoOnly_ = false;
     }
     return changed;
 }

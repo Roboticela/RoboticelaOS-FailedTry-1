@@ -117,14 +117,14 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [ ] A missing controller still boots
 
 ## Stage 18 — More cores
-- [ ] Further cores join only after the one-core switch stays solid
-- [ ] A core with nothing to run sleeps
-- [ ] One painter owns the framebuffer
+- [x] Further cores join only after the one-core switch stays solid
+- [x] A core with nothing to run sleeps
+- [x] One painter owns the framebuffer
 
 ## Stage 19 — GPUs that stay behind rectangles
-- [ ] Each vendor path, including virtio-gpu, accepts the same rectangles
-- [ ] An unknown GPU uses the firmware framebuffer
-- [ ] No vendor path blocks boot
+- [x] Each vendor path, including virtio-gpu, accepts the same rectangles
+- [x] An unknown GPU uses the firmware framebuffer
+- [x] No vendor path blocks boot
 
 ## Stage 20 — Network
 - [ ] One NIC, virtio-net or a common PCI Ethernet device
