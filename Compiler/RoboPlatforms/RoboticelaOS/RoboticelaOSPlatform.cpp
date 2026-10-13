@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #ifdef ROBO_KERNEL
+#include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
 #include "RoboGPUVendor.hpp"
 #else
@@ -112,13 +113,35 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
                              pixelStride, damageX, damageY, copyWidth, copyHeight, width_, height_, pixelFormat_)) {
         return;
     }
+    int32_t cursorX = 0;
+    int32_t cursorY = 0;
+    int32_t cursorWidth = 0;
+    int32_t cursorHeight = 0;
+    const bool cursor = RoboDesktopCursorRect(&cursorX, &cursorY, &cursorWidth, &cursorHeight);
 #endif
     for (int row = 0; row < copyHeight; ++row) {
-        const std::uint8_t* from = source + (static_cast<std::size_t>(damageY + row) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(damageX)) * 4u;
-        std::uint8_t* to = scanout_ + static_cast<std::size_t>(damageY + row) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(damageX) * 4u;
+        const int screenY = damageY + row;
+        const std::uint8_t* from = source + (static_cast<std::size_t>(screenY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(damageX)) * 4u;
+        std::uint8_t* to = scanout_ + static_cast<std::size_t>(screenY) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(damageX) * 4u;
         auto* packed = reinterpret_cast<std::uint32_t*>(to);
+#ifdef ROBO_KERNEL
+        const bool cursorRow = cursor && screenY >= cursorY && screenY < cursorY + cursorHeight;
+#endif
         for (int column = 0; column < copyWidth; ++column) {
-            packed[column] = Pack(from[0], from[1], from[2]);
+            const int screenX = damageX + column;
+            uint32_t scene = Pack(from[0], from[1], from[2]);
+#ifdef ROBO_KERNEL
+            uint32_t cursorRgb = 0;
+            if (cursorRow && RoboDesktopCursorSample(screenX - cursorX, screenY - cursorY, &cursorRgb)) {
+                RoboDesktopRememberCursor(screenX - cursorX, screenY - cursorY, scene);
+                packed[column] = Pack(static_cast<std::uint8_t>(cursorRgb >> 16), static_cast<std::uint8_t>(cursorRgb >> 8), static_cast<std::uint8_t>(cursorRgb));
+            } else {
+                packed[column] = scene;
+            }
+#else
+            (void)screenX;
+            packed[column] = scene;
+#endif
             from += 4;
         }
     }

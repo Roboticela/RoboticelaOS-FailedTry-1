@@ -29,6 +29,10 @@ void RoboDesktopShowPicture(RoboDesktop* desktop, const uint8_t* pixels, int32_t
 void RoboDesktopHideCursor(RoboDesktop* desktop);
 void RoboDesktopShowCursor(RoboDesktop* desktop);
 void RoboDesktopRedrawCursor(RoboDesktop* desktop);
+void RoboDesktopUseCursor(RoboDesktop* desktop);
+bool RoboDesktopCursorRect(int32_t* x, int32_t* y, int32_t* width, int32_t* height);
+bool RoboDesktopCursorSample(int32_t localX, int32_t localY, uint32_t* rgb);
+void RoboDesktopRememberCursor(int32_t localX, int32_t localY, uint32_t packed);
 bool RoboDesktopKeepCursor(RoboDesktop* desktop, int32_t x, int32_t y, const uint8_t* pixel);
 void RoboDesktopMoveCursor(RoboDesktop* desktop, int32_t dx, int32_t dy);
 void RoboDesktopPlaceCursor(RoboDesktop* desktop, int32_t x, int32_t y);

@@ -2,7 +2,6 @@
 
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
-#include "RoboGPUVendor.hpp"
 #include "RoboPS2Mouse.hpp"
 #include "RoboticelaOSPlatform.hpp"
 #include "Robo/Color.hpp"
@@ -128,35 +127,16 @@ bool RoboShellStart(RoboDesktop* desktop) {
     gPlatform->SetPixelScale(1.0f);
     gPlatform->SetScanout(desktop->gpu->base, desktop->gpu->width, desktop->gpu->height, desktop->gpu->stride, desktop->gpu->pixelFormat);
     BuildPage(*gScene);
-    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    RoboDesktopUseCursor(desktop);
     RoboDesktopShowCursor(desktop);
+    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
     return true;
-}
-
-void RoboShellCursorCard(void) {
-    if (gDesktop == nullptr || gDesktop->gpu == nullptr) {
-        return;
-    }
-    int stride = 0;
-    uint8_t* card = RoboGPUVendorCard(&stride);
-    if (card == nullptr) {
-        return;
-    }
-    uint8_t* savedBase = gDesktop->gpu->base;
-    int32_t savedStride = gDesktop->gpu->stride;
-    gDesktop->gpu->base = card;
-    gDesktop->gpu->stride = stride;
-    RoboDesktopRedrawCursor(gDesktop);
-    gDesktop->gpu->base = savedBase;
-    gDesktop->gpu->stride = savedStride;
-    RoboGPUVendorFlushCursor(gDesktop->cursorX, gDesktop->cursorY);
 }
 
 void RoboShellPointerMove(int32_t x, int32_t y) {
     if (gScene != nullptr) {
         gScene->PointerMove(static_cast<float>(x), static_cast<float>(y));
     }
-    RoboShellCursorCard();
 }
 
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
@@ -243,6 +223,5 @@ bool RoboShellFlush(RoboDesktop* desktop) {
         }
     }
     RoboDesktopRedrawCursor(desktop);
-    RoboShellCursorCard();
     return true;
 }

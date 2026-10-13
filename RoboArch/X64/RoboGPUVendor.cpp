@@ -2,6 +2,7 @@
 
 #include "RoboArch.hpp"
 #include "RoboBootInfo.hpp"
+#include "RoboDesktop.hpp"
 #include "RoboGPU.hpp"
 #include "RoboMemory.hpp"
 
@@ -454,13 +455,26 @@ bool RoboVirtioStart(int width, int height, uint32_t pixelFormat) {
 }
 
 void RoboCardStore(const uint8_t* pixels, int pixelStride, int x, int y, int width, int height, uint32_t pixelFormat) {
+    int32_t cursorX = 0;
+    int32_t cursorY = 0;
+    int32_t cursorWidth = 0;
+    int32_t cursorHeight = 0;
+    const bool cursor = RoboDesktopCursorRect(&cursorX, &cursorY, &cursorWidth, &cursorHeight);
     for (int row = 0; row < height; ++row) {
+        const int screenY = y + row;
         const uint8_t* from = pixels + static_cast<uint64_t>(row) * static_cast<uint32_t>(pixelStride);
-        uint8_t* to = gCard + (static_cast<uint64_t>(y + row) * static_cast<uint32_t>(gCardWidth) + static_cast<uint32_t>(x)) * 4u;
+        uint8_t* to = gCard + (static_cast<uint64_t>(screenY) * static_cast<uint32_t>(gCardWidth) + static_cast<uint32_t>(x)) * 4u;
+        const bool cursorRow = cursor && screenY >= cursorY && screenY < cursorY + cursorHeight;
         for (int column = 0; column < width; ++column) {
             uint32_t red = from[0];
             uint32_t green = from[1];
             uint32_t blue = from[2];
+            uint32_t cursorRgb = 0;
+            if (cursorRow && RoboDesktopCursorSample(x + column - cursorX, screenY - cursorY, &cursorRgb)) {
+                red = (cursorRgb >> 16) & 0xFFu;
+                green = (cursorRgb >> 8) & 0xFFu;
+                blue = cursorRgb & 0xFFu;
+            }
             uint32_t packed = pixelFormat == ROBO_PIXEL_RGBX ? (red << 16) | (green << 8) | blue : (blue << 16) | (green << 8) | red;
             *reinterpret_cast<uint32_t*>(to) = packed;
             from += 4;

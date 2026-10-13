@@ -76,6 +76,18 @@ RoboRect RoboRectUnion(RoboRect a, RoboRect b) {
     return rect;
 }
 
+bool RoboCursorSample(int32_t localX, int32_t localY, uint32_t* rgb) {
+    if (rgb == nullptr || localX < 0 || localY < 0 || localX >= ROBO_CURSOR_WIDTH || localY >= ROBO_CURSOR_HEIGHT) {
+        return false;
+    }
+    uint8_t sample = ROBO_CURSOR_PIXELS[localY * ROBO_CURSOR_WIDTH + localX];
+    if (sample == ROBO_CURSOR_EMPTY) {
+        return false;
+    }
+    *rgb = sample == ROBO_CURSOR_EDGE ? ROBO_CURSOR_OUTLINE : ROBO_CURSOR_FILL;
+    return true;
+}
+
 void RoboDrawCursor(RoboDesktop* desktop) {
     RoboGPU* gpu = desktop->gpu;
     for (int32_t y = 0; y < ROBO_CURSOR_HEIGHT; ++y) {
@@ -232,6 +244,38 @@ void RoboDesktopRedrawCursor(RoboDesktop* desktop) {
         return;
     }
     RoboDrawCursor(desktop);
+}
+
+RoboDesktop* gCursorDesktop = nullptr;
+
+void RoboDesktopUseCursor(RoboDesktop* desktop) {
+    gCursorDesktop = desktop;
+}
+
+bool RoboDesktopCursorRect(int32_t* x, int32_t* y, int32_t* width, int32_t* height) {
+    if (gCursorDesktop == nullptr || gCursorDesktop->cursorHeld == 0 || x == nullptr || y == nullptr || width == nullptr || height == nullptr) {
+        return false;
+    }
+    *x = gCursorDesktop->cursorX;
+    *y = gCursorDesktop->cursorY;
+    *width = 12;
+    *height = 17;
+    return true;
+}
+
+bool RoboDesktopCursorSample(int32_t localX, int32_t localY, uint32_t* rgb) {
+    return RoboCursorSample(localX, localY, rgb);
+}
+
+void RoboDesktopRememberCursor(int32_t localX, int32_t localY, uint32_t packed) {
+    if (gCursorDesktop == nullptr || localX < 0 || localY < 0 || localX >= 12 || localY >= 17) {
+        return;
+    }
+    uint8_t* saved = gCursorDesktop->cursorSave + (static_cast<int64_t>(localY) * 12 + localX) * 4;
+    saved[0] = static_cast<uint8_t>(packed);
+    saved[1] = static_cast<uint8_t>(packed >> 8);
+    saved[2] = static_cast<uint8_t>(packed >> 16);
+    saved[3] = 0;
 }
 
 bool RoboDesktopKeepCursor(RoboDesktop* desktop, int32_t x, int32_t y, const uint8_t* pixel) {
