@@ -16,3 +16,10 @@ bool RoboAtaReadSectors(uint32_t lba, uint32_t count, uint8_t* dest) {
     (void)dest;
     return false;
 }
+
+bool RoboAtaWriteSectors(uint32_t lba, uint32_t count, const uint8_t* source) {
+    (void)lba;
+    (void)count;
+    (void)source;
+    return false;
+}

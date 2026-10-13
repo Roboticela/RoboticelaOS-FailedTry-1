@@ -271,3 +271,19 @@ bool RoboNvmeReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* 
     }
     return true;
 }
+
+bool RoboNvmeWriteSectors(uint32_t index, uint32_t lba, uint32_t count, const uint8_t* source) {
+    if (source == nullptr || count == 0 || count > ROBO_NVME_SECTOR_LIMIT || !RoboNvmeClaim(index)) {
+        return false;
+    }
+    uint32_t bytes = count * ROBO_SECTOR_BYTES;
+    for (uint32_t indexByte = 0; indexByte < bytes; ++indexByte) {
+        gData[indexByte] = source[indexByte];
+    }
+    RoboNvmeClean(gData, bytes);
+    if (!RoboNvmeCommand(&gIo, 0x01, 1u, reinterpret_cast<uint64_t>(gData), lba, 0, count - 1u)) {
+        gOpen = -1;
+        return false;
+    }
+    return true;
+}

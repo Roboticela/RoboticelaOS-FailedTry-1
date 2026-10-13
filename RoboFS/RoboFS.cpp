@@ -3,6 +3,7 @@
 #include "RoboBootInfo.hpp"
 #include "RoboDisk.hpp"
 #include "RoboPartition.hpp"
+#include "RoboPermit.hpp"
 
 namespace {
 
@@ -25,7 +26,13 @@ bool gMounted = false;
 bool gRoboVolume = false;
 uint32_t gRoboBase = 0;
 uint64_t gRoboRoot = 1;
+uint64_t gBlockCount = 0;
+uint64_t gNextFree = 0;
+uint64_t gFreeHead = 0;
+bool gWritable = false;
 uint8_t gDirectory[ROBO_DIRECTORY_BYTES];
+uint8_t gSuper[ROBO_SECTOR_BYTES];
+uint8_t gIoSector[ROBO_SECTOR_BYTES];
 
 struct RoboHeldFile {
     uint8_t name[11];
@@ -316,7 +323,7 @@ bool RoboDirectoryFind(const uint8_t* directory, uint32_t directoryBytes, const 
         const uint8_t* entry = directory + offset;
         uint32_t entryKind = RoboFsLoad32(entry + 40);
         if (entryKind == 0) {
-            return false;
+            continue;
         }
         if (!RoboNameEqual(entry, name, length)) {
             continue;
@@ -487,11 +494,445 @@ bool RoboVolumeMount(const uint8_t* table) {
         }
         gRoboBase = static_cast<uint32_t>(start);
         gRoboRoot = RoboFsLoad64(gSector + 24);
+        gBlockCount = RoboFsLoad64(gSector + 16);
+        for (uint32_t byte = 0; byte < ROBO_SECTOR_BYTES; ++byte) {
+            gSuper[byte] = gSector[byte];
+        }
+        gWritable = false;
+        gNextFree = 0;
+        gFreeHead = 0;
+        if (gSuper[ROBO_FS_ALLOC_AT] == static_cast<uint8_t>(ROBO_FS_ALLOC_MAGIC[0])
+            && gSuper[ROBO_FS_ALLOC_AT + 1u] == static_cast<uint8_t>(ROBO_FS_ALLOC_MAGIC[1])
+            && gSuper[ROBO_FS_ALLOC_AT + 2u] == static_cast<uint8_t>(ROBO_FS_ALLOC_MAGIC[2])
+            && gSuper[ROBO_FS_ALLOC_AT + 3u] == static_cast<uint8_t>(ROBO_FS_ALLOC_MAGIC[3])
+            && gBlockCount > 1u && gBlockCount <= 0xFFFFFFFFu) {
+            gNextFree = RoboFsLoad64(gSuper + ROBO_FS_NEXT_FREE_AT);
+            gFreeHead = RoboFsLoad64(gSuper + ROBO_FS_FREE_HEAD_AT);
+            gWritable = gNextFree > 0 && gNextFree <= gBlockCount;
+        }
         gRoboVolume = true;
         gMounted = true;
         return true;
     }
     return false;
+}
+
+void RoboFsStore32(uint8_t* bytes, uint32_t value) {
+    bytes[0] = static_cast<uint8_t>(value);
+    bytes[1] = static_cast<uint8_t>(value >> 8);
+    bytes[2] = static_cast<uint8_t>(value >> 16);
+    bytes[3] = static_cast<uint8_t>(value >> 24);
+}
+
+void RoboFsStore64(uint8_t* bytes, uint64_t value) {
+    RoboFsStore32(bytes, static_cast<uint32_t>(value));
+    RoboFsStore32(bytes + 4, static_cast<uint32_t>(value >> 32));
+}
+
+void RoboFsZero(uint8_t* bytes, uint32_t count) {
+    for (uint32_t index = 0; index < count; ++index) {
+        bytes[index] = 0;
+    }
+}
+
+bool RoboVolumeWriteBlock(uint64_t block, const uint8_t* sector) {
+    if (!gRoboVolume || sector == nullptr || block > 0xFFFFFFFFu) {
+        return false;
+    }
+    uint32_t lba = gRoboBase + static_cast<uint32_t>(block);
+    if (lba < gRoboBase) {
+        return false;
+    }
+    return RoboDiskWriteSector(lba, sector);
+}
+
+bool RoboVolumeReadBlock(uint64_t block) {
+    if (!gRoboVolume || block > 0xFFFFFFFFu) {
+        return false;
+    }
+    uint32_t lba = gRoboBase + static_cast<uint32_t>(block);
+    if (lba < gRoboBase) {
+        return false;
+    }
+    return RoboFsRead(lba, gIoSector);
+}
+
+bool RoboPersistAllocator(void) {
+    RoboFsStore64(gSuper + ROBO_FS_NEXT_FREE_AT, gNextFree);
+    RoboFsStore64(gSuper + ROBO_FS_FREE_HEAD_AT, gFreeHead);
+    return RoboVolumeWriteBlock(0, gSuper);
+}
+
+bool RoboAlloc(uint32_t count, uint64_t* start) {
+    if (!gWritable || count == 0 || start == nullptr) {
+        return false;
+    }
+    uint64_t previous = 0;
+    uint64_t block = gFreeHead;
+    for (uint32_t guard = 0; block != 0 && guard < 128u; ++guard) {
+        if (block >= gBlockCount || !RoboVolumeReadBlock(block)) {
+            return false;
+        }
+        uint64_t next = RoboFsLoad64(gIoSector);
+        uint32_t run = RoboFsLoad32(gIoSector + 8);
+        if (run >= count && block + count >= block && block + count <= gBlockCount) {
+            uint64_t link = next;
+            if (run > count) {
+                RoboFsZero(gIoSector, ROBO_SECTOR_BYTES);
+                RoboFsStore64(gIoSector, next);
+                RoboFsStore32(gIoSector + 8, run - count);
+                if (!RoboVolumeWriteBlock(block + count, gIoSector)) {
+                    return false;
+                }
+                link = block + count;
+            }
+            if (previous == 0) {
+                gFreeHead = link;
+            } else if (!RoboVolumeReadBlock(previous)) {
+                return false;
+            } else {
+                RoboFsStore64(gIoSector, link);
+                if (!RoboVolumeWriteBlock(previous, gIoSector)) {
+                    return false;
+                }
+            }
+            if (!RoboPersistAllocator()) {
+                return false;
+            }
+            *start = block;
+            return true;
+        }
+        previous = block;
+        block = next;
+    }
+    if (gNextFree + count < gNextFree || gNextFree + count > gBlockCount) {
+        return false;
+    }
+    uint64_t saved = gNextFree;
+    gNextFree += count;
+    if (!RoboPersistAllocator()) {
+        gNextFree = saved;
+        return false;
+    }
+    *start = saved;
+    return true;
+}
+
+bool RoboFree(uint64_t start, uint32_t count) {
+    if (!gWritable || count == 0 || start == 0 || start + count < start || start + count > gBlockCount) {
+        return false;
+    }
+    RoboFsZero(gIoSector, ROBO_SECTOR_BYTES);
+    RoboFsStore64(gIoSector, gFreeHead);
+    RoboFsStore32(gIoSector + 8, count);
+    if (!RoboVolumeWriteBlock(start, gIoSector)) {
+        return false;
+    }
+    uint64_t saved = gFreeHead;
+    gFreeHead = start;
+    if (!RoboPersistAllocator()) {
+        gFreeHead = saved;
+        return false;
+    }
+    return true;
+}
+
+bool RoboWriteBytes(uint64_t start, const uint8_t* data, uint32_t size) {
+    uint32_t blocks = size == 0 ? 1u : (size + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES;
+    for (uint32_t index = 0; index < blocks; ++index) {
+        RoboFsZero(gIoSector, ROBO_SECTOR_BYTES);
+        uint32_t offset = index * ROBO_SECTOR_BYTES;
+        if (data != nullptr && offset < size) {
+            uint32_t chunk = size - offset;
+            if (chunk > ROBO_SECTOR_BYTES) {
+                chunk = ROBO_SECTOR_BYTES;
+            }
+            for (uint32_t byte = 0; byte < chunk; ++byte) {
+                gIoSector[byte] = data[offset + byte];
+            }
+        }
+        if (!RoboVolumeWriteBlock(start + index, gIoSector)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RoboWriteDirectory(uint64_t block, uint64_t byteSize) {
+    if (byteSize == 0 || byteSize > ROBO_DIRECTORY_BYTES) {
+        byteSize = ROBO_DIRECTORY_BYTES;
+    }
+    uint32_t blocks = static_cast<uint32_t>((byteSize + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES);
+    for (uint32_t index = 0; index < blocks; ++index) {
+        if (!RoboVolumeWriteBlock(block + index, gDirectory + index * ROBO_SECTOR_BYTES)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RoboDirectoryEmpty(uint64_t block, uint64_t byteSize) {
+    if (byteSize == 0 || byteSize > ROBO_DIRECTORY_BYTES) {
+        byteSize = ROBO_DIRECTORY_BYTES;
+    }
+    uint32_t blocks = static_cast<uint32_t>((byteSize + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES);
+    for (uint32_t index = 0; index < blocks; ++index) {
+        if (!RoboVolumeReadBlock(block + index)) {
+            return false;
+        }
+        for (uint32_t offset = 0; offset + ROBO_ENTRY_BYTES <= ROBO_SECTOR_BYTES; offset += ROBO_ENTRY_BYTES) {
+            if (RoboFsLoad32(gIoSector + offset + 40) != 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+struct RoboPlace {
+    uint64_t parent;
+    uint64_t parentBytes;
+    uint32_t slot;
+    uint32_t kind;
+    uint64_t start;
+    uint64_t bytes;
+    char name[40];
+    uint32_t nameLength;
+    bool found;
+};
+
+bool RoboBadName(const char* name, uint32_t length) {
+    if (length == 1 && name[0] == '.') {
+        return true;
+    }
+    return length == 2 && name[0] == '.' && name[1] == '.';
+}
+
+int RoboScan(bool wantExisting, const char* name, uint32_t length, RoboPlace* place) {
+    bool sawHole = false;
+    uint32_t hole = 0;
+    uint32_t limit = place->parentBytes > ROBO_DIRECTORY_BYTES ? ROBO_DIRECTORY_BYTES : static_cast<uint32_t>(place->parentBytes);
+    for (uint32_t offset = 0; offset + ROBO_ENTRY_BYTES <= limit; offset += ROBO_ENTRY_BYTES) {
+        uint32_t kind = RoboFsLoad32(gDirectory + offset + 40);
+        if (kind == 0) {
+            if (!sawHole) {
+                sawHole = true;
+                hole = offset;
+            }
+            continue;
+        }
+        if (!RoboNameEqual(gDirectory + offset, name, length)) {
+            continue;
+        }
+        place->found = true;
+        place->slot = offset;
+        place->kind = kind;
+        place->start = RoboFsLoad64(gDirectory + offset + 48);
+        place->bytes = RoboFsLoad64(gDirectory + offset + 56);
+        return wantExisting ? ROBO_FS_OK : ROBO_FS_EXISTS;
+    }
+    if (wantExisting) {
+        return ROBO_FS_MISSING;
+    }
+    if (!sawHole) {
+        return ROBO_FS_FULL;
+    }
+    place->found = false;
+    place->slot = hole;
+    place->nameLength = length;
+    RoboFsZero(reinterpret_cast<uint8_t*>(place->name), 40);
+    for (uint32_t index = 0; index < length; ++index) {
+        place->name[index] = name[index];
+    }
+    return ROBO_FS_OK;
+}
+
+int RoboWalk(const char* path, bool wantExisting, RoboPlace* place) {
+    if (path == nullptr || path[0] == 0 || path[0] == '/') {
+        return ROBO_FS_IO;
+    }
+    uint32_t pathLength = 0;
+    while (path[pathLength] != 0) {
+        pathLength += 1u;
+        if (pathLength > 95u) {
+            return ROBO_FS_IO;
+        }
+    }
+    uint64_t block = gRoboRoot;
+    uint64_t bytes = ROBO_DIRECTORY_BYTES;
+    const char* cursor = path;
+    if (!RoboReadDirectory(block, bytes)) {
+        return ROBO_FS_IO;
+    }
+    while (cursor[0] != 0) {
+        uint32_t length = 0;
+        while (cursor[length] != 0 && cursor[length] != '/') {
+            if (cursor[length] == '\\') {
+                return ROBO_FS_IO;
+            }
+            length += 1u;
+            if (length > 40u) {
+                return ROBO_FS_IO;
+            }
+        }
+        if (length == 0 || RoboBadName(cursor, length)) {
+            return ROBO_FS_IO;
+        }
+        bool last = cursor[length] == 0;
+        place->parent = block;
+        place->parentBytes = bytes;
+        int status = RoboScan(last ? wantExisting : true, cursor, length, place);
+        if (!last) {
+            if (status != ROBO_FS_OK || place->kind != ROBO_ENTRY_DIRECTORY) {
+                return ROBO_FS_MISSING;
+            }
+            cursor += length + 1u;
+            if (cursor[0] == 0) {
+                return ROBO_FS_IO;
+            }
+            block = place->start;
+            bytes = place->bytes == 0 ? ROBO_DIRECTORY_BYTES : place->bytes;
+            if (!RoboReadDirectory(block, bytes)) {
+                return ROBO_FS_IO;
+            }
+            continue;
+        }
+        return status;
+    }
+    return ROBO_FS_IO;
+}
+
+void RoboFillEntry(uint8_t* entry, const RoboPlace* place, uint32_t kind, uint64_t start, uint64_t bytes) {
+    RoboFsZero(entry, ROBO_ENTRY_BYTES);
+    for (uint32_t index = 0; index < place->nameLength && index < 40u; ++index) {
+        entry[index] = static_cast<uint8_t>(place->name[index]);
+    }
+    RoboFsStore32(entry + 40, kind);
+    RoboFsStore64(entry + 48, start);
+    RoboFsStore64(entry + 56, bytes);
+}
+
+int RoboFsCreateBlocks(const char* path, uint32_t kind, const uint8_t* data, uint32_t size) {
+    if (!gRoboVolume || !gWritable) {
+        return ROBO_FS_IO;
+    }
+    RoboPlace place{};
+    int status = RoboWalk(path, false, &place);
+    if (status != ROBO_FS_OK) {
+        return status;
+    }
+    uint32_t blocks = kind == ROBO_ENTRY_DIRECTORY ? 2u : (size + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES;
+    if (blocks == 0) {
+        blocks = 1;
+    }
+    if (place.slot + ROBO_ENTRY_BYTES > ROBO_DIRECTORY_BYTES) {
+        return ROBO_FS_FULL;
+    }
+    uint64_t start = 0;
+    if (!RoboAlloc(blocks, &start)) {
+        return ROBO_FS_FULL;
+    }
+    bool stored = true;
+    if (kind == ROBO_ENTRY_DIRECTORY) {
+        RoboFsZero(gIoSector, ROBO_SECTOR_BYTES);
+        stored = RoboVolumeWriteBlock(start, gIoSector) && RoboVolumeWriteBlock(start + 1u, gIoSector);
+    } else {
+        stored = RoboWriteBytes(start, data, size);
+    }
+    if (!stored) {
+        RoboFree(start, blocks);
+        return ROBO_FS_IO;
+    }
+    RoboFillEntry(gDirectory + place.slot, &place, kind, start, kind == ROBO_ENTRY_DIRECTORY ? ROBO_DIRECTORY_BYTES : size);
+    if (!RoboWriteDirectory(place.parent, place.parentBytes)) {
+        RoboFree(start, blocks);
+        return ROBO_FS_IO;
+    }
+    return ROBO_FS_OK;
+}
+
+uint32_t RoboBlockCount(uint64_t bytes) {
+    if (bytes == 0) {
+        return 1;
+    }
+    uint64_t blocks = (bytes + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES;
+    if (blocks == 0 || blocks > 0xFFFFFFFFu) {
+        return 1;
+    }
+    return static_cast<uint32_t>(blocks);
+}
+
+int RoboFsReplace(const char* path, const uint8_t* data, uint32_t size) {
+    if (!gRoboVolume || !gWritable) {
+        return ROBO_FS_IO;
+    }
+    RoboPlace place{};
+    int status = RoboWalk(path, true, &place);
+    if (status != ROBO_FS_OK) {
+        return status;
+    }
+    if (place.kind != ROBO_ENTRY_FILE) {
+        return ROBO_FS_IO;
+    }
+    uint32_t newBlocks = size == 0 ? 1u : (size + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES;
+    uint32_t oldBlocks = RoboBlockCount(place.bytes);
+    if (newBlocks <= oldBlocks) {
+        if (!RoboWriteBytes(place.start, data, size)) {
+            return ROBO_FS_IO;
+        }
+        RoboFsStore64(gDirectory + place.slot + 56, size);
+        if (!RoboWriteDirectory(place.parent, place.parentBytes)) {
+            return ROBO_FS_IO;
+        }
+        if (newBlocks < oldBlocks && !RoboFree(place.start + newBlocks, oldBlocks - newBlocks)) {
+            return ROBO_FS_IO;
+        }
+        return ROBO_FS_OK;
+    }
+    uint64_t start = 0;
+    if (!RoboAlloc(newBlocks, &start)) {
+        return ROBO_FS_FULL;
+    }
+    if (!RoboWriteBytes(start, data, size)) {
+        RoboFree(start, newBlocks);
+        return ROBO_FS_IO;
+    }
+    RoboFsStore64(gDirectory + place.slot + 48, start);
+    RoboFsStore64(gDirectory + place.slot + 56, size);
+    if (!RoboWriteDirectory(place.parent, place.parentBytes)) {
+        RoboFree(start, newBlocks);
+        return ROBO_FS_IO;
+    }
+    RoboFree(place.start, oldBlocks);
+    return ROBO_FS_OK;
+}
+
+int RoboFsDeleteRaw(const char* path) {
+    if (!gRoboVolume || !gWritable) {
+        return ROBO_FS_IO;
+    }
+    RoboPlace place{};
+    int status = RoboWalk(path, true, &place);
+    if (status != ROBO_FS_OK) {
+        return status;
+    }
+    uint32_t blocks = place.kind == ROBO_ENTRY_DIRECTORY ? 2u : RoboBlockCount(place.bytes);
+    if (place.kind == ROBO_ENTRY_DIRECTORY) {
+        if (place.bytes != 0) {
+            blocks = RoboBlockCount(place.bytes);
+        }
+        if (!RoboDirectoryEmpty(place.start, place.bytes)) {
+            return ROBO_FS_BUSY;
+        }
+    }
+    RoboFsZero(gDirectory + place.slot, ROBO_ENTRY_BYTES);
+    if (!RoboWriteDirectory(place.parent, place.parentBytes)) {
+        return ROBO_FS_IO;
+    }
+    if (!RoboFree(place.start, blocks)) {
+        return ROBO_FS_IO;
+    }
+    return ROBO_FS_OK;
 }
 
 }  // namespace
@@ -508,6 +949,7 @@ bool RoboFsStart(RoboFsSectorRead read) {
         table[index] = gSector[index];
     }
     if (RoboVolumeMount(table)) {
+        RoboPermitStart();
         return true;
     }
     if ((gSector[0] == 0xEBu || gSector[0] == 0xE9u) && RoboFsMountVolume(0)) {
@@ -659,4 +1101,83 @@ bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t
         *size = fileSize;
     }
     return true;
+}
+
+bool RoboFsProtected(const char* path) {
+    const char* ledger = "System/Permissions";
+    if (path == nullptr) {
+        return false;
+    }
+    for (uint32_t index = 0; index < 32u; ++index) {
+        if (ledger[index] != path[index]) {
+            return false;
+        }
+        if (ledger[index] == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int RoboFsReadApp(const char* app, const char* path, uint8_t* dest, uint32_t capacity, uint32_t* size) {
+    if (dest == nullptr || capacity == 0 || RoboFsProtected(path) || !RoboPermitAllows(app, ROBO_PERMIT_READ, path)) {
+        return ROBO_FS_DENIED;
+    }
+    uint32_t fileSize = 0;
+    if (!RoboFsReadFile(path, dest, capacity, &fileSize)) {
+        return ROBO_FS_MISSING;
+    }
+    if (size != nullptr) {
+        *size = fileSize;
+    }
+    return ROBO_FS_OK;
+}
+
+int RoboFsCreateFile(const char* app, const char* path, const uint8_t* data, uint32_t size) {
+    if (RoboFsProtected(path) || !RoboPermitAllows(app, ROBO_PERMIT_CREATE, path)) {
+        return ROBO_FS_DENIED;
+    }
+    if (size > 0 && data == nullptr) {
+        return ROBO_FS_IO;
+    }
+    return RoboFsCreateBlocks(path, ROBO_ENTRY_FILE, data, size);
+}
+
+int RoboFsWriteFile(const char* app, const char* path, const uint8_t* data, uint32_t size) {
+    if (RoboFsProtected(path) || !RoboPermitAllows(app, ROBO_PERMIT_WRITE, path)) {
+        return ROBO_FS_DENIED;
+    }
+    if (size > 0 && data == nullptr) {
+        return ROBO_FS_IO;
+    }
+    return RoboFsReplace(path, data, size);
+}
+
+int RoboFsCreateDirectory(const char* app, const char* path) {
+    if (RoboFsProtected(path) || !RoboPermitAllows(app, ROBO_PERMIT_CREATE, path)) {
+        return ROBO_FS_DENIED;
+    }
+    return RoboFsCreateBlocks(path, ROBO_ENTRY_DIRECTORY, nullptr, 0);
+}
+
+int RoboFsDeleteFile(const char* app, const char* path) {
+    if (RoboFsProtected(path) || !RoboPermitAllows(app, ROBO_PERMIT_DELETE, path)) {
+        return ROBO_FS_DENIED;
+    }
+    return RoboFsDeleteRaw(path);
+}
+
+int RoboFsCommit(const char* path, const uint8_t* data, uint32_t size) {
+    if (path == nullptr || (size > 0 && data == nullptr)) {
+        return ROBO_FS_IO;
+    }
+    int status = RoboFsReplace(path, data, size);
+    if (status == ROBO_FS_MISSING) {
+        return RoboFsCreateBlocks(path, ROBO_ENTRY_FILE, data, size);
+    }
+    return status;
+}
+
+int RoboFsRemove(const char* path) {
+    return RoboFsDeleteRaw(path);
 }

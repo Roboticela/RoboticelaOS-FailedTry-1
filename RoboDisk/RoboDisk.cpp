@@ -6,10 +6,13 @@
 bool RoboDiskReadSectors(uint32_t lba, uint32_t count, uint8_t* dest);
 uint32_t RoboVirtioBlkCount(void);
 bool RoboVirtioBlkRead(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest);
+bool RoboVirtioBlkWrite(uint32_t index, uint32_t lba, uint32_t count, const uint8_t* source);
 uint32_t RoboAhciCount(void);
 bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest);
+bool RoboAhciWriteSectors(uint32_t index, uint32_t lba, uint32_t count, const uint8_t* source);
 uint32_t RoboNvmeCount(void);
 bool RoboNvmeReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest);
+bool RoboNvmeWriteSectors(uint32_t index, uint32_t lba, uint32_t count, const uint8_t* source);
 
 namespace {
 
@@ -93,6 +96,47 @@ bool RoboDiskReadSectors(uint32_t lba, uint32_t count, uint8_t* dest) {
 
 bool RoboDiskReadSector(uint32_t lba, uint8_t* sector) {
     return RoboDiskReadSectors(lba, 1, sector);
+}
+
+bool RoboDiskWriteSectors(uint32_t lba, uint32_t count, const uint8_t* source) {
+    if (source == nullptr || count == 0) {
+        return false;
+    }
+    uint32_t done = 0;
+    while (done < count) {
+        uint32_t step = count - done;
+        bool ok = false;
+        const uint8_t* part = source + done * ROBO_SECTOR_BYTES;
+        if (gKind == ROBO_DISK_VIRTIO) {
+            if (step > 16u) {
+                step = 16u;
+            }
+            ok = RoboVirtioBlkWrite(gIndex, lba + done, step, part);
+        } else if (gKind == ROBO_DISK_AHCI) {
+            if (step > 32u) {
+                step = 32u;
+            }
+            ok = RoboAhciWriteSectors(gIndex, lba + done, step, part);
+        } else if (gKind == ROBO_DISK_NVME) {
+            if (step > 8u) {
+                step = 8u;
+            }
+            ok = RoboNvmeWriteSectors(gIndex, lba + done, step, part);
+        } else if (gKind == ROBO_DISK_ATA) {
+            return done == 0 && RoboAtaWriteSectors(lba, count, source);
+        } else {
+            return false;
+        }
+        if (!ok) {
+            return false;
+        }
+        done += step;
+    }
+    return true;
+}
+
+bool RoboDiskWriteSector(uint32_t lba, const uint8_t* sector) {
+    return RoboDiskWriteSectors(lba, 1, sector);
 }
 
 bool RoboDiskStart(void) {

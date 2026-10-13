@@ -173,27 +173,28 @@ int main(int argc, char** argv) {
     RoboCopy(desktop, esp, "BACKGROU.RJP", "Background.rjp");
     RoboCopy(desktop, esp, "BACKGROU.MP4", "Background.mp4");
 
-    std::uint64_t next = 1;
+    std::uint64_t used = 1;
     for (RoboNode& node : gNodes) {
         if (!node.directory) {
             continue;
         }
-        node.block = next;
-        next += ROBO_DIRECTORY_BYTES / ROBO_SECTOR_BYTES;
+        node.block = used;
+        used += ROBO_DIRECTORY_BYTES / ROBO_SECTOR_BYTES;
     }
     for (RoboNode& node : gNodes) {
         if (node.directory) {
             continue;
         }
-        node.block = next;
+        node.block = used;
         std::uint64_t blocks = (node.data.size() + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES;
         if (blocks == 0) {
             blocks = 1;
         }
-        next += blocks;
+        used += blocks;
     }
+    std::uint64_t total = used + ROBO_FS_SPARE_BLOCKS;
 
-    std::vector<std::uint8_t> volume(static_cast<std::size_t>(next * ROBO_SECTOR_BYTES), 0);
+    std::vector<std::uint8_t> volume(static_cast<std::size_t>(total * ROBO_SECTOR_BYTES), 0);
     volume[0] = static_cast<std::uint8_t>(ROBO_FS_MAGIC[0]);
     volume[1] = static_cast<std::uint8_t>(ROBO_FS_MAGIC[1]);
     volume[2] = static_cast<std::uint8_t>(ROBO_FS_MAGIC[2]);
@@ -204,7 +205,13 @@ int main(int argc, char** argv) {
     volume[7] = static_cast<std::uint8_t>(ROBO_FS_MAGIC[7]);
     RoboStore32(volume.data() + 8, ROBO_FS_VERSION);
     RoboStore32(volume.data() + 12, ROBO_SECTOR_BYTES);
-    RoboStore64(volume.data() + 16, next);
+    RoboStore64(volume.data() + 16, total);
+    volume[ROBO_FS_ALLOC_AT] = static_cast<std::uint8_t>(ROBO_FS_ALLOC_MAGIC[0]);
+    volume[ROBO_FS_ALLOC_AT + 1] = static_cast<std::uint8_t>(ROBO_FS_ALLOC_MAGIC[1]);
+    volume[ROBO_FS_ALLOC_AT + 2] = static_cast<std::uint8_t>(ROBO_FS_ALLOC_MAGIC[2]);
+    volume[ROBO_FS_ALLOC_AT + 3] = static_cast<std::uint8_t>(ROBO_FS_ALLOC_MAGIC[3]);
+    RoboStore64(volume.data() + ROBO_FS_NEXT_FREE_AT, used);
+    RoboStore64(volume.data() + ROBO_FS_FREE_HEAD_AT, 0);
     RoboStore64(volume.data() + 24, gNodes[static_cast<std::size_t>(root)].block);
     RoboStore32(volume.data() + 32, ROBO_ENTRY_BYTES);
     RoboStoreName(volume.data() + 40, 32, "Roboticela");
@@ -232,7 +239,7 @@ int main(int argc, char** argv) {
         std::memcpy(dest, node.data.data(), node.data.size());
     }
 
-    std::vector<std::uint8_t> image(static_cast<std::size_t>((ROBO_VOLUME_LBA + next) * ROBO_SECTOR_BYTES), 0);
+    std::vector<std::uint8_t> image(static_cast<std::size_t>((ROBO_VOLUME_LBA + total) * ROBO_SECTOR_BYTES), 0);
     for (std::uint32_t index = 0; index < 8u; ++index) {
         image[index] = static_cast<std::uint8_t>(ROBO_PARTITION_MAGIC[index]);
     }
@@ -244,7 +251,7 @@ int main(int argc, char** argv) {
     RoboStoreName(partition, 32, "Roboticela");
     RoboStore32(partition + 32, ROBO_FS_KIND);
     RoboStore64(partition + 40, ROBO_VOLUME_LBA);
-    RoboStore64(partition + 48, next);
+    RoboStore64(partition + 48, total);
     std::memcpy(image.data() + ROBO_VOLUME_LBA * ROBO_SECTOR_BYTES, volume.data(), volume.size());
 
     FILE* out = std::fopen(imagePath.c_str(), "wb");

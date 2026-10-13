@@ -82,9 +82,9 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] A missing disk still boots the desktop
 
 ## Stage 11 — Files an app can write
-- [ ] Create, read, write, and delete a file
-- [ ] Directories, so an app can keep its own folder
-- [ ] A failed write returns an error and does not panic the kernel
+- [x] Create, read, write, and delete a file
+- [x] Directories, so an app can keep its own folder
+- [x] A failed write returns an error and does not panic the kernel
 
 ## Stage 12 — App processes
 - [ ] Load a Compiler app from RoboFS into its own user address space

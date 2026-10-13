@@ -153,8 +153,8 @@ uint32_t RoboAhciCount(void) {
     return gPortCount;
 }
 
-bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest) {
-    if (dest == nullptr || count == 0 || count > ROBO_AHCI_SECTOR_LIMIT || !RoboAhciClaim(index)) {
+bool RoboAhciTransfer(uint32_t index, uint32_t lba, uint32_t count, uint8_t* buffer, bool write) {
+    if (buffer == nullptr || count == 0 || count > ROBO_AHCI_SECTOR_LIMIT || !RoboAhciClaim(index)) {
         return false;
     }
     uint64_t port = gPorts[index].base;
@@ -166,7 +166,7 @@ bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* 
     }
     gCommand[0x00] = 0x27;
     gCommand[0x01] = 0x80;
-    gCommand[0x02] = 0x25;
+    gCommand[0x02] = write ? 0x35 : 0x25;
     gCommand[0x04] = static_cast<uint8_t>(lba);
     gCommand[0x05] = static_cast<uint8_t>(lba >> 8);
     gCommand[0x06] = static_cast<uint8_t>(lba >> 16);
@@ -174,15 +174,15 @@ bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* 
     gCommand[0x08] = static_cast<uint8_t>(lba >> 24);
     gCommand[0x0C] = static_cast<uint8_t>(count);
     gCommand[0x0D] = static_cast<uint8_t>(count >> 8);
-    uint64_t buffer = reinterpret_cast<uint64_t>(dest);
-    gCommand[0x80] = static_cast<uint8_t>(buffer);
-    gCommand[0x81] = static_cast<uint8_t>(buffer >> 8);
-    gCommand[0x82] = static_cast<uint8_t>(buffer >> 16);
-    gCommand[0x83] = static_cast<uint8_t>(buffer >> 24);
-    gCommand[0x84] = static_cast<uint8_t>(buffer >> 32);
-    gCommand[0x85] = static_cast<uint8_t>(buffer >> 40);
-    gCommand[0x86] = static_cast<uint8_t>(buffer >> 48);
-    gCommand[0x87] = static_cast<uint8_t>(buffer >> 56);
+    uint64_t data = reinterpret_cast<uint64_t>(buffer);
+    gCommand[0x80] = static_cast<uint8_t>(data);
+    gCommand[0x81] = static_cast<uint8_t>(data >> 8);
+    gCommand[0x82] = static_cast<uint8_t>(data >> 16);
+    gCommand[0x83] = static_cast<uint8_t>(data >> 24);
+    gCommand[0x84] = static_cast<uint8_t>(data >> 32);
+    gCommand[0x85] = static_cast<uint8_t>(data >> 40);
+    gCommand[0x86] = static_cast<uint8_t>(data >> 48);
+    gCommand[0x87] = static_cast<uint8_t>(data >> 56);
     uint32_t bytes = count * ROBO_SECTOR_BYTES;
     uint32_t dbc = (bytes - 1u) | 0x80000000u;
     gCommand[0x8C] = static_cast<uint8_t>(dbc);
@@ -190,12 +190,12 @@ bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* 
     gCommand[0x8E] = static_cast<uint8_t>(dbc >> 16);
     gCommand[0x8F] = static_cast<uint8_t>(dbc >> 24);
     uint32_t* header = reinterpret_cast<uint32_t*>(gCommandList);
-    header[0] = (1u << 16) | 5u;
+    header[0] = (1u << 16) | 5u | (write ? (1u << 6) : 0u);
     header[1] = 0;
     uint64_t table = reinterpret_cast<uint64_t>(gCommand);
     header[2] = static_cast<uint32_t>(table);
     header[3] = static_cast<uint32_t>(table >> 32);
-    RoboAhciClean(dest, bytes);
+    RoboAhciClean(buffer, bytes);
     RoboAhciClean(gCommand, sizeof(gCommand));
     RoboAhciClean(gCommandList, 32);
     RoboAhciWrite(port + 0x38, 1u);
@@ -207,4 +207,12 @@ bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* 
     }
     gOpen = -1;
     return false;
+}
+
+bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest) {
+    return RoboAhciTransfer(index, lba, count, dest, false);
+}
+
+bool RoboAhciWriteSectors(uint32_t index, uint32_t lba, uint32_t count, const uint8_t* source) {
+    return RoboAhciTransfer(index, lba, count, const_cast<uint8_t*>(source), true);
 }

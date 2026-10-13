@@ -17,6 +17,7 @@ constexpr uint8_t ROBO_ATA_STATUS_DRQ = 0x08;
 constexpr uint8_t ROBO_ATA_STATUS_RDY = 0x40;
 constexpr uint8_t ROBO_ATA_STATUS_BSY = 0x80;
 constexpr uint8_t ROBO_ATA_CMD_READ = 0x20;
+constexpr uint8_t ROBO_ATA_CMD_WRITE = 0x30;
 constexpr uint8_t ROBO_ATA_CMD_IDENTIFY = 0xEC;
 
 bool gAtaReady = false;
@@ -123,6 +124,49 @@ bool RoboAtaReadSectors(uint32_t lba, uint32_t count, uint8_t* dest) {
     return true;
 }
 
+bool RoboAtaWriteWords(const uint8_t* sector) {
+    if (!RoboAtaWait(ROBO_ATA_STATUS_DRQ, ROBO_ATA_STATUS_DRQ)) {
+        return false;
+    }
+    for (uint32_t index = 0; index < 256u; ++index) {
+        uint16_t word = static_cast<uint16_t>(sector[index * 2u] | (static_cast<uint16_t>(sector[index * 2u + 1u]) << 8));
+        RoboPortOut16(ROBO_ATA_DATA, word);
+    }
+    return true;
+}
+
 bool RoboAtaReadSector(uint32_t lba, uint8_t* sector) {
     return RoboAtaReadSectors(lba, 1, sector);
+}
+
+bool RoboAtaWriteSectors(uint32_t lba, uint32_t count, const uint8_t* source) {
+    if (!gAtaReady || source == nullptr || count == 0 || lba > 0x0FFFFFFFu) {
+        return false;
+    }
+    while (count > 0) {
+        uint32_t chunk = count > 128u ? 128u : count;
+        if (lba + chunk - 1u > 0x0FFFFFFFu) {
+            return false;
+        }
+        if (!RoboAtaWait(ROBO_ATA_STATUS_RDY, ROBO_ATA_STATUS_RDY)) {
+            return false;
+        }
+        RoboPortOut8(ROBO_ATA_DRIVE, static_cast<uint8_t>(0xE0u | ((lba >> 24) & 0x0Fu)));
+        RoboAtaDelay();
+        RoboPortOut8(ROBO_ATA_SECTOR_COUNT, static_cast<uint8_t>(chunk));
+        RoboPortOut8(ROBO_ATA_LBA_LOW, static_cast<uint8_t>(lba));
+        RoboPortOut8(ROBO_ATA_LBA_MID, static_cast<uint8_t>(lba >> 8));
+        RoboPortOut8(ROBO_ATA_LBA_HIGH, static_cast<uint8_t>(lba >> 16));
+        RoboPortOut8(ROBO_ATA_STATUS, ROBO_ATA_CMD_WRITE);
+        RoboAtaDelay();
+        for (uint32_t index = 0; index < chunk; ++index) {
+            if (!RoboAtaWriteWords(source)) {
+                return false;
+            }
+            source += 512u;
+        }
+        lba += chunk;
+        count -= chunk;
+    }
+    return RoboAtaWait(ROBO_ATA_STATUS_RDY, ROBO_ATA_STATUS_RDY);
 }

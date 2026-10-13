@@ -280,3 +280,59 @@ bool RoboVirtioBlkRead(uint32_t index, uint32_t lba, uint32_t count, uint8_t* de
     gOpen = -1;
     return false;
 }
+
+bool RoboVirtioBlkWrite(uint32_t index, uint32_t lba, uint32_t count, const uint8_t* source) {
+    if (source == nullptr || count == 0 || count > ROBO_VIRTIO_SECTOR_LIMIT || !RoboVirtioOpen(index)) {
+        return false;
+    }
+    gHeader[0] = 1;
+    gHeader[1] = 0;
+    gHeader[2] = 0;
+    gHeader[3] = 0;
+    gHeader[4] = 0;
+    gHeader[5] = 0;
+    gHeader[6] = 0;
+    gHeader[7] = 0;
+    gHeader[8] = static_cast<uint8_t>(lba);
+    gHeader[9] = static_cast<uint8_t>(lba >> 8);
+    gHeader[10] = static_cast<uint8_t>(lba >> 16);
+    gHeader[11] = static_cast<uint8_t>(lba >> 24);
+    gHeader[12] = 0;
+    gHeader[13] = 0;
+    gHeader[14] = 0;
+    gHeader[15] = 0;
+    gStatus = 0xFF;
+    RoboDiskClean(gHeader, sizeof(gHeader));
+    RoboDiskClean(source, count * ROBO_SECTOR_BYTES);
+    RoboDiskClean(&gStatus, 1);
+    gDesc[0].address = reinterpret_cast<uint64_t>(gHeader);
+    gDesc[0].length = sizeof(gHeader);
+    gDesc[0].flags = 1;
+    gDesc[0].next = 1;
+    gDesc[1].address = reinterpret_cast<uint64_t>(source);
+    gDesc[1].length = count * ROBO_SECTOR_BYTES;
+    gDesc[1].flags = 1;
+    gDesc[1].next = 2;
+    gDesc[2].address = reinterpret_cast<uint64_t>(&gStatus);
+    gDesc[2].length = 1;
+    gDesc[2].flags = 2;
+    gDesc[2].next = 0;
+    uint16_t slot = static_cast<uint16_t>(gAvail.index % gQueueSize);
+    gAvail.ring[slot] = 0;
+    RoboDiskClean(gDesc, sizeof(gDesc));
+    RoboDiskFence();
+    gAvail.index = static_cast<uint16_t>(gAvail.index + 1u);
+    RoboDiskClean(&gAvail, sizeof(gAvail));
+    *reinterpret_cast<volatile uint16_t*>(gNotify + static_cast<uint32_t>(gNotifyOff) * gNotifyMultiply) = 0;
+    for (uint32_t spin = 0; spin < 1000000u; ++spin) {
+        RoboDiskFence();
+        if (gUsed.index != gUsedSeen) {
+            gUsedSeen = gUsed.index;
+            RoboDiskClean(&gStatus, 1);
+            return gStatus == 0;
+        }
+        RoboDiskPause();
+    }
+    gOpen = -1;
+    return false;
+}
