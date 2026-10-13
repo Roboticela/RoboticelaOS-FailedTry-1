@@ -9,3 +9,10 @@ bool RoboAtaReadSector(uint32_t lba, uint8_t* sector) {
     (void)sector;
     return false;
 }
+
+bool RoboAtaReadSectors(uint32_t lba, uint32_t count, uint8_t* dest) {
+    (void)lba;
+    (void)count;
+    (void)dest;
+    return false;
+}

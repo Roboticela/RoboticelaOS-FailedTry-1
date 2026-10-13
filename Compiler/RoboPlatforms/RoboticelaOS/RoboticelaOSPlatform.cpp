@@ -169,7 +169,7 @@ std::vector<std::uint8_t> RoboticelaOSPlatform::LoadAsset(const std::string& rel
     auto readFile = [](const std::string& fileName) {
         std::uint8_t probe = 0;
         std::uint32_t size = 0;
-        if (!RoboFsReadFile(fileName.c_str(), &probe, 1, &size) || size == 0 || size > 8u * 1024u * 1024u) {
+        if (!RoboFsReadFile(fileName.c_str(), &probe, 1, &size) || size == 0 || size > 24u * 1024u * 1024u) {
             return std::vector<std::uint8_t>();
         }
         std::vector<std::uint8_t> bytes(size);

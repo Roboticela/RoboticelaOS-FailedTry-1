@@ -12,7 +12,7 @@ bool RoboDecodeJpeg(const std::uint8_t* bytes, std::size_t size, std::vector<std
 
 namespace {
 
-constexpr int ROBO_BACKGROUND_BYTE_LIMIT = 8 * 1024 * 1024;
+constexpr int ROBO_BACKGROUND_BYTE_LIMIT = 24 * 1024 * 1024;
 constexpr int ROBO_BACKGROUND_FRAME_LIMIT = 4 * 1024 * 1024;
 
 int ReadU16(const std::uint8_t* bytes) {
@@ -913,27 +913,27 @@ bool Background::ShowVideoFrame(int index) {
     if (start < 0 || end < start || static_cast<std::size_t>(end) > video_.size()) {
         return false;
     }
-    std::vector<std::uint8_t> pixels;
     int width = 0;
     int height = 0;
-    if (!RoboDecodeJpeg(video_.data() + start, static_cast<std::size_t>(end - start), pixels, width, height)) {
+    if (frames_.empty()) {
+        frames_.push_back({});
+    }
+    if (!RoboDecodeJpeg(video_.data() + start, static_cast<std::size_t>(end - start), frames_[0], width, height)) {
         return false;
     }
     width_ = width;
     height_ = height;
-    if (frames_.empty()) {
-        frames_.push_back({});
-    }
-    frames_[0] = std::move(pixels);
     return true;
 }
 
-bool Background::DecodeVideo(const std::uint8_t* bytes, std::size_t size) {
-    if (size >= 24 && memcmp(bytes, "RJPG", 4) == 0) {
-        const int frameCount = ReadU32(bytes + 4);
-        const int frameMs = ReadU32(bytes + 8);
-        const int width = ReadU32(bytes + 12);
-        const int height = ReadU32(bytes + 16);
+bool Background::DecodeVideo(std::vector<std::uint8_t>& bytes) {
+    const std::uint8_t* data = bytes.data();
+    const std::size_t size = bytes.size();
+    if (size >= 24 && data != nullptr && memcmp(data, "RJPG", 4) == 0) {
+        const int frameCount = ReadU32(data + 4);
+        const int frameMs = ReadU32(data + 8);
+        const int width = ReadU32(data + 12);
+        const int height = ReadU32(data + 16);
         if (frameCount <= 0 || frameCount > 512 || width <= 0 || height <= 0 || width > 4096 || height > 4096) {
             return false;
         }
@@ -941,7 +941,7 @@ bool Background::DecodeVideo(const std::uint8_t* bytes, std::size_t size) {
         if (20u + tableBytes > size) {
             return false;
         }
-        video_.assign(bytes, bytes + size);
+        video_ = std::move(bytes);
         frames_.clear();
         delays_.clear();
         hasGraphic_ = false;
@@ -962,13 +962,13 @@ bool Background::DecodeVideo(const std::uint8_t* bytes, std::size_t size) {
         status_.clear();
         return true;
     }
-    if (size < 20 || memcmp(bytes, "RV1", 3) != 0) {
+    if (size < 20 || data == nullptr || memcmp(data, "RV1", 3) != 0) {
         return false;
     }
-    const int width = ReadU32(bytes + 4);
-    const int height = ReadU32(bytes + 8);
-    const int frameCount = ReadU32(bytes + 12);
-    const int frameMs = ReadU32(bytes + 16);
+    const int width = ReadU32(data + 4);
+    const int height = ReadU32(data + 8);
+    const int frameCount = ReadU32(data + 12);
+    const int frameMs = ReadU32(data + 16);
     if (width <= 0 || height <= 0 || frameCount <= 0 || width > 4096 || height > 4096) {
         return false;
     }
@@ -976,7 +976,7 @@ bool Background::DecodeVideo(const std::uint8_t* bytes, std::size_t size) {
     if (20u + frameBytes * static_cast<std::size_t>(frameCount) > size) {
         return false;
     }
-    video_.assign(bytes, bytes + size);
+    video_ = std::move(bytes);
     frames_.clear();
     delays_.clear();
     hasGraphic_ = false;
@@ -993,7 +993,7 @@ bool Background::DecodeVideo(const std::uint8_t* bytes, std::size_t size) {
     return true;
 }
 
-bool Background::ApplyPath(const std::vector<std::uint8_t>& bytes, const std::string& kindName) {
+bool Background::ApplyPath(std::vector<std::uint8_t>& bytes, const std::string& kindName) {
     const std::uint8_t* data = bytes.data();
     const std::size_t size = bytes.size();
     if (kindName == "color") {
@@ -1008,7 +1008,7 @@ bool Background::ApplyPath(const std::vector<std::uint8_t>& bytes, const std::st
     if ((kindName.empty() || kindName == "svg") && DecodeSvg(data, size)) {
         return true;
     }
-    if ((kindName.empty() || kindName == "video") && DecodeVideo(data, size)) {
+    if ((kindName.empty() || kindName == "video") && DecodeVideo(bytes)) {
         return true;
     }
     if (kindName == "gif") {
@@ -1042,7 +1042,7 @@ bool Background::EnsureLoaded(const IPlatform& platform) {
             return false;
         }
     }
-    const std::vector<std::uint8_t> bytes = platform.LoadAsset(rest);
+    std::vector<std::uint8_t> bytes = platform.LoadAsset(rest);
     if (bytes.empty() || static_cast<int>(bytes.size()) > ROBO_BACKGROUND_BYTE_LIMIT) {
         status_ = "Background file was not found";
         return false;
@@ -1074,17 +1074,32 @@ bool Background::Advance(double deltaMs) {
         return false;
     }
     elapsedMs_ += deltaMs;
-    const int delay = kind_ == BackgroundKind::Video ? videoDelayMs_ : (frame_ >= 0 && frame_ < static_cast<int>(delays_.size()) ? delays_[static_cast<std::size_t>(frame_)] : 100);
-    if (elapsedMs_ < static_cast<double>(delay)) {
+    const bool video = kind_ == BackgroundKind::Video;
+    const int delay = video ? videoDelayMs_ : (frame_ >= 0 && frame_ < static_cast<int>(delays_.size()) ? delays_[static_cast<std::size_t>(frame_)] : 100);
+    if (delay <= 0 || elapsedMs_ < static_cast<double>(delay)) {
         return false;
     }
-    elapsedMs_ -= static_cast<double>(delay);
-    const int count = kind_ == BackgroundKind::Video ? videoFrames_ : static_cast<int>(frames_.size());
+    const int count = video ? videoFrames_ : static_cast<int>(frames_.size());
     if (count <= 1) {
         return false;
     }
-    frame_ = (frame_ + 1) % count;
-    if (kind_ == BackgroundKind::Video && videoJpeg_ && !ShowVideoFrame(frame_)) {
+    int steps = 1;
+    if (video) {
+        steps = static_cast<int>(elapsedMs_ / static_cast<double>(delay));
+        if (steps < 1) {
+            steps = 1;
+        }
+    }
+    elapsedMs_ -= static_cast<double>(steps) * static_cast<double>(delay);
+    if (elapsedMs_ < 0.0) {
+        elapsedMs_ = 0.0;
+    }
+    const int advance = steps % count;
+    if (advance == 0) {
+        return false;
+    }
+    frame_ = (frame_ + advance) % count;
+    if (video && videoJpeg_ && !ShowVideoFrame(frame_)) {
         status_ = "Video frame could not be read";
         return false;
     }

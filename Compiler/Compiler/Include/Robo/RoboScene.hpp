@@ -202,6 +202,7 @@ private:
     bool SetFocusedInput(Input* input);
     bool RerenderIfPossible();
     void MarkFullDirty();
+    void MarkSurfaceDirty();
     void MarkDirty(float x, float y, float width, float height);
     void DirtyButton(const Button* button);
     void DirtyInput(const Input* input);

@@ -1861,6 +1861,20 @@ void RoboScene::MarkFullDirty() {
     damageOpen_ = false;
 }
 
+void RoboScene::MarkSurfaceDirty() {
+    needsRender_ = true;
+    if (!frameReady_ || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
+        MarkFullDirty();
+        return;
+    }
+    fullDirty_ = false;
+    damageOpen_ = true;
+    dirtyLeft_ = 0.0f;
+    dirtyTop_ = 0.0f;
+    dirtyRight_ = static_cast<float>(paintedWidth_);
+    dirtyBottom_ = static_cast<float>(paintedHeight_);
+}
+
 void RoboScene::MarkDirty(float x, float y, float width, float height) {
     needsRender_ = true;
     if (fullDirty_ || !frameReady_ || width <= 0.0f || height <= 0.0f) {
@@ -4440,7 +4454,7 @@ bool RoboScene::PointerLeave() {
 bool RoboScene::Tick(double deltaMs) {
     bool changed = false;
     if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().Advance(deltaMs)) {
-        MarkFullDirty();
+        MarkSurfaceDirty();
         changed = true;
     }
     bool contentMoved = false;

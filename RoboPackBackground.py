@@ -5,6 +5,35 @@ import sys
 import cv2
 
 
+def Cover(frame, width, height):
+    srcH, srcW = frame.shape[:2]
+    scale = max(float(width) / float(srcW), float(height) / float(srcH))
+    scaledW = max(width, int(round(srcW * scale)))
+    scaledH = max(height, int(round(srcH * scale)))
+    scaled = cv2.resize(frame, (scaledW, scaledH), interpolation=cv2.INTER_AREA)
+    x = max(0, (scaledW - width) // 2)
+    y = max(0, (scaledH - height) // 2)
+    return scaled[y:y + height, x:x + width]
+
+
+def Encode(capture, width, height, step, quality):
+    capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    frames = []
+    index = 0
+    while True:
+        ok, frame = capture.read()
+        if not ok:
+            break
+        if index % step == 0:
+            covered = Cover(frame, width, height)
+            encoded, buffer = cv2.imencode(".jpg", covered, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+            if not encoded:
+                return None
+            frames.append(buffer.tobytes())
+        index += 1
+    return frames
+
+
 def Pack(source, destinations, maxBytes):
     capture = cv2.VideoCapture(source)
     if not capture.isOpened():
@@ -13,37 +42,35 @@ def Pack(source, destinations, maxBytes):
     fps = capture.get(cv2.CAP_PROP_FPS)
     if fps < 1.0:
         fps = 24.0
-    width = 960
-    height = 540
-    targetFps = 8.0
-    quality = 55
-    step = max(1, int(round(fps / targetFps)))
-    frames = []
-    index = 0
+    width = 1280
+    height = 800
+    quality = 75
+    step = max(1, int(round(fps / 24.0)))
+    frames = None
     while True:
-        ok, frame = capture.read()
-        if not ok:
-            break
-        if index % step == 0:
-            scaled = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
-            encoded, buffer = cv2.imencode(".jpg", scaled, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-            if not encoded:
-                print("Could not encode a background frame")
-                return 1
-            frames.append(buffer.tobytes())
-        index += 1
-    capture.release()
-    if not frames:
-        print("Background video has no frames")
-        return 1
-    while True:
+        frames = Encode(capture, width, height, step, quality)
+        if frames is None:
+            print("Could not encode a background frame")
+            capture.release()
+            return 1
+        if not frames:
+            print("Background video has no frames")
+            capture.release()
+            return 1
         total = 20 + (len(frames) + 1) * 4
         for frame in frames:
             total += len(frame)
-        if total <= maxBytes or len(frames) <= 8:
+        if total <= maxBytes:
             break
-        frames = frames[::2]
-        step *= 2
+        if quality > 55:
+            quality -= 5
+            continue
+        if len(frames) > 8:
+            step *= 2
+            quality = 75
+            continue
+        break
+    capture.release()
     frameMs = int(round(1000.0 * step / fps))
     if frameMs < 40:
         frameMs = 40
@@ -79,4 +106,4 @@ if __name__ == "__main__":
         os.path.join(root, "Build", "EspArm", "BACKGROU.RJP"),
         os.path.join(root, "Compiler", "Assets", "Background.rjp"),
     ]
-    sys.exit(Pack(source, destinations, 6 * 1024 * 1024))
+    sys.exit(Pack(source, destinations, 20 * 1024 * 1024))

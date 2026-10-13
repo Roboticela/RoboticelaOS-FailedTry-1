@@ -1,4 +1,3 @@
-#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -6,6 +5,8 @@
 namespace Robo {
 
 namespace {
+
+#define ROBO_INLINE __attribute__((always_inline)) inline
 
 int ReadU16(const std::uint8_t* bytes) {
     return static_cast<int>(bytes[0]) | (static_cast<int>(bytes[1]) << 8);
@@ -338,93 +339,192 @@ struct JpegHuffman {
             }
             code = (code + counts[length - 1]) << 1;
         }
+        for (int slot = 0; slot < 256; ++slot) {
+            fastBits[slot] = 0;
+        }
+        code = 0;
+        symbolCursor = 0;
+        for (int length = 1; length <= 16; ++length) {
+            const int amount = counts[length - 1];
+            for (int item = 0; item < amount; ++item) {
+                const int value = symbol[symbolCursor++];
+                if (length <= 8) {
+                    const int shift = 8 - length;
+                    const int base = code << shift;
+                    const int fill = 1 << shift;
+                    if (base < 0 || base + fill > 256) {
+                        return false;
+                    }
+                    for (int extra = 0; extra < fill; ++extra) {
+                        fastSymbol[base + extra] = static_cast<std::uint8_t>(value);
+                        fastBits[base + extra] = static_cast<std::uint8_t>(length);
+                    }
+                }
+                code += 1;
+            }
+            code <<= 1;
+        }
         return true;
     }
 
-    int Decode(int (*next)(void*), void* cookie) const {
-        int code = 0;
-        for (int length = 1; length <= 16; ++length) {
-            const int bit = next(cookie);
-            if (bit < 0) {
-                return -1;
-            }
-            code = (code << 1) | bit;
-            if (maxCode[length] >= 0 && code <= maxCode[length]) {
-                return symbol[index[length] + code - minCode[length]];
-            }
-        }
-        return -1;
-    }
+    std::uint8_t fastSymbol[256] = {};
+    std::uint8_t fastBits[256] = {};
 };
 
 struct JpegReader {
     const std::uint8_t* data = nullptr;
     std::size_t size = 0;
     std::size_t pos = 0;
-    std::uint32_t acc = 0;
+    std::uint64_t acc = 0;
     int bits = 0;
 
-    int NextBit() {
-        if (bits == 0) {
+    ROBO_INLINE bool Fill(int need) {
+        while (bits < need) {
             if (pos >= size) {
-                return -1;
+                return false;
             }
             std::uint8_t byte = data[pos++];
             if (byte == 0xFF) {
                 if (pos >= size) {
-                    return -1;
+                    return false;
                 }
                 if (data[pos] == 0x00) {
                     pos += 1;
                 } else {
-                    return -1;
+                    return false;
                 }
             }
-            acc = byte;
-            bits = 8;
+            acc = (acc << 8) | byte;
+            bits += 8;
+        }
+        return true;
+    }
+
+    ROBO_INLINE int GetBit() {
+        if (!Fill(1)) {
+            return -1;
         }
         bits -= 1;
         return static_cast<int>((acc >> bits) & 1u);
     }
 
-    int Receive(int count) {
-        int value = 0;
-        for (int index = 0; index < count; ++index) {
-            const int bit = NextBit();
+    ROBO_INLINE int Get(int count) {
+        if (count == 0) {
+            return 0;
+        }
+        if (!Fill(count)) {
+            return -1;
+        }
+        bits -= count;
+        return static_cast<int>((acc >> bits) & ((1u << count) - 1u));
+    }
+
+    ROBO_INLINE int Decode(const JpegHuffman& table) {
+        if (bits < 8 && !Fill(8)) {
+            int code = 0;
+            for (int length = 1; length <= 16; ++length) {
+                const int bit = GetBit();
+                if (bit < 0) {
+                    return -1;
+                }
+                code = (code << 1) | bit;
+                if (table.maxCode[length] >= 0 && code <= table.maxCode[length]) {
+                    return table.symbol[table.index[length] + code - table.minCode[length]];
+                }
+            }
+            return -1;
+        }
+        const int peek = static_cast<int>((acc >> (bits - 8)) & 255u);
+        const int length = table.fastBits[peek];
+        if (length != 0) {
+            bits -= length;
+            return table.fastSymbol[peek];
+        }
+        int code = 0;
+        for (int slow = 1; slow <= 16; ++slow) {
+            const int bit = GetBit();
             if (bit < 0) {
                 return -1;
             }
-            value = (value << 1) | bit;
+            code = (code << 1) | bit;
+            if (table.maxCode[slow] >= 0 && code <= table.maxCode[slow]) {
+                return table.symbol[table.index[slow] + code - table.minCode[slow]];
+            }
         }
-        return value;
+        return -1;
     }
 };
 
-int JpegNextBit(void* cookie) {
-    return static_cast<JpegReader*>(cookie)->NextBit();
+constexpr int JpegFix(float value) {
+    return static_cast<int>(value * 4096.0f + 0.5f);
 }
 
-void JpegIdct(float* block) {
-    const float pi = 3.14159265f;
-    float row[64];
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
-            float sum = 0.0f;
-            for (int u = 0; u < 8; ++u) {
-                const float cu = u == 0 ? 0.70710678f : 1.0f;
-                sum += cu * block[y * 8 + u] * std::cos((2.0f * static_cast<float>(x) + 1.0f) * static_cast<float>(u) * pi / 16.0f);
+ROBO_INLINE void JpegIdct1D(int s0, int s1, int s2, int s3, int s4, int s5, int s6, int s7, int* out) {
+    const int p2 = s2;
+    const int p3 = s6;
+    const int p1 = (p2 + p3) * JpegFix(0.5411961f);
+    const int t2 = p1 + p3 * JpegFix(-1.847759065f);
+    const int t3 = p1 + p2 * JpegFix(0.765366865f);
+    const int t0 = (s0 + s4) << 12;
+    const int t1 = (s0 - s4) << 12;
+    const int x0 = t0 + t3;
+    const int x3 = t0 - t3;
+    const int x1 = t1 + t2;
+    const int x2 = t1 - t2;
+    const int q0 = s7;
+    const int q1 = s5;
+    const int q2 = s3;
+    const int q3 = s1;
+    const int r3 = q0 + q2;
+    const int r4 = q1 + q3;
+    const int r1 = q0 + q3;
+    const int r2 = q1 + q2;
+    const int r5 = (r3 + r4) * JpegFix(1.175875602f);
+    const int u0 = q0 * JpegFix(0.298631336f) + r5 + r1 * JpegFix(-0.899976223f) + r3 * JpegFix(-1.961570560f);
+    const int u1 = q1 * JpegFix(2.053119869f) + r5 + r2 * JpegFix(-2.562915447f) + r4 * JpegFix(-0.390180644f);
+    const int u2 = q2 * JpegFix(3.072711026f) + r5 + r2 * JpegFix(-2.562915447f) + r3 * JpegFix(-1.961570560f);
+    const int u3 = q3 * JpegFix(1.501321110f) + r5 + r1 * JpegFix(-0.899976223f) + r4 * JpegFix(-0.390180644f);
+    out[0] = x0 + u3;
+    out[1] = x1 + u2;
+    out[2] = x2 + u1;
+    out[3] = x3 + u0;
+    out[4] = x3 - u0;
+    out[5] = x2 - u1;
+    out[6] = x1 - u2;
+    out[7] = x0 - u3;
+}
+
+ROBO_INLINE void JpegIdct(const int* coefficients, std::uint8_t* samples) {
+    int columns[64];
+    for (int index = 0; index < 8; ++index) {
+        const int s0 = coefficients[index];
+        const int s1 = coefficients[8 + index];
+        const int s2 = coefficients[16 + index];
+        const int s3 = coefficients[24 + index];
+        const int s4 = coefficients[32 + index];
+        const int s5 = coefficients[40 + index];
+        const int s6 = coefficients[48 + index];
+        const int s7 = coefficients[56 + index];
+        if ((s1 | s2 | s3 | s4 | s5 | s6 | s7) == 0) {
+            const int dc = s0 << 2;
+            for (int row = 0; row < 8; ++row) {
+                columns[row * 8 + index] = dc;
             }
-            row[y * 8 + x] = sum * 0.5f;
+            continue;
+        }
+        int row[8];
+        JpegIdct1D(s0, s1, s2, s3, s4, s5, s6, s7, row);
+        for (int item = 0; item < 8; ++item) {
+            columns[item * 8 + index] = (row[item] + 512) >> 10;
         }
     }
-    for (int x = 0; x < 8; ++x) {
-        for (int y = 0; y < 8; ++y) {
-            float sum = 0.0f;
-            for (int v = 0; v < 8; ++v) {
-                const float cv = v == 0 ? 0.70710678f : 1.0f;
-                sum += cv * row[v * 8 + x] * std::cos((2.0f * static_cast<float>(y) + 1.0f) * static_cast<float>(v) * pi / 16.0f);
-            }
-            block[y * 8 + x] = sum * 0.5f;
+    for (int row = 0; row < 8; ++row) {
+        int across[8];
+        JpegIdct1D(columns[row * 8], columns[row * 8 + 1], columns[row * 8 + 2], columns[row * 8 + 3], columns[row * 8 + 4],
+                   columns[row * 8 + 5], columns[row * 8 + 6], columns[row * 8 + 7], across);
+        for (int column = 0; column < 8; ++column) {
+            const int value = (across[column] + 65536 + (128 << 17)) >> 17;
+            samples[row * 8 + column] = static_cast<std::uint8_t>(value < 0 ? 0 : value > 255 ? 255 : value);
         }
     }
 }
@@ -605,11 +705,14 @@ bool RoboDecodeJpeg(const std::uint8_t* bytes, std::size_t size, std::vector<std
                     vMax = sampleV[component];
                 }
             }
-            pixels.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u, 255);
+            const std::size_t pixelBytes = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u;
+            if (pixels.size() != pixelBytes) {
+                pixels.resize(pixelBytes);
+            }
             int previousDc[3] = {};
             for (int my = 0; my < height; my += vMax * 8) {
                 for (int mx = 0; mx < width; mx += hMax * 8) {
-                    float blocks[3][4][64] = {};
+                    std::uint8_t blocks[3][4][64];
                     int blockCount[3] = {};
                     for (int component = 0; component < componentCount; ++component) {
                         const int count = sampleH[component] * sampleV[component];
@@ -618,13 +721,13 @@ bool RoboDecodeJpeg(const std::uint8_t* bytes, std::size_t size, std::vector<std
                             return false;
                         }
                         for (int block = 0; block < count; ++block) {
-                            const int dcSymbol = dc[dcId[component]].Decode(JpegNextBit, &reader);
+                            const int dcSymbol = reader.Decode(dc[dcId[component]]);
                             if (dcSymbol < 0 || dcSymbol > 11) {
                                 return false;
                             }
                             int diff = 0;
                             if (dcSymbol > 0) {
-                                diff = reader.Receive(dcSymbol);
+                                diff = reader.Get(dcSymbol);
                                 if (diff < 0) {
                                     return false;
                                 }
@@ -633,11 +736,11 @@ bool RoboDecodeJpeg(const std::uint8_t* bytes, std::size_t size, std::vector<std
                                 }
                             }
                             previousDc[component] += diff;
-                            float natural[64] = {};
-                            natural[0] = static_cast<float>(previousDc[component] * quant[quantId[component]][0]);
+                            int natural[64] = {};
+                            natural[0] = previousDc[component] * quant[quantId[component]][0];
                             int k = 1;
                             while (k < 64) {
-                                const int acSymbol = ac[acId[component]].Decode(JpegNextBit, &reader);
+                                const int acSymbol = reader.Decode(ac[acId[component]]);
                                 if (acSymbol < 0) {
                                     return false;
                                 }
@@ -660,25 +763,48 @@ bool RoboDecodeJpeg(const std::uint8_t* bytes, std::size_t size, std::vector<std
                                 if (k >= 64) {
                                     return false;
                                 }
-                                int value = reader.Receive(magnitude);
+                                int value = reader.Get(magnitude);
                                 if (value < 0) {
                                     return false;
                                 }
                                 if (value < (1 << (magnitude - 1))) {
                                     value -= (1 << magnitude) - 1;
                                 }
-                                natural[zigzag[k]] = static_cast<float>(value * quant[quantId[component]][k]);
+                                natural[zigzag[k]] = value * quant[quantId[component]][k];
                                 k += 1;
                             }
-                            JpegIdct(natural);
-                            for (int item = 0; item < 64; ++item) {
-                                blocks[component][block][item] = natural[item];
+                            JpegIdct(natural, blocks[component][block]);
+                        }
+                    }
+                    if (componentCount == 3 && hMax == 2 && vMax == 2 && sampleH[0] == 2 && sampleV[0] == 2 && sampleH[1] == 1 && sampleV[1] == 1 && sampleH[2] == 1 && sampleV[2] == 1) {
+                        const int rowCount = my + 16 <= height ? 16 : height - my;
+                        const int colCount = mx + 16 <= width ? 16 : width - mx;
+                        for (int y = 0; y < rowCount; ++y) {
+                            std::uint8_t* dest = pixels.data() + (static_cast<std::size_t>(my + y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(mx)) * 4u;
+                            const int yBlock = (y >> 3) << 1;
+                            const std::uint8_t* luma0 = blocks[0][yBlock] + (y & 7) * 8;
+                            const std::uint8_t* luma1 = blocks[0][yBlock + 1] + (y & 7) * 8;
+                            const std::uint8_t* blueRow = blocks[1][0] + (y >> 1) * 8;
+                            const std::uint8_t* redRow = blocks[2][0] + (y >> 1) * 8;
+                            for (int x = 0; x < colCount; ++x) {
+                                const int yValue = x < 8 ? luma0[x] : luma1[x - 8];
+                                const int cb = static_cast<int>(blueRow[x >> 1]) - 128;
+                                const int cr = static_cast<int>(redRow[x >> 1]) - 128;
+                                const int red = yValue + (1436 * cr) / 1024;
+                                const int green = yValue - (352 * cb + 731 * cr) / 1024;
+                                const int blue = yValue + (1815 * cb) / 1024;
+                                dest[0] = static_cast<std::uint8_t>(red < 0 ? 0 : red > 255 ? 255 : red);
+                                dest[1] = static_cast<std::uint8_t>(green < 0 ? 0 : green > 255 ? 255 : green);
+                                dest[2] = static_cast<std::uint8_t>(blue < 0 ? 0 : blue > 255 ? 255 : blue);
+                                dest[3] = 255;
+                                dest += 4;
                             }
                         }
+                        continue;
                     }
                     for (int y = 0; y < vMax * 8 && my + y < height; ++y) {
                         for (int x = 0; x < hMax * 8 && mx + x < width; ++x) {
-                            float channel[3] = {0, 0, 0};
+                            int channel[3] = {0, 0, 0};
                             for (int component = 0; component < componentCount; ++component) {
                                 const int sx = sampleH[component] == 0 ? 0 : x * sampleH[component] / hMax;
                                 const int sy = sampleV[component] == 0 ? 0 : y * sampleV[component] / vMax;
@@ -692,14 +818,14 @@ bool RoboDecodeJpeg(const std::uint8_t* bytes, std::size_t size, std::vector<std
                             int green = 0;
                             int blue = 0;
                             if (componentCount == 1) {
-                                red = green = blue = static_cast<int>(channel[0] + 128.0f);
+                                red = green = blue = channel[0];
                             } else {
-                                const float yValue = channel[0];
-                                const float cb = channel[1];
-                                const float cr = channel[2];
-                                red = static_cast<int>(yValue + 1.402f * cr + 128.0f);
-                                green = static_cast<int>(yValue - 0.344136f * cb - 0.714136f * cr + 128.0f);
-                                blue = static_cast<int>(yValue + 1.772f * cb + 128.0f);
+                                const int yValue = channel[0];
+                                const int cb = channel[1] - 128;
+                                const int cr = channel[2] - 128;
+                                red = yValue + (1436 * cr) / 1024;
+                                green = yValue - (352 * cb + 731 * cr) / 1024;
+                                blue = yValue + (1815 * cb) / 1024;
                             }
                             auto clamp = [](int value) { return value < 0 ? 0 : value > 255 ? 255 : value; };
                             std::uint8_t* dest = pixels.data() + (static_cast<std::size_t>(my + y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(mx + x)) * 4u;

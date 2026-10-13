@@ -56,11 +56,22 @@ void RoboArchFpuStart(void) {
     uint64_t cr4 = 0;
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 &= ~uint64_t{0xC};
-    cr0 |= 0x2;
-    __asm__ volatile("mov %0, %%cr0" : : "r"(cr0));
+    cr0 |= 0x22;
+    __asm__ volatile("mov %0, %%cr0" : : "r"(cr0) : "memory");
+    __asm__ volatile("fninit");
     __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
     cr4 |= 0x600;
-    __asm__ volatile("mov %0, %%cr4" : : "r"(cr4));
+    __asm__ volatile("mov %0, %%cr4" : : "r"(cr4) : "memory");
+    uint32_t eax = 1;
+    uint32_t ebx = 0;
+    uint32_t ecx = 0;
+    uint32_t edx = 0;
+    __asm__ volatile("cpuid" : "+a"(eax), "=b"(ebx), "+c"(ecx), "=d"(edx));
+    if ((ecx & (1u << 26)) != 0) {
+        cr4 |= 1ull << 18;
+        __asm__ volatile("mov %0, %%cr4" : : "r"(cr4) : "memory");
+        __asm__ volatile("xsetbv" : : "a"(3), "d"(0), "c"(0) : "memory");
+    }
 }
 
 void RoboArchCpuStart(void) {

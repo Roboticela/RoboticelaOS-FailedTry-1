@@ -57,12 +57,12 @@ public:
     Svg* Graphic();
 
 private:
-    bool ApplyPath(const std::vector<std::uint8_t>& bytes, const std::string& kindName);
+    bool ApplyPath(std::vector<std::uint8_t>& bytes, const std::string& kindName);
     bool UseColor(const std::string& text);
     bool DecodePicture(const std::uint8_t* bytes, std::size_t size);
     bool DecodeGif(const std::uint8_t* bytes, std::size_t size);
     bool DecodeSvg(const std::uint8_t* bytes, std::size_t size);
-    bool DecodeVideo(const std::uint8_t* bytes, std::size_t size);
+    bool DecodeVideo(std::vector<std::uint8_t>& bytes);
     bool ShowVideoFrame(int index);
     void RememberFrame(std::vector<std::uint8_t> pixels, int delayMs);
 

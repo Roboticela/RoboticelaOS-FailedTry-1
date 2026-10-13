@@ -3,6 +3,7 @@
 #include "Robo/SvgPainter.hpp"
 
 #include <algorithm>
+#include <cstring>
 
 namespace Robo {
 
@@ -21,21 +22,55 @@ void PaintPixels(FrameBuffer& buffer,
     if (pixels == nullptr || sourceWidth <= 0 || sourceHeight <= 0 || surfaceWidth <= 0 || surfaceHeight <= 0) {
         return;
     }
-    const float scale = std::max(static_cast<float>(surfaceWidth) / static_cast<float>(sourceWidth),
-                                  static_cast<float>(surfaceHeight) / static_cast<float>(sourceHeight));
-    const float drawnWidth = static_cast<float>(sourceWidth) * scale;
-    const float drawnHeight = static_cast<float>(sourceHeight) * scale;
-    const float originX = (static_cast<float>(surfaceWidth) - drawnWidth) * 0.5f;
-    const float originY = (static_cast<float>(surfaceHeight) - drawnHeight) * 0.5f;
+    const bool fitWidth = static_cast<long long>(surfaceWidth) * sourceHeight >= static_cast<long long>(surfaceHeight) * sourceWidth;
+    const int drawnWidth = fitWidth ? surfaceWidth : static_cast<int>((static_cast<long long>(sourceWidth) * surfaceHeight) / sourceHeight);
+    const int drawnHeight = fitWidth ? static_cast<int>((static_cast<long long>(sourceHeight) * surfaceWidth) / sourceWidth) : surfaceHeight;
+    const int originX = (surfaceWidth - drawnWidth) / 2;
+    const int originY = (surfaceHeight - drawnHeight) / 2;
+    const int x0 = std::max(0, x);
+    const int y0 = std::max(0, y);
     const int x1 = std::min(surfaceWidth, x + width);
     const int y1 = std::min(surfaceHeight, y + height);
-    for (int py = std::max(0, y); py < y1; ++py) {
-        const int sourceY = std::max(0, std::min(sourceHeight - 1, static_cast<int>((static_cast<float>(py) - originY) / scale)));
-        for (int px = std::max(0, x); px < x1; ++px) {
-            const int sourceX = std::max(0, std::min(sourceWidth - 1, static_cast<int>((static_cast<float>(px) - originX) / scale)));
-            const std::size_t index = (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(sourceWidth) + static_cast<std::size_t>(sourceX)) * 4u;
-            const Color color = Color::FromRgba(pixels[index], pixels[index + 1], pixels[index + 2], pixels[index + 3]);
-            buffer.BlendPixel(px, py, color, 1.0f);
+    if (x0 >= x1 || y0 >= y1 || drawnWidth <= 0 || drawnHeight <= 0) {
+        return;
+    }
+    std::uint8_t* destination = buffer.GetPixels();
+    if (sourceWidth == surfaceWidth && sourceHeight == surfaceHeight && drawnWidth == surfaceWidth && drawnHeight == surfaceHeight) {
+        const int stride = surfaceWidth * 4;
+        for (int py = y0; py < y1; ++py) {
+            std::uint8_t* dest = destination + static_cast<std::size_t>(py) * static_cast<std::size_t>(stride) + static_cast<std::size_t>(x0) * 4u;
+            const std::uint8_t* source = pixels + static_cast<std::size_t>(py) * static_cast<std::size_t>(stride) + static_cast<std::size_t>(x0) * 4u;
+            memcpy(dest, source, static_cast<std::size_t>(x1 - x0) * 4u);
+        }
+        return;
+    }
+    const int stride = surfaceWidth * 4;
+    for (int py = y0; py < y1; ++py) {
+        const int sourceY = py < originY ? 0 : std::min(sourceHeight - 1, ((py - originY) * sourceHeight) / drawnHeight);
+        const std::uint8_t* row = pixels + (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(sourceWidth)) * 4u;
+        std::uint8_t* dest = destination + static_cast<std::size_t>(py) * static_cast<std::size_t>(stride) + static_cast<std::size_t>(x0) * 4u;
+        int sourceX = 0;
+        int accumulator = 0;
+        if (x0 > originX) {
+            const int delta = x0 - originX;
+            sourceX = (delta * sourceWidth) / drawnWidth;
+            accumulator = (delta * sourceWidth) % drawnWidth;
+        }
+        for (int px = x0; px < x1; ++px) {
+            const int sampleX = sourceX < 0 ? 0 : std::min(sourceWidth - 1, sourceX);
+            const std::uint8_t* source = row + static_cast<std::size_t>(sampleX) * 4u;
+            dest[0] = source[0];
+            dest[1] = source[1];
+            dest[2] = source[2];
+            dest[3] = 255;
+            dest += 4;
+            if (px >= originX) {
+                accumulator += sourceWidth;
+                while (accumulator >= drawnWidth) {
+                    accumulator -= drawnWidth;
+                    sourceX += 1;
+                }
+            }
         }
     }
 }

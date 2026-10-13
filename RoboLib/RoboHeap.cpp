@@ -5,7 +5,7 @@
 
 namespace {
 
-constexpr size_t ROBO_HEAP_BYTES = 32u * 1024u * 1024u;
+constexpr size_t ROBO_HEAP_BYTES = 48u * 1024u * 1024u;
 
 struct RoboBlock {
     size_t size;

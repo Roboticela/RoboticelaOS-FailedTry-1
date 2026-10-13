@@ -43,6 +43,7 @@ bool RoboAtaWait(uint8_t mask, uint8_t value) {
         if ((status & mask) == value) {
             return true;
         }
+        __asm__ volatile("pause");
     }
     return false;
 }
@@ -82,7 +83,7 @@ bool RoboAtaStart(void) {
     if (status == 0x00u || status == 0xFFu) {
         return false;
     }
-    uint8_t discard[512];
+    alignas(2) uint8_t discard[512];
     if (!RoboAtaWait(ROBO_ATA_STATUS_DRQ, ROBO_ATA_STATUS_DRQ) || !RoboAtaReadWords(discard)) {
         return false;
     }
@@ -90,20 +91,38 @@ bool RoboAtaStart(void) {
     return true;
 }
 
+bool RoboAtaReadSectors(uint32_t lba, uint32_t count, uint8_t* dest) {
+    if (!gAtaReady || dest == nullptr || count == 0 || lba > 0x0FFFFFFFu) {
+        return false;
+    }
+    while (count > 0) {
+        uint32_t chunk = count > 128u ? 128u : count;
+        if (lba + chunk - 1u > 0x0FFFFFFFu) {
+            return false;
+        }
+        if (!RoboAtaWait(ROBO_ATA_STATUS_RDY, ROBO_ATA_STATUS_RDY)) {
+            return false;
+        }
+        RoboPortOut8(ROBO_ATA_DRIVE, static_cast<uint8_t>(0xE0u | ((lba >> 24) & 0x0Fu)));
+        RoboAtaDelay();
+        RoboPortOut8(ROBO_ATA_SECTOR_COUNT, static_cast<uint8_t>(chunk));
+        RoboPortOut8(ROBO_ATA_LBA_LOW, static_cast<uint8_t>(lba));
+        RoboPortOut8(ROBO_ATA_LBA_MID, static_cast<uint8_t>(lba >> 8));
+        RoboPortOut8(ROBO_ATA_LBA_HIGH, static_cast<uint8_t>(lba >> 16));
+        RoboPortOut8(ROBO_ATA_STATUS, ROBO_ATA_CMD_READ);
+        RoboAtaDelay();
+        for (uint32_t index = 0; index < chunk; ++index) {
+            if (!RoboAtaReadWords(dest)) {
+                return false;
+            }
+            dest += 512u;
+        }
+        lba += chunk;
+        count -= chunk;
+    }
+    return true;
+}
+
 bool RoboAtaReadSector(uint32_t lba, uint8_t* sector) {
-    if (!gAtaReady || sector == nullptr || lba > 0x0FFFFFFFu) {
-        return false;
-    }
-    if (!RoboAtaWait(ROBO_ATA_STATUS_RDY, ROBO_ATA_STATUS_RDY)) {
-        return false;
-    }
-    RoboPortOut8(ROBO_ATA_DRIVE, static_cast<uint8_t>(0xE0u | ((lba >> 24) & 0x0Fu)));
-    RoboAtaDelay();
-    RoboPortOut8(ROBO_ATA_SECTOR_COUNT, 1);
-    RoboPortOut8(ROBO_ATA_LBA_LOW, static_cast<uint8_t>(lba));
-    RoboPortOut8(ROBO_ATA_LBA_MID, static_cast<uint8_t>(lba >> 8));
-    RoboPortOut8(ROBO_ATA_LBA_HIGH, static_cast<uint8_t>(lba >> 16));
-    RoboPortOut8(ROBO_ATA_STATUS, ROBO_ATA_CMD_READ);
-    RoboAtaDelay();
-    return RoboAtaReadWords(sector);
+    return RoboAtaReadSectors(lba, 1, sector);
 }

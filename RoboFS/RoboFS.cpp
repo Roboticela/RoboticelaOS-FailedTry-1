@@ -1,10 +1,12 @@
 #include "RoboFS.hpp"
 
+#include "RoboAta.hpp"
+
 namespace {
 
 constexpr uint32_t ROBO_FS_SECTOR = 512;
 constexpr uint32_t ROBO_FS_DIR_LIMIT = 512;
-constexpr uint32_t ROBO_FS_CLUSTER_LIMIT = 16384;
+constexpr uint32_t ROBO_FS_CLUSTER_LIMIT = 65536;
 
 RoboFsSectorRead gRead = nullptr;
 uint32_t gVolumeLba = 0;
@@ -16,7 +18,7 @@ uint32_t gRootSectors = 0;
 uint32_t gDataStart = 0;
 uint32_t gRootCluster = 0;
 uint8_t gFatKind = 0;
-uint8_t gSector[ROBO_FS_SECTOR];
+alignas(2) uint8_t gSector[ROBO_FS_SECTOR];
 bool gMounted = false;
 
 uint16_t RoboFsLoad16(const uint8_t* bytes) {
@@ -278,26 +280,53 @@ bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t
     }
     uint32_t wantedBytes = fileSize < capacity ? fileSize : capacity;
     uint32_t written = 0;
-    for (uint32_t guard = 0; written < wantedBytes && cluster >= 2u && guard < ROBO_FS_CLUSTER_LIMIT; ++guard) {
-        for (uint32_t sector = 0; sector < gSectorsPerCluster && written < wantedBytes; ++sector) {
-            uint32_t lba = gDataStart + (cluster - 2u) * gSectorsPerCluster + sector;
-            if (!RoboFsRead(lba, gSector)) {
+    uint32_t guard = 0;
+    while (written < wantedBytes && cluster >= 2u && guard < ROBO_FS_CLUSTER_LIMIT) {
+        uint32_t run = 1;
+        uint32_t last = cluster;
+        uint32_t clusterBytes = gSectorsPerCluster * ROBO_FS_SECTOR;
+        while (run < 64u && guard + run < ROBO_FS_CLUSTER_LIMIT) {
+            if (run * clusterBytes >= wantedBytes - written) {
+                break;
+            }
+            uint32_t next = 0;
+            if (!RoboFsNextCluster(last, &next) || next != last + 1u) {
+                break;
+            }
+            last = next;
+            run += 1;
+        }
+        uint32_t lba = gDataStart + (cluster - 2u) * gSectorsPerCluster;
+        uint32_t sectorCount = run * gSectorsPerCluster;
+        uint32_t byteCount = sectorCount * ROBO_FS_SECTOR;
+        uint32_t copy = byteCount > wantedBytes - written ? wantedBytes - written : byteCount;
+        if (copy == byteCount && (reinterpret_cast<uint64_t>(dest + written) & 1u) == 0 && gRead == RoboAtaReadSector) {
+            if (!RoboAtaReadSectors(lba, sectorCount, dest + written)) {
                 return false;
             }
-            uint32_t chunk = ROBO_FS_SECTOR;
-            if (chunk > wantedBytes - written) {
-                chunk = wantedBytes - written;
+        } else {
+            for (uint32_t sector = 0; sector < sectorCount && written < wantedBytes; ++sector) {
+                if (!RoboFsRead(lba + sector, gSector)) {
+                    return false;
+                }
+                uint32_t chunk = ROBO_FS_SECTOR;
+                if (chunk > wantedBytes - written) {
+                    chunk = wantedBytes - written;
+                }
+                for (uint32_t index = 0; index < chunk; ++index) {
+                    dest[written + index] = gSector[index];
+                }
+                written += chunk;
             }
-            for (uint32_t index = 0; index < chunk; ++index) {
-                dest[written + index] = gSector[index];
-            }
-            written += chunk;
+            copy = 0;
         }
+        written += copy;
         uint32_t next = 0;
-        if (!RoboFsNextCluster(cluster, &next)) {
+        if (!RoboFsNextCluster(last, &next)) {
             return false;
         }
         cluster = next;
+        guard += run;
     }
     if (written < wantedBytes) {
         return false;
