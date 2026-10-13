@@ -8,6 +8,8 @@ uint32_t RoboVirtioBlkCount(void);
 bool RoboVirtioBlkRead(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest);
 uint32_t RoboAhciCount(void);
 bool RoboAhciReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest);
+uint32_t RoboNvmeCount(void);
+bool RoboNvmeReadSectors(uint32_t index, uint32_t lba, uint32_t count, uint8_t* dest);
 
 namespace {
 
@@ -15,6 +17,7 @@ constexpr int ROBO_DISK_NONE = 0;
 constexpr int ROBO_DISK_VIRTIO = 1;
 constexpr int ROBO_DISK_AHCI = 2;
 constexpr int ROBO_DISK_ATA = 3;
+constexpr int ROBO_DISK_NVME = 4;
 
 int gKind = ROBO_DISK_NONE;
 uint32_t gIndex = 0;
@@ -70,6 +73,11 @@ bool RoboDiskReadSectors(uint32_t lba, uint32_t count, uint8_t* dest) {
                 step = 32u;
             }
             ok = RoboAhciReadSectors(gIndex, lba + done, step, dest + done * ROBO_SECTOR_BYTES);
+        } else if (gKind == ROBO_DISK_NVME) {
+            if (step > 8u) {
+                step = 8u;
+            }
+            ok = RoboNvmeReadSectors(gIndex, lba + done, step, dest + done * ROBO_SECTOR_BYTES);
         } else if (gKind == ROBO_DISK_ATA) {
             return done == 0 && RoboAtaReadSectors(lba, count, dest);
         } else {
@@ -93,6 +101,12 @@ bool RoboDiskStart(void) {
     uint32_t virtioCount = RoboVirtioBlkCount();
     for (uint32_t index = 0; index < virtioCount; ++index) {
         if (RoboDiskOffer(ROBO_DISK_VIRTIO, index)) {
+            return true;
+        }
+    }
+    uint32_t nvmeCount = RoboNvmeCount();
+    for (uint32_t index = 0; index < nvmeCount; ++index) {
+        if (RoboDiskOffer(ROBO_DISK_NVME, index)) {
             return true;
         }
     }
