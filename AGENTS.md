@@ -112,9 +112,9 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [ ] An empty disk still shows the desktop
 
 ## Stage 17 — USB keyboard and more pointers
-- [ ] USB keyboard on the same RoboInput queue
-- [ ] More than one mouse, touchpad, or touch device
-- [ ] A missing controller still boots
+- [x] USB keyboard on the same RoboInput queue
+- [x] More than one mouse, touchpad, or touch device
+- [x] A missing controller still boots
 
 ## Stage 18 — More cores
 - [x] Further cores join only after the one-core switch stays solid

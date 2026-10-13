@@ -14,3 +14,4 @@ struct RoboPciDevice {
 uint32_t RoboPciRead32(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
 void RoboPciWrite32(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
 bool RoboPciFindXhci(RoboPciDevice* device);
+bool RoboPciCollectUsb(RoboPciDevice* devices, uint32_t capacity, uint32_t* count, uint8_t* thunderbolt);

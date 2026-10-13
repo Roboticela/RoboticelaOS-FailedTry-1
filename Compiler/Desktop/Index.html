@@ -62,7 +62,7 @@
       canvas.addEventListener("wheel", (event) => {
         event.preventDefault();
         const [x, y] = point(event);
-        app.Wheel(x, y, event.deltaX, event.deltaY);
+        follow(app.Wheel(x, y, event.deltaX, event.deltaY));
       }, { passive: false });
       canvas.addEventListener("keydown", (event) => {
         if (event.key === "Backspace") app.KeyBackspace();

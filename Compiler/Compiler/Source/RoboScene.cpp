@@ -3941,6 +3941,20 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
     if (focusedInput_ && key != "Tab") {
         return false;
     }
+    if (desktop_.HasTopBarMenu() && !focusedInput_ && !focusedSidebarItem_) {
+        TopBarMenu& menu = desktop_.GetTopBarMenu();
+        if (key == "ArrowLeft" || key == "ArrowRight") {
+            if (menu.MoveFocus(key == "ArrowRight" ? 1 : -1)) {
+                DirtyMenuBar();
+            }
+            return true;
+        }
+        if ((key == "Enter" || key == " ") && menu.KeyboardFocus() && menu.Focus() >= 0) {
+            menu.Select(menu.Focus());
+            DirtyMenuBar();
+            return true;
+        }
+    }
     if (key == "ArrowUp" || key == "ArrowDown" || key == "Home" || key == "End" || key == "ArrowLeft" || key == "ArrowRight") {
         if (!focusedSidebarItem_ || !focusedSidebarItem_->CanActivate()) {
             return false;
@@ -4348,9 +4362,10 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
             const bool insideMenu = menu.BarHeight() > 0.0f && y >= menu.BarY() && y < menu.BarY() + menu.BarHeight();
             if (insideMenu) {
                 const int slot = menu.Hit(x, y);
-                if (slot >= 0) {
-                    menu.Select(slot);
+                if (slot >= 0 && menu.SlotEnabled(slot)) {
+                    menu.Press(slot);
                 } else {
+                    menu.SetPressed(-1);
                     menu.ClearSelection();
                 }
                 DirtyMenuBar();
@@ -4533,6 +4548,12 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
 
 bool RoboScene::PointerUp(float x, float y) {
     bool changed = false;
+    if (desktop_.HasTopBarMenu() && desktop_.GetTopBarMenu().Pressed() >= 0) {
+        TopBarMenu& menu = desktop_.GetTopBarMenu();
+        menu.ReleasePress(menu.Hit(x, y));
+        DirtyMenuBar();
+        changed = true;
+    }
     if (TextSelection::IsDragging()) {
         DirtySelectionVisual();
         TextSelection::EndDrag();

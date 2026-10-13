@@ -19,8 +19,10 @@ constexpr float MENU_APP_X = 62.0f;
 constexpr float MENU_FONT = 16.0f;
 constexpr float MENU_GAP = 22.0f;
 constexpr float MENU_CLOCK = 15.0f;
-constexpr float MENU_PILL = 22.0f;
-constexpr float MENU_PILL_PAD = 8.0f;
+constexpr float MENU_ITEM_PAD = 14.0f;
+constexpr float MENU_RADIUS = 3.0f;
+constexpr float MENU_CHEVRON = 7.0f;
+constexpr float MENU_CHEVRON_GAP = 6.0f;
 constexpr float APPLE_W = 18.0f;
 constexpr float APPLE_H = 21.0f;
 constexpr float WIFI_W = 20.0f;
@@ -321,6 +323,18 @@ void FrostMenuBar(FrameBuffer& buffer, int height) {
     }
 }
 
+void DrawChevron(FrameBuffer& buffer, float originX, float originY, float size, const Color& color) {
+    const int steps = std::max(3, static_cast<int>(std::round(size)));
+    for (int step = 0; step <= steps; ++step) {
+        const float t = static_cast<float>(step) / static_cast<float>(steps);
+        const float x = originX + t * size;
+        const float upper = originY + t * size * 0.5f;
+        const float lower = originY + size - t * size * 0.5f;
+        buffer.FillRect(static_cast<int>(std::round(x)), static_cast<int>(std::round(upper)), 2, 2, color);
+        buffer.FillRect(static_cast<int>(std::round(x)), static_cast<int>(std::round(lower)) - 1, 2, 2, color);
+    }
+}
+
 MenuBounds Slot(float x, float y, float width, float height) {
     MenuBounds bounds;
     bounds.x = x;
@@ -395,18 +409,26 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         const float appX = MENU_APP_X * scale;
         const float fontSize = MENU_FONT * scale;
         const float gap = MENU_GAP * scale;
-        const float pillHeight = MENU_PILL * scale;
-        const float pillPad = MENU_PILL_PAD * scale;
-        const float pillY = (barHeight - pillHeight) * 0.5f;
+        const float itemPad = MENU_ITEM_PAD * scale;
+        const float radius = MENU_RADIUS * scale;
+        const float chevronSize = MENU_CHEVRON * scale;
+        const float chevronGap = MENU_CHEVRON_GAP * scale;
         const bool darkBar = menu.IsDark();
-        const Color barColor = darkBar ? Color::FromHex("#202020") : Color::FromHex("#DADADA");
-        const Color menuInk = darkBar ? Color::FromHex("#FFFFFF") : Color::FromHex("#1D1D1F");
-        const Color activeFill = Color::FromHex("#007AFF");
+        const Color barColor = darkBar ? Color::FromHex("#2C2C2E") : Color::FromHex("#FFFFFF");
+        const Color menuInk = darkBar ? Color::FromHex("#F5F5F7") : Color::FromHex("#1D1D1F");
+        const Color hoverFill = darkBar ? Color::FromHex("#3A3A3C") : Color::FromHex("#E8E8ED");
+        const Color hoverInk = darkBar ? Color::FromHex("#FFFFFF") : Color::FromHex("#1D1D1F");
+        const Color activeFill = darkBar ? Color::FromHex("#0A84FF") : Color::FromHex("#007AFF");
+        const Color pressedFill = darkBar ? Color::FromHex("#0866CC") : Color::FromHex("#0063CC");
         const Color activeInk = Color::FromHex("#FFFFFF");
-        const Color hoverFill = darkBar ? Color::FromHex("#FFFFFF") : Color::FromHex("#000000");
-        const float hoverOpacity = darkBar ? 0.14f : 0.08f;
+        const Color disabledInk = darkBar ? Color::FromHex("#77777D") : Color::FromHex("#8A8A8A");
+        const Color separatorColor = darkBar ? Color::FromHex("#48484A") : Color::FromHex("#D1D1D6");
+        const Color borderColor = darkBar ? Color::FromHex("#454548") : Color::FromHex("#E5E5EA");
+        const Color focusColor = darkBar ? Color::FromHex("#0A84FF") : Color::FromHex("#007AFF");
         const int active = menu.Active();
         const int hovered = menu.Hover();
+        const int pressed = menu.Pressed();
+        const int focused = menu.KeyboardFocus() ? menu.Focus() : -1;
 
         float statusRight = static_cast<float>(buffer.GetWidth()) - pad;
         float clockX = statusRight;
@@ -429,23 +451,35 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         const float appleH = APPLE_H * scale;
         const float appleX = pad;
         const float appleY = (barHeight - appleH) * 0.5f;
-        const float applePillW = appleW + pillPad * 2.0f;
-        menu.SetAppleBounds(Slot(appleX - pillPad, 0.0f, applePillW, barHeight));
+        const float appleSlotX = std::max(0.0f, appleX - itemPad);
+        const float appleSlotRight = appleX + appleW + itemPad;
+        const float appleSlotW = appleSlotRight - appleSlotX;
+        menu.SetAppleBounds(Slot(appleSlotX, 0.0f, appleSlotW, barHeight));
 
         const float appWidth = fonts.MeasureWidth(menu.GetApp(), fontSize, FontFaceId::SemiBold, 0.0f);
-        menu.SetAppBounds(Slot(appX - pillPad, 0.0f, appWidth + pillPad * 2.0f, barHeight));
+        float appSlotX = appX - itemPad;
+        const float appleLimit = appleSlotRight + 2.0f * scale;
+        if (appSlotX < appleLimit) {
+            appSlotX = appleLimit;
+        }
+        const float appSlotW = std::max(appWidth, (appX + appWidth + itemPad) - appSlotX);
+        menu.SetAppBounds(Slot(appSlotX, 0.0f, appSlotW, barHeight));
 
-        float labelX = appX + appWidth + gap;
+        float labelX = appX + appWidth + itemPad + gap * 0.25f;
         std::vector<TopBarMenuItem>& labels = menu.Items();
         for (TopBarMenuItem& item : labels) {
-            const float textWidth = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Medium, 0.0f);
-            const float slotWidth = textWidth + pillPad * 2.0f;
-            if (labelX + textWidth > statusLeft) {
+            float slotWidth = 9.0f * scale;
+            if (!item.IsSeparator()) {
+                const float textWidth = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Medium, 0.0f);
+                const float mark = item.HasSubmenu() ? chevronGap + chevronSize : 0.0f;
+                slotWidth = textWidth + mark + itemPad * 2.0f;
+            }
+            if (labelX + slotWidth > statusLeft) {
                 item.SetBounds(Slot(0.0f, 0.0f, 0.0f, 0.0f));
                 continue;
             }
-            item.SetBounds(Slot(labelX - pillPad, 0.0f, slotWidth, barHeight));
-            labelX += textWidth + gap;
+            item.SetBounds(Slot(labelX, 0.0f, slotWidth, barHeight));
+            labelX += slotWidth;
         }
 
         const bool paintBar = barHeight > 0.0f &&
@@ -455,37 +489,70 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
             const int barPixels = std::max(1, static_cast<int>(std::round(barHeight)));
             const float cover = 1.0f - std::max(0.0f, std::min(1.0f, menu.GetTransparency()));
             buffer.FillRect(0, 0, buffer.GetWidth(), barPixels, barColor, cover);
-            buffer.FillRect(0, barPixels - 1, buffer.GetWidth(), 1, menuInk, 0.12f);
+            buffer.FillRect(0, barPixels - 1, buffer.GetWidth(), 1, borderColor, cover);
 
-            auto pill = [&](float x, float width, bool open, bool hot) {
-                if (width <= 0.0f) {
+            auto itemInk = [&](int index, bool disabled) {
+                if (disabled) {
+                    return disabledInk;
+                }
+                const bool highlighted = active == index || focused == index;
+                if (highlighted) {
+                    return activeInk;
+                }
+                if (hovered == index) {
+                    return hoverInk;
+                }
+                return menuInk;
+            };
+            auto paintButton = [&](float x, float width, int index, bool disabled) {
+                if (width <= 0.0f || disabled) {
                     return;
                 }
-                if (open) {
-                    buffer.FillRoundedRect(x, pillY, width, pillHeight, 6.0f * scale, activeFill);
+                const bool highlighted = active == index || focused == index;
+                const bool hot = hovered == index;
+                if (pressed == index && highlighted) {
+                    buffer.FillRoundedRect(x, 0.0f, width, barHeight, radius, pressedFill);
+                } else if (highlighted) {
+                    buffer.FillRoundedRect(x, 0.0f, width, barHeight, radius, focused == index ? focusColor : activeFill);
                 } else if (hot) {
-                    buffer.FillRoundedRect(x, pillY, width, pillHeight, 6.0f * scale, hoverFill, hoverOpacity);
+                    buffer.FillRoundedRect(x, 0.0f, width, barHeight, radius, hoverFill);
                 }
             };
-            pill(appleX - pillPad, applePillW, active == 0, hovered == 0);
-            pill(appX - pillPad, appWidth + pillPad * 2.0f, active == 1, hovered == 1);
+            paintButton(appleSlotX, appleSlotW, 0, false);
+            paintButton(appSlotX, appSlotW, 1, false);
             for (int index = 0; index < static_cast<int>(labels.size()); ++index) {
-                const MenuBounds& bounds = labels[static_cast<std::size_t>(index)].GetBounds();
-                pill(bounds.x, bounds.width, active == index + 2, hovered == index + 2);
-            }
-
-            const Color appleColor = active == 0 ? activeInk : menuInk;
-            PaintGlyph(buffer, AppleMark(), appleX, appleY, appleColor, scale);
-            DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
-                     FontFaceId::SemiBold, active == 1 ? activeInk : menuInk, false, true);
-            for (int index = 0; index < static_cast<int>(labels.size()); ++index) {
-                const MenuBounds& bounds = labels[static_cast<std::size_t>(index)].GetBounds();
-                if (bounds.width <= 0.0f) {
+                const TopBarMenuItem& item = labels[static_cast<std::size_t>(index)];
+                const MenuBounds& bounds = item.GetBounds();
+                if (item.IsSeparator()) {
+                    if (bounds.width > 0.0f) {
+                        const float inset = 8.0f * scale;
+                        const int lineX = static_cast<int>(std::round(bounds.x + bounds.width * 0.5f));
+                        buffer.FillRect(lineX, static_cast<int>(std::round(inset)), 1,
+                                        std::max(1, static_cast<int>(std::round(barHeight - inset * 2.0f))), separatorColor, cover);
+                    }
                     continue;
                 }
-                const Color labelColor = active == index + 2 ? activeInk : menuInk;
-                DrawLine(buffer, fonts, labels[static_cast<std::size_t>(index)].GetLabel(), bounds.x + pillPad, 0.0f,
-                         bounds.width - pillPad * 2.0f, barHeight, fontSize, FontFaceId::Medium, labelColor, false, false);
+                paintButton(bounds.x, bounds.width, index + 2, item.IsDisabled());
+            }
+
+            PaintGlyph(buffer, AppleMark(), appleX, appleY, itemInk(0, false), scale);
+            DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
+                     FontFaceId::SemiBold, itemInk(1, false), false, true);
+            for (int index = 0; index < static_cast<int>(labels.size()); ++index) {
+                const TopBarMenuItem& item = labels[static_cast<std::size_t>(index)];
+                const MenuBounds& bounds = item.GetBounds();
+                if (bounds.width <= 0.0f || item.IsSeparator()) {
+                    continue;
+                }
+                const Color labelColor = itemInk(index + 2, item.IsDisabled());
+                const float textWidth = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Medium, 0.0f);
+                DrawLine(buffer, fonts, item.GetLabel(), bounds.x + itemPad, 0.0f, textWidth, barHeight, fontSize,
+                         FontFaceId::Medium, labelColor, false, false);
+                if (item.HasSubmenu()) {
+                    const float markX = bounds.x + itemPad + textWidth + chevronGap;
+                    const float markY = (barHeight - chevronSize) * 0.5f;
+                    DrawChevron(buffer, markX, markY, chevronSize, labelColor);
+                }
             }
 
             const Color status = menuInk;

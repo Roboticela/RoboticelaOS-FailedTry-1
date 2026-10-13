@@ -30,3 +30,15 @@ bool RoboPciFindXhci(RoboPciDevice* device) {
     }
     return false;
 }
+
+bool RoboPciCollectUsb(RoboPciDevice* devices, uint32_t capacity, uint32_t* count, uint8_t* thunderbolt) {
+    (void)devices;
+    (void)capacity;
+    if (count != nullptr) {
+        *count = 0;
+    }
+    if (thunderbolt != nullptr) {
+        *thunderbolt = 0;
+    }
+    return false;
+}

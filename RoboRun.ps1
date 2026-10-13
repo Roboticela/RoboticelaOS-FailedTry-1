@@ -83,6 +83,10 @@ $arguments = @(
     "-vga", "none",
     "-device", "virtio-vga",
     "-device", "qemu-xhci,id=xhci",
+    "-device", "usb-kbd,bus=xhci.0",
+    "-device", "usb-mouse,bus=xhci.0",
+    "-device", "qemu-xhci,id=usbc",
+    "-device", "usb-tablet,bus=usbc.0",
     "-drive", "if=ide,format=raw,file=fat:rw:$espPath"
 )
 $disk = Join-Path $Root "Build\RoboDisk.img"

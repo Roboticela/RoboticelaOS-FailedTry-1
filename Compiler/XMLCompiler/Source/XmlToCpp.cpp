@@ -2341,9 +2341,20 @@ void XmlToCpp::EmitTopBarMenu(std::ostringstream& code, const XmlNode& node, int
         const std::string itemName = "topBarMenuItem" + std::to_string(itemIndex++);
         code << Indent(indent + 1) << "Robo::TopBarMenuItem " << itemName << ";\n";
         code << Indent(indent + 1) << itemName << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
-        if (item.attributes.count("selected") != 0 && item.attributes.at("selected") != "false" &&
-            item.attributes.at("selected") != "0") {
+        auto menuFlag = [&](const char* name) {
+            return item.attributes.count(name) != 0 && item.attributes.at(name) != "false" && item.attributes.at(name) != "0";
+        };
+        if (menuFlag("selected")) {
             code << Indent(indent + 1) << itemName << ".SetSelected(true);\n";
+        }
+        if (menuFlag("disabled")) {
+            code << Indent(indent + 1) << itemName << ".SetDisabled(true);\n";
+        }
+        if (menuFlag("separator")) {
+            code << Indent(indent + 1) << itemName << ".SetSeparator(true);\n";
+        }
+        if (menuFlag("submenu")) {
+            code << Indent(indent + 1) << itemName << ".SetSubmenu(true);\n";
         }
         code << Indent(indent + 1) << "topBarMenu.AddItem(std::move(" << itemName << "));\n";
     }
