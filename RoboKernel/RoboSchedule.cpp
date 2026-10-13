@@ -2,6 +2,7 @@
 
 #include "RoboCpu.hpp"
 #include "RoboMemory.hpp"
+#include "RoboCall.hpp"
 #include "RoboProcess.hpp"
 #include "RoboTimer.hpp"
 
@@ -145,6 +146,7 @@ void RoboThreadSleep(uint64_t wakeTick) {
 }
 
 void RoboThreadEnd(uint32_t reason) {
+    RoboCallBlur();
     RoboProcessNote(reason);
     gThreads[gCurrent].used = 0;
     gThreads[gCurrent].state = 0;
@@ -156,18 +158,20 @@ void RoboThreadEnd(uint32_t reason) {
     RoboScheduleSwitch(static_cast<uint32_t>(next));
 }
 
-extern "C" void RoboSyscallDispatch(uint64_t number) {
-    if (number == 2u) {
+extern "C" uint64_t RoboSyscallDispatch(uint64_t number, uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3) {
+    if (number == ROBO_CALL_EXIT) {
         RoboThreadEnd(2u);
-        return;
+        return 0u;
     }
-    if (number == 1) {
+    if (number == ROBO_CALL_YIELD) {
         int next = RoboScheduleNext(gCurrent);
         gScheduleDue = 0;
         if (next >= 0) {
             RoboScheduleSwitch(static_cast<uint32_t>(next));
         }
+        return 0u;
     }
+    return RoboCallService(number, arg0, arg1, arg2, arg3);
 }
 
 void RoboScheduleStart(void) {

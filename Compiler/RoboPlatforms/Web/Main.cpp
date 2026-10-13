@@ -395,6 +395,15 @@ bool OwnsScrollGesture(float x, float y) {
     return gScene.OwnsScrollGesture(x, y);
 }
 
+bool SetMenuTransparency(float amount) {
+    if (!EnsureApp()) {
+        return false;
+    }
+    gScene.SetMenuTransparency(amount);
+    SchedulePresent();
+    return true;
+}
+
 bool SetBackground(const std::string& path) {
     if (!EnsureApp()) {
         return false;
@@ -444,4 +453,5 @@ EMSCRIPTEN_BINDINGS(RoboModule) {
     emscripten::function("ActiveScrollbarAxis", &ActiveScrollbarAxis);
     emscripten::function("OwnsScrollGesture", &OwnsScrollGesture);
     emscripten::function("SetBackground", &SetBackground);
+    emscripten::function("SetMenuTransparency", &SetMenuTransparency);
 }

@@ -1,10 +1,10 @@
-<Robo padding="24">
+<Robo padding="0">
   <Foundation name="Desktop" from="RoboFoundation"/>
   <FoundationUse name="Desktop"/>
 
   <Desktop>
     <Background color="{color.bg.primary}" src="Assets/Background.mp4"/>
-    <TopBarMenu app="Finder" clock="Tue 9:41 AM">
+    <TopBarMenu app="Finder" clock="Tue 9:41 AM" appearance="light">
       <TopBarMenuItem label="File"/>
       <TopBarMenuItem label="Edit"/>
       <TopBarMenuItem label="View"/>
@@ -12,21 +12,5 @@
       <TopBarMenuItem label="Window"/>
       <TopBarMenuItem label="Help"/>
     </TopBarMenu>
-    <AppShell title="Roboticela">
-      <Heading level="1">Desktop</Heading>
-      <Paragraph>
-        This page is the RoboticelaOS shell. The compiler turns it into C++ for the native platform. Edit it here, then run RoboCompileDesktop.ps1.
-      </Paragraph>
-      <Flexbox direction="row" gap="{space.3}">
-        <Button variant="filled">Open</Button>
-        <Button variant="tinted">New folder</Button>
-      </Flexbox>
-    </AppShell>
-    <Dock>
-      <DockItem icon="Home" label="Home" selected="true"/>
-      <DockItem icon="Folder" label="Files"/>
-      <DockItem icon="Window" label="Apps"/>
-      <DockItem icon="Settings" label="Settings"/>
-    </Dock>
   </Desktop>
 </Robo>

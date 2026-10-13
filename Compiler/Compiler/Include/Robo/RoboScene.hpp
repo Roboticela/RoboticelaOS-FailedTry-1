@@ -104,6 +104,7 @@ public:
     void SetAppShell(AppShell shell);
     void SetAppShellTitle(const std::string& title);
     void SetTopBarMenu(TopBarMenu menu);
+    void SetMenuTransparency(float amount);
     void AddDockItem(DockItem item);
     void Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding);
     void SetPaintPump(void (*pump)(void*), void* cookie);

@@ -45,7 +45,7 @@ KERNEL_OBJS := $(OBJ)/RoboKernel.o $(OBJ)/RoboSupport.o $(OBJ)/RoboGPU.o \
 	$(OBJ)/RoboDesktop.o $(OBJ)/RoboInput.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboPS2Keyboard.o \
 	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o $(OBJ)/RoboMemory.o \
 	$(OBJ)/RoboCpu.o $(OBJ)/RoboPci.o $(OBJ)/RoboAta.o $(OBJ)/RoboGPUVendor.o $(OBJ)/RoboSchedule.o $(OBJ)/RoboUsb.o $(OBJ)/RoboFS.o \
-	$(OBJ)/RoboDisk.o $(OBJ)/RoboVirtioBlk.o $(OBJ)/RoboAhci.o $(OBJ)/RoboNvme.o $(OBJ)/RoboPermit.o $(OBJ)/RoboProcess.o $(SHELL_OBJS)
+	$(OBJ)/RoboDisk.o $(OBJ)/RoboVirtioBlk.o $(OBJ)/RoboAhci.o $(OBJ)/RoboNvme.o $(OBJ)/RoboPermit.o $(OBJ)/RoboProcess.o $(OBJ)/RoboCall.o $(SHELL_OBJS)
 
 ARM_OBJ := $(BUILD)/Objects/ARM64
 ESP_ARM := $(BUILD)/EspArm
@@ -59,7 +59,7 @@ ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.
 	$(ARM_OBJ)/RoboDesktop.o $(ARM_OBJ)/RoboInput.o $(ARM_OBJ)/RoboFS.o \
 	$(ARM_OBJ)/RoboArch.o $(ARM_OBJ)/RoboVector.o $(ARM_OBJ)/RoboMemory.o \
 	$(ARM_OBJ)/RoboCpu.o $(ARM_OBJ)/RoboTimer.o $(ARM_OBJ)/RoboAta.o $(ARM_OBJ)/RoboPci.o \
-	$(ARM_OBJ)/RoboDisk.o $(ARM_OBJ)/RoboVirtioBlk.o $(ARM_OBJ)/RoboAhci.o $(ARM_OBJ)/RoboNvme.o $(ARM_OBJ)/RoboPermit.o $(ARM_OBJ)/RoboProcess.o \
+	$(ARM_OBJ)/RoboDisk.o $(ARM_OBJ)/RoboVirtioBlk.o $(ARM_OBJ)/RoboAhci.o $(ARM_OBJ)/RoboNvme.o $(ARM_OBJ)/RoboPermit.o $(ARM_OBJ)/RoboProcess.o $(ARM_OBJ)/RoboCall.o \
 	$(ARM_OBJ)/RoboSchedule.o $(ARM_OBJ)/RoboInputDevice.o $(ARM_OBJ)/RoboGPUVendor.o $(ARM_OBJ)/RoboShellStub.o
 
 .PHONY: all clean
@@ -133,8 +133,11 @@ $(OBJ)/RoboGPUVendor.o: RoboArch/X64/RoboGPUVendor.cpp RoboInclude/RoboGPUVendor
 $(OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp RoboInclude/RoboPartition.hpp RoboInclude/RoboDisk.hpp RoboInclude/RoboPermit.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboFS/RoboFS.cpp -o $(OBJ)/RoboFS.o
 
-$(OBJ)/RoboProcess.o: RoboKernel/RoboProcess.cpp RoboInclude/RoboProcess.hpp RoboInclude/RoboProgram.hpp RoboInclude/RoboFS.hpp
+$(OBJ)/RoboProcess.o: RoboKernel/RoboProcess.cpp RoboInclude/RoboProcess.hpp RoboInclude/RoboProgram.hpp RoboInclude/RoboFS.hpp RoboInclude/RoboCall.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboProcess.cpp -o $(OBJ)/RoboProcess.o
+
+$(OBJ)/RoboCall.o: RoboKernel/RoboCall.cpp RoboInclude/RoboCall.hpp RoboInclude/RoboProgram.hpp RoboInclude/RoboFS.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboCall.cpp -o $(OBJ)/RoboCall.o
 
 $(OBJ)/RoboPermit.o: RoboFS/RoboPermit.cpp RoboInclude/RoboPermit.hpp RoboInclude/RoboFS.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboFS/RoboPermit.cpp -o $(OBJ)/RoboPermit.o
@@ -154,7 +157,19 @@ $(OBJ)/RoboNvme.o: RoboDisk/RoboNvme.cpp RoboInclude/RoboPartition.hpp
 $(BUILD)/RoboImage.exe: RoboImage/RoboImage.cpp RoboInclude/RoboPartition.hpp
 	$(CLANG) -std=c++20 -O2 -Wno-deprecated-declarations -IRoboInclude -o $(BUILD)/RoboImage.exe RoboImage/RoboImage.cpp
 
-$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin
+$(BUILD)/App/X64.bin: RoboApp/RoboAppMain.cpp RoboApp/RoboApp.ld RoboInclude/RoboCall.hpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(BUILD)/App' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector -fno-builtin -mno-red-zone -mno-sse -mgeneral-regs-only -mcmodel=large -O2 -IRoboInclude -c RoboApp/RoboAppMain.cpp -o $(BUILD)/App/RoboAppX64.o
+	$(LLD) -nostdlib -static -T RoboApp/RoboApp.ld -o $(BUILD)/App/RoboAppX64.elf $(BUILD)/App/RoboAppX64.o
+	llvm-objcopy -O binary $(BUILD)/App/RoboAppX64.elf $(BUILD)/App/X64.bin
+
+$(BUILD)/App/ARM.bin: RoboApp/RoboAppMain.cpp RoboApp/RoboApp.ld RoboInclude/RoboCall.hpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(BUILD)/App' | Out-Null"
+	$(CLANG) $(ARM_TARGET) -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector -fno-builtin -O2 -IRoboInclude -c RoboApp/RoboAppMain.cpp -o $(BUILD)/App/RoboAppARM.o
+	$(LLD) -m aarch64elf -nostdlib -static -T RoboApp/RoboApp.ld -o $(BUILD)/App/RoboAppARM.elf $(BUILD)/App/RoboAppARM.o
+	llvm-objcopy -O binary $(BUILD)/App/RoboAppARM.elf $(BUILD)/App/ARM.bin
+
+$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin $(BUILD)/App/X64.bin $(BUILD)/App/ARM.bin
 	$(BUILD)/RoboImage.exe $(BUILD)/RoboDisk.img $(ESP)
 
 $(SHELL_DIR)/%.o: Compiler/Compiler/Source/%.cpp
@@ -222,8 +237,11 @@ $(ARM_OBJ)/RoboInput.o: RoboInput/RoboInput.cpp RoboInput/RoboInput.hpp
 $(ARM_OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp RoboInclude/RoboPartition.hpp RoboInclude/RoboDisk.hpp RoboInclude/RoboPermit.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboFS/RoboFS.cpp -o $(ARM_OBJ)/RoboFS.o
 
-$(ARM_OBJ)/RoboProcess.o: RoboKernel/RoboProcess.cpp RoboInclude/RoboProcess.hpp RoboInclude/RoboProgram.hpp RoboInclude/RoboFS.hpp
+$(ARM_OBJ)/RoboProcess.o: RoboKernel/RoboProcess.cpp RoboInclude/RoboProcess.hpp RoboInclude/RoboProgram.hpp RoboInclude/RoboFS.hpp RoboInclude/RoboCall.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboKernel/RoboProcess.cpp -o $(ARM_OBJ)/RoboProcess.o
+
+$(ARM_OBJ)/RoboCall.o: RoboKernel/RoboCall.cpp RoboInclude/RoboCall.hpp RoboInclude/RoboProgram.hpp RoboInclude/RoboFS.hpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboKernel/RoboCall.cpp -o $(ARM_OBJ)/RoboCall.o
 
 $(ARM_OBJ)/RoboPermit.o: RoboFS/RoboPermit.cpp RoboInclude/RoboPermit.hpp RoboInclude/RoboFS.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboFS/RoboPermit.cpp -o $(ARM_OBJ)/RoboPermit.o

@@ -1842,6 +1842,14 @@ void RoboScene::SetTopBarMenu(TopBarMenu menu) {
     desktop_.SetTopBarMenu(std::move(menu));
 }
 
+void RoboScene::SetMenuTransparency(float amount) {
+    if (!desktop_.HasTopBarMenu()) {
+        return;
+    }
+    desktop_.GetTopBarMenu().SetTransparency(amount);
+    DirtyMenuBar();
+}
+
 void RoboScene::AddDockItem(DockItem item) {
     desktop_.SetEnabled(true);
     desktop_.AddDockItem(std::move(item));
@@ -2189,7 +2197,7 @@ void RoboScene::ApplyChrome(FrameBuffer& frame) {
 }
 
 void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding) {
-    if (videoOnly_ && !fullDirty_ && PresentVideoFrame(platform)) {
+    if (videoOnly_ && !fullDirty_ && !damageOpen_ && PresentVideoFrame(platform)) {
         videoOnly_ = false;
         return;
     }
@@ -2460,6 +2468,9 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         if (desktopClip) {
             frame.PopClip();
             frame.Pump();
+            if (desktop_.HasTopBarMenu()) {
+                desktop_.GetTopBarMenu().ApplyTheme(theme_ == Theme::Dark);
+            }
             DesktopPainter::Paint(frame, fonts, desktop_, desktopChrome, paintScale, hoveredDock_);
         }
         if (titleClip) {
@@ -3343,6 +3354,14 @@ Scrollbar* RoboScene::FindScrollbarNear(float x, float y, float tolerance) {
 }
 
 bool RoboScene::Wheel(float x, float y, float deltaX, float deltaY) {
+    if (desktop_.HasTopBarMenu() && deltaY != 0.0f) {
+        const TopBarMenu& menu = desktop_.GetTopBarMenu();
+        if (menu.BarHeight() > 0.0f && y >= menu.BarY() && y < menu.BarY() + menu.BarHeight()) {
+            const float step = deltaY > 0.0f ? 0.08f : -0.08f;
+            SetMenuTransparency(menu.GetTransparency() + step);
+            return true;
+        }
+    }
     if (std::fabs(deltaY) >= std::fabs(deltaX)) {
         for (SceneItem& item : items_) {
             if (item.kind == SceneItemKind::Sidebar && item.sidebar.Contains(x, y) && item.sidebar.ScrollBy(deltaY, x)) {
@@ -4769,7 +4788,7 @@ bool RoboScene::Tick(double deltaMs) {
     if (contentMoved) {
         MarkFullDirty();
     }
-    if (videoAdvanced && !contentMoved && !motionChanged && chromeReady_ && !fullDirty_) {
+    if (videoAdvanced && !contentMoved && !motionChanged && chromeReady_ && !fullDirty_ && !damageOpen_) {
         videoOnly_ = true;
         needsRender_ = true;
     } else if (videoAdvanced && !fullDirty_) {

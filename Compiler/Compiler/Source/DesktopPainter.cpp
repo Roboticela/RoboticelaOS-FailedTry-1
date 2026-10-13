@@ -340,7 +340,8 @@ void DrawLine(FrameBuffer& buffer,
               float fontSize,
               FontFaceId face,
               const Color& color,
-              bool center) {
+              bool center,
+              bool thicken = false) {
     const float textWidth = fonts.MeasureWidth(text, fontSize, face, 0.0f);
     const float ascent = fonts.GetAscent(fontSize, face);
     const float descent = fonts.GetDescent(fontSize, face);
@@ -348,6 +349,9 @@ void DrawLine(FrameBuffer& buffer,
     const float baseline = lineTop + (fontSize - (ascent + descent)) * 0.5f + ascent;
     const float textX = center ? originX + std::max(0.0f, (width - textWidth) * 0.5f) : originX;
     fonts.DrawString(buffer, textX, baseline, text, fontSize, face, color, 1.0f, 0.0f);
+    if (thicken) {
+        fonts.DrawString(buffer, textX + std::max(0.7f, fontSize * 0.035f), baseline, text, fontSize, face, color, 1.0f, 0.0f);
+    }
 }
 
 }  // namespace
@@ -394,9 +398,13 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         const float pillHeight = MENU_PILL * scale;
         const float pillPad = MENU_PILL_PAD * scale;
         const float pillY = (barHeight - pillHeight) * 0.5f;
+        const bool darkBar = menu.IsDark();
+        const Color barColor = darkBar ? Color::FromHex("#202020") : Color::FromHex("#DADADA");
+        const Color menuInk = darkBar ? Color::FromHex("#FFFFFF") : Color::FromHex("#1D1D1F");
         const Color activeFill = Color::FromHex("#007AFF");
         const Color activeInk = Color::FromHex("#FFFFFF");
-        const Color hoverFill = Color::FromRgba(0, 0, 0, 255);
+        const Color hoverFill = darkBar ? Color::FromHex("#FFFFFF") : Color::FromHex("#000000");
+        const float hoverOpacity = darkBar ? 0.14f : 0.08f;
         const int active = menu.Active();
         const int hovered = menu.Hover();
 
@@ -404,7 +412,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         float clockX = statusRight;
         const float clockSize = MENU_CLOCK * scale;
         if (!menu.GetClock().empty()) {
-            const float clockWidth = fonts.MeasureWidth(menu.GetClock(), clockSize, FontFaceId::Regular, 0.0f);
+            const float clockWidth = fonts.MeasureWidth(menu.GetClock(), clockSize, FontFaceId::Medium, 0.0f);
             clockX = statusRight - clockWidth;
             statusRight = clockX - CLOCK_GAP * scale;
         }
@@ -430,7 +438,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         float labelX = appX + appWidth + gap;
         std::vector<TopBarMenuItem>& labels = menu.Items();
         for (TopBarMenuItem& item : labels) {
-            const float textWidth = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Regular, 0.0f);
+            const float textWidth = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Medium, 0.0f);
             const float slotWidth = textWidth + pillPad * 2.0f;
             if (labelX + textWidth > statusLeft) {
                 item.SetBounds(Slot(0.0f, 0.0f, 0.0f, 0.0f));
@@ -444,9 +452,10 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
             !buffer.MissesClip(0, 0, buffer.GetWidth(), std::max(1, static_cast<int>(std::ceil(barHeight))));
         if (paintBar) {
             buffer.Pump();
-            FrostMenuBar(buffer, std::max(1, static_cast<int>(std::round(barHeight))));
-            buffer.FillRect(0, std::max(0, static_cast<int>(std::round(barHeight)) - 1), buffer.GetWidth(), 1,
-                            Color::FromHex("#1D1D1F"), 0.12f);
+            const int barPixels = std::max(1, static_cast<int>(std::round(barHeight)));
+            const float cover = 1.0f - std::max(0.0f, std::min(1.0f, menu.GetTransparency()));
+            buffer.FillRect(0, 0, buffer.GetWidth(), barPixels, barColor, cover);
+            buffer.FillRect(0, barPixels - 1, buffer.GetWidth(), 1, menuInk, 0.12f);
 
             auto pill = [&](float x, float width, bool open, bool hot) {
                 if (width <= 0.0f) {
@@ -455,7 +464,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 if (open) {
                     buffer.FillRoundedRect(x, pillY, width, pillHeight, 6.0f * scale, activeFill);
                 } else if (hot) {
-                    buffer.FillRoundedRect(x, pillY, width, pillHeight, 6.0f * scale, hoverFill, 0.08f);
+                    buffer.FillRoundedRect(x, pillY, width, pillHeight, 6.0f * scale, hoverFill, hoverOpacity);
                 }
             };
             pill(appleX - pillPad, applePillW, active == 0, hovered == 0);
@@ -465,21 +474,21 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 pill(bounds.x, bounds.width, active == index + 2, hovered == index + 2);
             }
 
-            const Color appleColor = active == 0 ? activeInk : ink;
+            const Color appleColor = active == 0 ? activeInk : menuInk;
             PaintGlyph(buffer, AppleMark(), appleX, appleY, appleColor, scale);
             DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
-                     FontFaceId::SemiBold, active == 1 ? activeInk : ink, false);
+                     FontFaceId::SemiBold, active == 1 ? activeInk : menuInk, false, true);
             for (int index = 0; index < static_cast<int>(labels.size()); ++index) {
                 const MenuBounds& bounds = labels[static_cast<std::size_t>(index)].GetBounds();
                 if (bounds.width <= 0.0f) {
                     continue;
                 }
-                const Color labelColor = active == index + 2 ? activeInk : ink;
+                const Color labelColor = active == index + 2 ? activeInk : menuInk;
                 DrawLine(buffer, fonts, labels[static_cast<std::size_t>(index)].GetLabel(), bounds.x + pillPad, 0.0f,
-                         bounds.width - pillPad * 2.0f, barHeight, fontSize, FontFaceId::Regular, labelColor, false);
+                         bounds.width - pillPad * 2.0f, barHeight, fontSize, FontFaceId::Medium, labelColor, false, false);
             }
 
-            const Color status = ink;
+            const Color status = menuInk;
             const float searchY = (barHeight - SEARCH_SIZE * scale) * 0.5f;
             const float wifiY = (barHeight - WIFI_H * scale) * 0.5f;
             const float batteryY = (barHeight - BATTERY_H * scale) * 0.5f;
@@ -490,8 +499,8 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
             PaintGlyph(buffer, ControlMark(), controlX, controlY, status, scale);
             if (!menu.GetClock().empty()) {
                 DrawLine(buffer, fonts, menu.GetClock(), clockX, 0.0f,
-                         static_cast<float>(buffer.GetWidth()) - pad - clockX, barHeight, clockSize, FontFaceId::Regular,
-                         ink, false);
+                         static_cast<float>(buffer.GetWidth()) - pad - clockX, barHeight, clockSize, FontFaceId::Medium,
+                         menuInk, false, false);
             }
         }
     }
@@ -504,7 +513,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         buffer.FillRect(0, menuPixels, buffer.GetWidth(), static_cast<int>(std::lround(chrome.shellHeight)), panel);
         DrawLine(buffer, fonts, desktop.GetAppShell().GetTitle(), 20.0f * scale, chrome.menuHeight,
                  static_cast<float>(buffer.GetWidth()) - 40.0f * scale, chrome.shellHeight, SHELL_TITLE * scale,
-                 FontFaceId::SemiBold, ink, false);
+                 FontFaceId::SemiBold, ink, false, false);
     }
 
     std::vector<DockItem>& items = desktop.Dock();
@@ -567,10 +576,10 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
             SvgPainter::Paint(buffer, icon, itemX + (itemWidth - iconSize) * 0.5f, itemY + 8.0f * scale, iconSize, scale);
         } else {
             DrawLine(buffer, fonts, DockMark(item.GetLabel()), itemX, itemY + 6.0f * scale, itemWidth, 28.0f * scale,
-                     16.0f * scale, FontFaceId::SemiBold, mark, true);
+                     16.0f * scale, FontFaceId::SemiBold, mark, true, false);
         }
         DrawLine(buffer, fonts, item.GetLabel(), itemX, itemY + 34.0f * scale, itemWidth, 22.0f * scale, 11.0f * scale,
-                 FontFaceId::Medium, item.IsSelected() ? Color::FromHex("#FFFFFF") : quiet, true);
+                 FontFaceId::Medium, item.IsSelected() ? Color::FromHex("#FFFFFF") : quiet, true, false);
     }
 }
 

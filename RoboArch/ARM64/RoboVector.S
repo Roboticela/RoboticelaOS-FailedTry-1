@@ -74,7 +74,7 @@ RoboVectorIrq:
 .global RoboVectorLowerSync
 RoboVectorLowerSync:
     RoboSaveCaller
-    ldr x0, [sp, #80]
-    bl RoboArmLowerSync
+    mov x0, sp
+    bl RoboArmLowerFrame
     RoboRestoreCaller
     eret

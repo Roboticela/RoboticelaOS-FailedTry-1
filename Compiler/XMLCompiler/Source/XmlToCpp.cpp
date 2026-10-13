@@ -2306,6 +2306,21 @@ void XmlToCpp::EmitTopBarMenu(std::ostringstream& code, const XmlNode& node, int
         app = node.attributes.at("title");
     }
     code << Indent(indent + 1) << "topBarMenu.SetApp(\"" << EscapeCpp(app) << "\");\n";
+    if (node.attributes.count("appearance") != 0) {
+        const std::string appearance = node.attributes.at("appearance");
+        const bool dark = appearance == "dark" || appearance == "Dark";
+        code << Indent(indent + 1) << "topBarMenu.SetAppearanceDark(" << (dark ? "true" : "false") << ");\n";
+    }
+    if (node.attributes.count("transparent") != 0) {
+        const std::string transparent = node.attributes.at("transparent");
+        std::string amount = "0.0f";
+        if (transparent == "true") {
+            amount = "0.35f";
+        } else if (transparent != "false" && transparent != "0") {
+            amount = FloatLiteral(transparent);
+        }
+        code << Indent(indent + 1) << "topBarMenu.SetTransparency(" << amount << ");\n";
+    }
     if (node.attributes.count("clock") != 0) {
         code << Indent(indent + 1) << "topBarMenu.SetClock(\"" << EscapeCpp(node.attributes.at("clock")) << "\");\n";
     }

@@ -104,13 +104,41 @@ void WebPlatform::CopyText(const std::string& text) {
     JsCopyText(text.c_str());
 }
 
-std::vector<std::uint8_t> WebPlatform::LoadAsset(const std::string& relativePath) const {
-    const std::string path = std::string("/") + relativePath;
+namespace {
+
+std::vector<std::uint8_t> ReadPackedFile(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         return {};
     }
     return std::vector<std::uint8_t>((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+
+bool EndsWithMp4(const std::string& name) {
+    if (name.size() < 4) {
+        return false;
+    }
+    const char a = name[name.size() - 3];
+    const char b = name[name.size() - 2];
+    const char c = name[name.size() - 1];
+    const char dot = name[name.size() - 4];
+    const char la = a >= 'A' && a <= 'Z' ? static_cast<char>(a - 'A' + 'a') : a;
+    const char lb = b >= 'A' && b <= 'Z' ? static_cast<char>(b - 'A' + 'a') : b;
+    const char lc = c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+    return dot == '.' && la == 'm' && lb == 'p' && lc == '4';
+}
+
+}  // namespace
+
+std::vector<std::uint8_t> WebPlatform::LoadAsset(const std::string& relativePath) const {
+    const std::string path = std::string("/") + relativePath;
+    if (EndsWithMp4(path)) {
+        const std::vector<std::uint8_t> reel = ReadPackedFile(path.substr(0, path.size() - 4) + ".rjp");
+        if (!reel.empty()) {
+            return reel;
+        }
+    }
+    return ReadPackedFile(path);
 }
 
 }  // namespace Robo

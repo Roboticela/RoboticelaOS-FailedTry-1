@@ -1,11 +1,12 @@
 #include "RoboticelaOSPlatform.hpp"
 
 #include <algorithm>
+#include "RoboCall.hpp"
 #ifdef ROBO_KERNEL
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
 #include "RoboGPUVendor.hpp"
-#else
+#elif !defined(ROBO_USER)
 #include <fstream>
 #include <iterator>
 #endif
@@ -99,7 +100,24 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
     presentWidth_ = damageWidth;
     presentHeight_ = damageHeight;
     const std::uint8_t* source = buffer.GetPixels();
-    if (scanout_ == nullptr || source == nullptr || damageWidth <= 0 || damageHeight <= 0 || width_ <= 0) {
+    if (source == nullptr || damageWidth <= 0 || damageHeight <= 0 || width_ <= 0) {
+        return;
+    }
+#if defined(ROBO_USER)
+    RoboCallPresent request{};
+    request.pixels = reinterpret_cast<std::uint64_t>(source);
+    request.stride = width_ * 4;
+    request.x = damageX;
+    request.y = damageY;
+    request.width = damageWidth;
+    request.height = damageHeight;
+    request.surfaceWidth = width_;
+    request.surfaceHeight = height_;
+    request.pixelFormat = pixelFormat_;
+    (void)RoboUserCall(ROBO_CALL_PRESENT, reinterpret_cast<std::uint64_t>(&request), 0, 0, 0);
+    return;
+#endif
+    if (scanout_ == nullptr) {
         return;
     }
     const int copyWidth = std::min(damageWidth, std::max(0, scanoutWidth_ - damageX));
@@ -211,6 +229,25 @@ std::vector<std::uint8_t> RoboticelaOSPlatform::LoadAsset(const std::string& rel
         }
     }
     return readFile(name);
+#elif defined(ROBO_USER)
+    auto readFile = [](const std::string& fileName) {
+        std::vector<std::uint8_t> bytes(ROBO_CALL_FILE_MAX);
+        std::uint32_t copied = 0;
+        const std::uint64_t status = RoboUserCall(ROBO_CALL_READ, reinterpret_cast<std::uint64_t>(fileName.c_str()),
+            reinterpret_cast<std::uint64_t>(bytes.data()), ROBO_CALL_FILE_MAX, reinterpret_cast<std::uint64_t>(&copied));
+        if (status != 0 || copied == 0) {
+            return std::vector<std::uint8_t>();
+        }
+        bytes.resize(copied);
+        return bytes;
+    };
+    if (EndsWithMp4(relativePath)) {
+        const std::vector<std::uint8_t> reel = readFile(ReelName(relativePath));
+        if (!reel.empty()) {
+            return reel;
+        }
+    }
+    return readFile(relativePath);
 #else
     std::string path = assetRoot_;
     if (!path.empty() && path.back() != '/' && path.back() != '\\') {

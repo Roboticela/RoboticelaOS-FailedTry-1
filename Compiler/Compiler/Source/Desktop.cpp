@@ -48,6 +48,34 @@ void TopBarMenu::SetClock(const std::string& clock) {
     clock_ = clock;
 }
 
+void TopBarMenu::SetAppearanceDark(bool dark) {
+    dark_ = dark;
+    appearanceLocked_ = true;
+}
+
+void TopBarMenu::ApplyTheme(bool dark) {
+    if (!appearanceLocked_) {
+        dark_ = dark;
+    }
+}
+
+bool TopBarMenu::IsDark() const {
+    return dark_;
+}
+
+void TopBarMenu::SetTransparency(float amount) {
+    if (amount < 0.0f) {
+        amount = 0.0f;
+    } else if (amount > 1.0f) {
+        amount = 1.0f;
+    }
+    transparency_ = amount;
+}
+
+float TopBarMenu::GetTransparency() const {
+    return transparency_;
+}
+
 const std::string& TopBarMenu::GetClock() const {
     return clock_;
 }

@@ -39,7 +39,12 @@ function WritePageIndex(outDir, title, assetBase) {
       };
       const paint = () => {
         const scale = pixelScale();
-        app.Render(Math.max(1, window.innerWidth), Math.max(1, window.innerHeight), scale);
+        app.Render(Math.max(1, Math.round(window.innerWidth * scale)), Math.max(1, Math.round(window.innerHeight * scale)), scale);
+      };
+      const follow = (changed) => {
+        if (changed) {
+          paint();
+        }
       };
       paint();
       window.addEventListener("resize", paint);
@@ -55,22 +60,22 @@ function WritePageIndex(outDir, title, assetBase) {
       requestAnimationFrame(frame);
       canvas.addEventListener("pointermove", (event) => {
         const [x, y] = point(event);
-        app.PointerMove(x, y);
+        follow(app.PointerMove(x, y));
       });
       canvas.addEventListener("pointerdown", (event) => {
         canvas.focus();
         const [x, y] = point(event);
-        app.PointerDown(x, y, event.pointerType === "touch", 1);
+        follow(app.PointerDown(x, y, event.pointerType === "touch", 1));
       });
       window.addEventListener("pointerup", (event) => {
         const [x, y] = point(event);
-        app.PointerUp(x, y);
+        follow(app.PointerUp(x, y));
       });
-      canvas.addEventListener("pointerleave", () => app.PointerLeave());
+      canvas.addEventListener("pointerleave", () => follow(app.PointerLeave()));
       canvas.addEventListener("wheel", (event) => {
         event.preventDefault();
         const [x, y] = point(event);
-        app.Wheel(x, y, event.deltaX, event.deltaY);
+        follow(app.Wheel(x, y, event.deltaX, event.deltaY));
       }, { passive: false });
       canvas.addEventListener("keydown", (event) => {
         if (event.key === "Backspace") app.KeyBackspace();

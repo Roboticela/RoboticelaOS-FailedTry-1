@@ -92,9 +92,9 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] Exit, or a fault, ends that process and leaves the desktop up
 
 ## Stage 13 — Syscalls for the OS platform
-- [ ] Present, input, clock, files, and exit cross rings; generated C++ does not change
-- [ ] Present still copies only the app's dirty rectangle
-- [ ] Keys and the pointer reach the app that owns the focused window
+- [x] Present, input, clock, files, and exit cross rings; generated C++ does not change
+- [x] Present still copies only the app's dirty rectangle
+- [x] Keys and the pointer reach the app that owns the focused window
 
 ## Stage 14 — Many windows
 - [ ] More than one window, with focus, drag, resize, and close

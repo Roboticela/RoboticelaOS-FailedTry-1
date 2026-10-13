@@ -10,6 +10,7 @@
 #include "RoboTimer.hpp"
 #include "RoboUsb.hpp"
 #include "RoboDisk.hpp"
+#include "RoboCall.hpp"
 #include "RoboFS.hpp"
 #include "RoboDesktopImage.hpp"
 #include "RoboShell.hpp"
@@ -126,6 +127,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
 
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
+    RoboCallBind(&desktop);
     RoboAppLoad();
     RoboCpuJoin();
     RoboPS2MouseStart();
@@ -166,14 +168,16 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                 if (gShellLive) {
                     if (event.dx != 0 || event.dy != 0) {
                         RoboDesktopMoveCursor(&desktop, event.dx, event.dy);
-                        RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
                     }
-                    if (event.code != 0) {
+                    const bool appOwns = RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
+                    if (!appOwns) {
                         RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
-                        if (event.pressed != 0) {
-                            RoboShellPointerDown(desktop.cursorX, desktop.cursorY, false);
-                        } else {
-                            RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
+                        if (event.code != 0) {
+                            if (event.pressed != 0) {
+                                RoboShellPointerDown(desktop.cursorX, desktop.cursorY, false);
+                            } else {
+                                RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
+                            }
                         }
                     }
                     shellInput = true;
@@ -183,7 +187,9 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                     moved = true;
                 }
             } else if (event.kind == ROBO_INPUT_KEY && gShellLive) {
-                RoboShellKey(event.code, event.pressed != 0);
+                if (!RoboCallOffer(&event, desktop.cursorX, desktop.cursorY)) {
+                    RoboShellKey(event.code, event.pressed != 0);
+                }
                 shellInput = true;
             } else if ((event.kind == ROBO_INPUT_TOUCHPAD || event.kind == ROBO_INPUT_TOUCH) && event.xMax > 0 && event.yMax > 0) {
                 int32_t width = desktop.gpu->width;
@@ -208,12 +214,15 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                 }
                 if (gShellLive) {
                     RoboDesktopPlaceCursor(&desktop, placeX, placeY);
-                    RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
-                    if (event.code != 0) {
-                        if (event.pressed != 0) {
-                            RoboShellPointerDown(desktop.cursorX, desktop.cursorY, true);
-                        } else {
-                            RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
+                    const bool appOwns = RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
+                    if (!appOwns) {
+                        RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
+                        if (event.code != 0) {
+                            if (event.pressed != 0) {
+                                RoboShellPointerDown(desktop.cursorX, desktop.cursorY, true);
+                            } else {
+                                RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
+                            }
                         }
                     }
                     shellInput = true;

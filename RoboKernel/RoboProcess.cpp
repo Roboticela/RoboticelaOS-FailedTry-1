@@ -1,5 +1,6 @@
 #include "RoboProcess.hpp"
 
+#include "RoboCall.hpp"
 #include "RoboFS.hpp"
 #include "RoboMemory.hpp"
 #include "RoboProgram.hpp"
@@ -60,6 +61,7 @@ bool RoboProcessLoad(RoboUserMap* map) {
         return false;
     }
     map->rip += entry;
+    RoboCallFocus(codeBytes, heapBytes);
     return true;
 }
 

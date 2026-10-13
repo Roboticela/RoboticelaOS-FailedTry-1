@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("Demo", "DevKit")]
+    [ValidateSet("Demo", "DevKit", "Desktop")]
     [string]$App = "Demo"
 )
 
@@ -144,9 +144,14 @@ function Ensure-Emsdk {
 function Invoke-XmlCompile {
     $pageXml = Join-Path $Root "Demo.xml"
     $pageCppName = "DemoPage.cpp"
+    $assetDirectory = $null
     if ($App -eq "DevKit") {
         $pageXml = Join-Path $Root "DevKit\DevKit.xml"
         $pageCppName = "DevKitPage.cpp"
+    } elseif ($App -eq "Desktop") {
+        $pageXml = Join-Path (Split-Path -Parent $Root) "RoboDesktop\Desktop.xml"
+        $pageCppName = "DesktopPage.cpp"
+        $assetDirectory = Join-Path $Root "Assets"
     }
     Write-Step "Compiling $App to C++"
     $vcvars = Find-VcVars64
@@ -198,7 +203,11 @@ exit /b %ERRORLEVEL%
     }
 
     $pageCpp = Join-Path $generatedDir $pageCppName
-    & $toolExe $pageXml $pageCpp
+    if ($assetDirectory) {
+        & $toolExe $pageXml $pageCpp $assetDirectory
+    } else {
+        & $toolExe $pageXml $pageCpp
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "XmlCompile failed to compile $pageXml"
     }
@@ -211,6 +220,9 @@ function Invoke-WebBuild {
     if ($App -eq "DevKit") {
         $outputDir = Join-Path $Root "Build\DevKit"
         $pageCppName = "DevKitPage.cpp"
+    } elseif ($App -eq "Desktop") {
+        $outputDir = Join-Path $Root "Build\Desktop"
+        $pageCppName = "DesktopPage.cpp"
     }
     Write-Step "Compiling $App C++ to WebAssembly"
     Ensure-Directory $outputDir
@@ -223,6 +235,15 @@ function Invoke-WebBuild {
 
     $fontsDir = Join-Path $Root "Assets\Fonts"
     $outputJs = Join-Path $outputDir "Robo.js"
+    $preloadArgs = @(
+        "--preload-file", "${fontsDir}@/Assets/Fonts"
+    )
+    if ($App -eq "Desktop") {
+        $packed = Join-Path $Root "Assets\Background.rjp"
+        if (Test-Path $packed) {
+            $preloadArgs += @("--preload-file", "${packed}@/Assets/Background.rjp")
+        }
+    }
 
     $emccArgs = @(
         "-O2",
@@ -230,8 +251,7 @@ function Invoke-WebBuild {
         "--bind"
     ) + (Get-IncludeArgs "em") + @(
         "-I$(Join-Path $Root 'RoboPlatforms\Web')"
-    ) + $sources + @(
-        "--preload-file", "${fontsDir}@/Assets/Fonts",
+    ) + $sources + $preloadArgs + @(
         "-sMODULARIZE=1",
         "-sEXPORT_NAME=CreateRoboModule",
         "-sALLOW_MEMORY_GROWTH=1",
@@ -251,6 +271,9 @@ function Invoke-WebBuild {
     if ($App -eq "DevKit") {
         $assetUrl = "/Build/DevKit/"
         $publicDir = Join-Path $Root "devkit"
+    } elseif ($App -eq "Desktop") {
+        $assetUrl = "/Build/Desktop/"
+        $publicDir = Join-Path $Root "Desktop"
     }
     $writer = Join-Path $Root "Tools\WritePageIndex.js"
     & node $writer --out $outputDir --title $App --asset $assetUrl
@@ -302,4 +325,10 @@ Invoke-XmlCompile
 Ensure-Emsdk
 Invoke-WebBuild
 Write-Step "Build complete"
-Write-Host "Demo: .\RunDemo.ps1"
+if ($App -eq "Desktop") {
+    Write-Host "Desktop: ..\RunDesktop.ps1"
+} elseif ($App -eq "DevKit") {
+    Write-Host "DevKit: .\RunDevKit.ps1"
+} else {
+    Write-Host "Demo: .\RunDemo.ps1"
+}

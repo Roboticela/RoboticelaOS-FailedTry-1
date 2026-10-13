@@ -170,6 +170,30 @@ int main(int argc, char** argv) {
     RoboCopy(fonts, esp, "INTERS.TTF", "Inter-SemiBold.ttf");
     RoboCopy(fonts, esp, "INTERI.TTF", "Inter-Italic.ttf");
     RoboCopy(applications, esp, "RoboApp.bin", "RoboApp.bin");
+    auto readCode = [](const char* path) {
+        std::vector<std::uint8_t> bytes;
+        std::FILE* file = std::fopen(path, "rb");
+        if (file == nullptr) {
+            return bytes;
+        }
+        if (std::fseek(file, 0, SEEK_END) != 0) {
+            std::fclose(file);
+            return bytes;
+        }
+        long length = std::ftell(file);
+        if (length <= 0 || length > 64 * 1024 || std::fseek(file, 0, SEEK_SET) != 0) {
+            std::fclose(file);
+            return std::vector<std::uint8_t>();
+        }
+        bytes.resize(static_cast<std::size_t>(length));
+        if (std::fread(bytes.data(), 1, bytes.size(), file) != bytes.size()) {
+            bytes.clear();
+        }
+        std::fclose(file);
+        return bytes;
+    };
+    std::vector<std::uint8_t> x64Program = readCode("Build/App/X64.bin");
+    std::vector<std::uint8_t> armProgram = readCode("Build/App/ARM.bin");
     const std::uint8_t x64Code[] = {
         0x48, 0xB8, 0x00, 0x00, 0x03, 0x00, 0xFF, 0x7F, 0x00, 0x00,
         0xC7, 0x00, 0x58, 0x58, 0x58, 0x58,
@@ -200,8 +224,14 @@ int main(int argc, char** argv) {
         }
         return image;
     };
-    RoboAdd(applications, "X64.bin", false, program(ROBO_PROGRAM_X64, x64Code, sizeof(x64Code)));
-    RoboAdd(applications, "ARM.bin", false, program(ROBO_PROGRAM_ARM64, armCode, sizeof(armCode)));
+    if (x64Program.empty()) {
+        x64Program.assign(x64Code, x64Code + sizeof(x64Code));
+    }
+    if (armProgram.empty()) {
+        armProgram.assign(armCode, armCode + sizeof(armCode));
+    }
+    RoboAdd(applications, "X64.bin", false, program(ROBO_PROGRAM_X64, x64Program.data(), static_cast<std::uint32_t>(x64Program.size())));
+    RoboAdd(applications, "ARM.bin", false, program(ROBO_PROGRAM_ARM64, armProgram.data(), static_cast<std::uint32_t>(armProgram.size())));
     RoboCopy(desktop, esp, "DESKTOP.BIN", "Desktop.bin");
     RoboCopy(desktop, esp, "BACKGROU.RJP", "Background.rjp");
     RoboCopy(desktop, esp, "BACKGROU.MP4", "Background.mp4");

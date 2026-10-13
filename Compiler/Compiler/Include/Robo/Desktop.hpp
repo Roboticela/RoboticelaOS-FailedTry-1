@@ -54,6 +54,13 @@ public:
     void SetClock(const std::string& clock);
     const std::string& GetClock() const;
 
+    void SetAppearanceDark(bool dark);
+    void ApplyTheme(bool dark);
+    bool IsDark() const;
+
+    void SetTransparency(float amount);
+    float GetTransparency() const;
+
     void AddItem(TopBarMenuItem item);
     std::vector<TopBarMenuItem>& Items();
     const std::vector<TopBarMenuItem>& Items() const;
@@ -77,6 +84,9 @@ public:
 private:
     std::string app_ = "Finder";
     std::string clock_;
+    bool dark_ = false;
+    bool appearanceLocked_ = false;
+    float transparency_ = 0.0f;
     std::vector<TopBarMenuItem> items_;
     MenuBounds apple_{};
     MenuBounds appName_{};
