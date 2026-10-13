@@ -46,8 +46,9 @@ if (-not (Test-Path $vars) -or (Get-Item $vars).Length -ne 64MB) {
 $firmwarePath = $firmware -replace '\\', '/'
 $varsPath = $vars -replace '\\', '/'
 $espPath = $esp -replace '\\', '/'
-
-& $qemu @(
+$disk = Join-Path $Root "Build\RoboDisk.img"
+$diskPath = $disk -replace '\\', '/'
+$arguments = @(
     "-machine", "virt,gic-version=2",
     "-cpu", "cortex-a57",
     "-m", "512",
@@ -59,4 +60,12 @@ $espPath = $esp -replace '\\', '/'
     "-drive", "if=none,id=esp,format=raw,file=fat:rw:$espPath",
     "-device", "virtio-blk-pci,drive=esp"
 )
+if (Test-Path $disk) {
+    $arguments += @(
+        "-drive", "if=none,id=robo,format=raw,file=$diskPath",
+        "-device", "virtio-blk-pci,drive=robo"
+    )
+}
+
+& $qemu @arguments
 exit $LASTEXITCODE

@@ -26,7 +26,7 @@ KERNEL_SRCS := RoboKernel/RoboKernel.cpp RoboKernel/RoboSupport.cpp RoboGPU/Robo
 	RoboDesktop/RoboDesktop.cpp RoboInput/RoboInput.cpp RoboInput/RoboPS2Mouse.cpp \
 	RoboInput/RoboPS2Keyboard.cpp RoboArch/X64/RoboArch.cpp \
 	RoboArch/X64/RoboInterrupt.cpp RoboArch/X64/RoboTimer.cpp RoboArch/X64/RoboMemory.cpp \
-	RoboArch/X64/RoboCpu.cpp RoboArch/X64/RoboPci.cpp RoboArch/X64/RoboAta.cpp RoboArch/X64/RoboGPUVendor.cpp 	RoboKernel/RoboSchedule.cpp RoboInput/RoboUsb.cpp RoboFS/RoboFS.cpp
+	RoboArch/X64/RoboCpu.cpp RoboArch/X64/RoboPci.cpp RoboArch/X64/RoboAta.cpp RoboArch/X64/RoboGPUVendor.cpp 	RoboKernel/RoboSchedule.cpp RoboInput/RoboUsb.cpp RoboFS/RoboFS.cpp RoboDisk/RoboDisk.cpp RoboDisk/RoboVirtioBlk.cpp RoboDisk/RoboAhci.cpp
 SHELL_DIR := $(OBJ)/Shell
 SHELL_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
 	-fno-asynchronous-unwind-tables -fno-unwind-tables -fno-threadsafe-statics -mno-red-zone \
@@ -44,7 +44,8 @@ BLIT_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-pr
 KERNEL_OBJS := $(OBJ)/RoboKernel.o $(OBJ)/RoboSupport.o $(OBJ)/RoboGPU.o \
 	$(OBJ)/RoboDesktop.o $(OBJ)/RoboInput.o $(OBJ)/RoboPS2Mouse.o $(OBJ)/RoboPS2Keyboard.o \
 	$(OBJ)/RoboArch.o $(OBJ)/RoboInterrupt.o $(OBJ)/RoboTimer.o $(OBJ)/RoboMemory.o \
-	$(OBJ)/RoboCpu.o $(OBJ)/RoboPci.o $(OBJ)/RoboAta.o $(OBJ)/RoboGPUVendor.o $(OBJ)/RoboSchedule.o $(OBJ)/RoboUsb.o $(OBJ)/RoboFS.o $(SHELL_OBJS)
+	$(OBJ)/RoboCpu.o $(OBJ)/RoboPci.o $(OBJ)/RoboAta.o $(OBJ)/RoboGPUVendor.o $(OBJ)/RoboSchedule.o $(OBJ)/RoboUsb.o $(OBJ)/RoboFS.o \
+	$(OBJ)/RoboDisk.o $(OBJ)/RoboVirtioBlk.o $(OBJ)/RoboAhci.o $(SHELL_OBJS)
 
 ARM_OBJ := $(BUILD)/Objects/ARM64
 ESP_ARM := $(BUILD)/EspArm
@@ -57,12 +58,13 @@ ARM_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-pro
 ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.o \
 	$(ARM_OBJ)/RoboDesktop.o $(ARM_OBJ)/RoboInput.o $(ARM_OBJ)/RoboFS.o \
 	$(ARM_OBJ)/RoboArch.o $(ARM_OBJ)/RoboVector.o $(ARM_OBJ)/RoboMemory.o \
-	$(ARM_OBJ)/RoboCpu.o $(ARM_OBJ)/RoboTimer.o $(ARM_OBJ)/RoboAta.o \
+	$(ARM_OBJ)/RoboCpu.o $(ARM_OBJ)/RoboTimer.o $(ARM_OBJ)/RoboAta.o $(ARM_OBJ)/RoboPci.o \
+	$(ARM_OBJ)/RoboDisk.o $(ARM_OBJ)/RoboVirtioBlk.o $(ARM_OBJ)/RoboAhci.o \
 	$(ARM_OBJ)/RoboSchedule.o $(ARM_OBJ)/RoboInputDevice.o $(ARM_OBJ)/RoboGPUVendor.o $(ARM_OBJ)/RoboShellStub.o
 
 .PHONY: all clean
 
-all: $(BOOT)/BOOTX64.EFI $(ESP)/RoboKernel.elf $(ESP)/RoboApp.bin $(BOOT_ARM)/BOOTAA64.EFI $(ESP_ARM)/RoboKernel.elf $(ESP_ARM)/RoboApp.bin
+all: $(BOOT)/BOOTX64.EFI $(ESP)/RoboKernel.elf $(ESP)/RoboApp.bin $(BOOT_ARM)/BOOTAA64.EFI $(ESP_ARM)/RoboKernel.elf $(ESP_ARM)/RoboApp.bin $(BUILD)/RoboDisk.img
 
 $(BOOT)/BOOTX64.EFI: $(OBJ)/RoboBootloader.o
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(BOOT)' | Out-Null"
@@ -128,8 +130,23 @@ $(OBJ)/RoboAta.o: RoboArch/X64/RoboAta.cpp RoboArch/X64/RoboAta.hpp
 $(OBJ)/RoboGPUVendor.o: RoboArch/X64/RoboGPUVendor.cpp RoboInclude/RoboGPUVendor.hpp RoboGPU/RoboGPU.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboArch/X64/RoboGPUVendor.cpp -o $(OBJ)/RoboGPUVendor.o
 
-$(OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp
+$(OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp RoboInclude/RoboPartition.hpp RoboInclude/RoboDisk.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboFS/RoboFS.cpp -o $(OBJ)/RoboFS.o
+
+$(OBJ)/RoboDisk.o: RoboDisk/RoboDisk.cpp RoboInclude/RoboDisk.hpp RoboInclude/RoboPartition.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboDisk/RoboDisk.cpp -o $(OBJ)/RoboDisk.o
+
+$(OBJ)/RoboVirtioBlk.o: RoboDisk/RoboVirtioBlk.cpp RoboInclude/RoboPartition.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboDisk/RoboVirtioBlk.cpp -o $(OBJ)/RoboVirtioBlk.o
+
+$(OBJ)/RoboAhci.o: RoboDisk/RoboAhci.cpp RoboInclude/RoboPartition.hpp
+	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboDisk/RoboAhci.cpp -o $(OBJ)/RoboAhci.o
+
+$(BUILD)/RoboImage.exe: RoboImage/RoboImage.cpp RoboInclude/RoboPartition.hpp
+	$(CLANG) -std=c++20 -O2 -Wno-deprecated-declarations -IRoboInclude -o $(BUILD)/RoboImage.exe RoboImage/RoboImage.cpp
+
+$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin
+	$(BUILD)/RoboImage.exe $(BUILD)/RoboDisk.img $(ESP)
 
 $(SHELL_DIR)/%.o: Compiler/Compiler/Source/%.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
@@ -193,8 +210,20 @@ $(ARM_OBJ)/RoboDesktop.o: RoboDesktop/RoboDesktop.cpp RoboDesktop/RoboDesktop.hp
 $(ARM_OBJ)/RoboInput.o: RoboInput/RoboInput.cpp RoboInput/RoboInput.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboInput/RoboInput.cpp -o $(ARM_OBJ)/RoboInput.o
 
-$(ARM_OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp
+$(ARM_OBJ)/RoboFS.o: RoboFS/RoboFS.cpp RoboInclude/RoboFS.hpp RoboInclude/RoboPartition.hpp RoboInclude/RoboDisk.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboFS/RoboFS.cpp -o $(ARM_OBJ)/RoboFS.o
+
+$(ARM_OBJ)/RoboDisk.o: RoboDisk/RoboDisk.cpp RoboInclude/RoboDisk.hpp RoboInclude/RoboPartition.hpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboDisk/RoboDisk.cpp -o $(ARM_OBJ)/RoboDisk.o
+
+$(ARM_OBJ)/RoboVirtioBlk.o: RoboDisk/RoboVirtioBlk.cpp RoboInclude/RoboPartition.hpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboDisk/RoboVirtioBlk.cpp -o $(ARM_OBJ)/RoboVirtioBlk.o
+
+$(ARM_OBJ)/RoboAhci.o: RoboDisk/RoboAhci.cpp RoboInclude/RoboPartition.hpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboDisk/RoboAhci.cpp -o $(ARM_OBJ)/RoboAhci.o
+
+$(ARM_OBJ)/RoboPci.o: RoboArch/ARM64/RoboPci.cpp RoboArch/X64/RoboPci.hpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboArch/ARM64/RoboPci.cpp -o $(ARM_OBJ)/RoboPci.o
 
 $(ARM_OBJ)/RoboArch.o: RoboArch/ARM64/RoboArch.cpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboArch/ARM64/RoboArch.cpp -o $(ARM_OBJ)/RoboArch.o

@@ -9,7 +9,7 @@
 #include "RoboSchedule.hpp"
 #include "RoboTimer.hpp"
 #include "RoboUsb.hpp"
-#include "RoboAta.hpp"
+#include "RoboDisk.hpp"
 #include "RoboFS.hpp"
 #include "RoboDesktopImage.hpp"
 #include "RoboShell.hpp"
@@ -91,8 +91,8 @@ bool RoboShellLoad(RoboDesktop* desktop) {
 void RoboAppLoad(void) {
     uint8_t file[16];
     uint32_t fileSize = 0;
-    if (RoboAtaStart()) {
-        RoboFsStart(RoboAtaReadSector);
+    if (RoboDiskStart()) {
+        RoboFsStart(RoboDiskReadSector);
     }
     if (!RoboFsReadFile("ROBOAPP.BIN", file, sizeof(file), &fileSize) || fileSize < 8u) {
         return;

@@ -1,7 +1,8 @@
 #include "RoboFS.hpp"
 
-#include "RoboAta.hpp"
 #include "RoboBootInfo.hpp"
+#include "RoboDisk.hpp"
+#include "RoboPartition.hpp"
 
 namespace {
 
@@ -21,6 +22,10 @@ uint32_t gRootCluster = 0;
 uint8_t gFatKind = 0;
 alignas(2) uint8_t gSector[ROBO_FS_SECTOR];
 bool gMounted = false;
+bool gRoboVolume = false;
+uint32_t gRoboBase = 0;
+uint64_t gRoboRoot = 1;
+uint8_t gDirectory[ROBO_DIRECTORY_BYTES];
 
 struct RoboHeldFile {
     uint8_t name[11];
@@ -279,13 +284,231 @@ bool RoboFsFind(const uint8_t wanted[11], uint32_t* cluster, uint32_t* size) {
     return false;
 }
 
+uint64_t RoboFsLoad64(const uint8_t* bytes) {
+    return static_cast<uint64_t>(RoboFsLoad32(bytes))
+        | (static_cast<uint64_t>(RoboFsLoad32(bytes + 4)) << 32);
+}
+
+bool RoboFsMagic(const uint8_t* bytes, const char magic[8]) {
+    for (uint32_t index = 0; index < 8u; ++index) {
+        if (bytes[index] != static_cast<uint8_t>(magic[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RoboNameEqual(const uint8_t* stored, const char* name, uint32_t length) {
+    for (uint32_t index = 0; index < 40u; ++index) {
+        uint8_t want = index < length ? static_cast<uint8_t>(name[index]) : 0;
+        if (stored[index] != want) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RoboDirectoryFind(const uint8_t* directory, uint32_t directoryBytes, const char* name, uint32_t length, uint32_t* kind, uint64_t* start, uint64_t* bytes) {
+    if (directoryBytes > ROBO_DIRECTORY_BYTES) {
+        directoryBytes = ROBO_DIRECTORY_BYTES;
+    }
+    for (uint32_t offset = 0; offset + ROBO_ENTRY_BYTES <= directoryBytes; offset += ROBO_ENTRY_BYTES) {
+        const uint8_t* entry = directory + offset;
+        uint32_t entryKind = RoboFsLoad32(entry + 40);
+        if (entryKind == 0) {
+            return false;
+        }
+        if (!RoboNameEqual(entry, name, length)) {
+            continue;
+        }
+        *kind = entryKind;
+        *start = RoboFsLoad64(entry + 48);
+        *bytes = RoboFsLoad64(entry + 56);
+        return true;
+    }
+    return false;
+}
+
+bool RoboReadDirectory(uint64_t block, uint64_t byteSize) {
+    if (byteSize == 0 || byteSize > ROBO_DIRECTORY_BYTES) {
+        byteSize = ROBO_DIRECTORY_BYTES;
+    }
+    uint32_t blocks = static_cast<uint32_t>((byteSize + ROBO_SECTOR_BYTES - 1u) / ROBO_SECTOR_BYTES);
+    for (uint32_t index = 0; index < blocks; ++index) {
+        if (block + index > 0xFFFFFFFFu || gRoboBase + static_cast<uint32_t>(block + index) < gRoboBase) {
+            return false;
+        }
+        if (!RoboFsRead(gRoboBase + static_cast<uint32_t>(block + index), gDirectory + index * ROBO_SECTOR_BYTES)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool RoboVolumeFind(const char* path, uint64_t* start, uint64_t* bytes) {
+    uint64_t block = gRoboRoot;
+    uint64_t directoryBytes = ROBO_DIRECTORY_BYTES;
+    const char* cursor = path;
+    if (!RoboReadDirectory(block, directoryBytes)) {
+        return false;
+    }
+    while (cursor[0] != 0) {
+        uint32_t length = 0;
+        while (cursor[length] != 0 && cursor[length] != '/') {
+            length += 1u;
+            if (length > 40u) {
+                return false;
+            }
+        }
+        if (length == 0) {
+            return false;
+        }
+        uint32_t kind = 0;
+        uint64_t next = 0;
+        uint64_t size = 0;
+        if (!RoboDirectoryFind(gDirectory, static_cast<uint32_t>(directoryBytes), cursor, length, &kind, &next, &size)) {
+            return false;
+        }
+        cursor += length;
+        if (cursor[0] == 0) {
+            if (kind != ROBO_ENTRY_FILE) {
+                return false;
+            }
+            *start = next;
+            *bytes = size;
+            return true;
+        }
+        if (cursor[0] != '/' || kind != ROBO_ENTRY_DIRECTORY) {
+            return false;
+        }
+        cursor += 1u;
+        block = next;
+        directoryBytes = size == 0 ? ROBO_DIRECTORY_BYTES : size;
+        if (!RoboReadDirectory(block, directoryBytes)) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool RoboVolumeRead(const char* path, uint8_t* dest, uint32_t capacity, uint32_t* size) {
+    uint64_t start = 0;
+    uint64_t fileSize = 0;
+    if (!RoboVolumeFind(path, &start, &fileSize)) {
+        return false;
+    }
+    uint32_t wanted = fileSize > capacity ? capacity : static_cast<uint32_t>(fileSize);
+    uint32_t written = 0;
+    while (written < wanted) {
+        uint64_t block = start + written / ROBO_SECTOR_BYTES;
+        if (block > 0xFFFFFFFFu || !RoboFsRead(gRoboBase + static_cast<uint32_t>(block), gSector)) {
+            return false;
+        }
+        uint32_t chunk = ROBO_SECTOR_BYTES - (written % ROBO_SECTOR_BYTES);
+        if (chunk > wanted - written) {
+            chunk = wanted - written;
+        }
+        uint32_t offset = written % ROBO_SECTOR_BYTES;
+        for (uint32_t index = 0; index < chunk; ++index) {
+            dest[written + index] = gSector[offset + index];
+        }
+        written += chunk;
+    }
+    if (size != nullptr) {
+        *size = static_cast<uint32_t>(fileSize > 0xFFFFFFFFu ? 0xFFFFFFFFu : fileSize);
+    }
+    return true;
+}
+
+struct RoboAlias {
+    const char* from;
+    const char* path;
+};
+
+const RoboAlias gAliases[] = {
+    {"ROBOAPP.BIN", "Applications/RoboApp.bin"},
+    {"DESKTOP.BIN", "Desktop/Desktop.bin"},
+    {"BACKGROU.RJP", "Desktop/Background.rjp"},
+    {"Background.rjp", "Desktop/Background.rjp"},
+    {"BACKGROU.MP4", "Desktop/Background.mp4"},
+    {"Background.mp4", "Desktop/Background.mp4"},
+    {"INTERR.TTF", "System/Fonts/Inter-Regular.ttf"},
+    {"Inter-Regular.ttf", "System/Fonts/Inter-Regular.ttf"},
+    {"INTERM.TTF", "System/Fonts/Inter-Medium.ttf"},
+    {"Inter-Medium.ttf", "System/Fonts/Inter-Medium.ttf"},
+    {"INTERS.TTF", "System/Fonts/Inter-SemiBold.ttf"},
+    {"Inter-SemiBold.ttf", "System/Fonts/Inter-SemiBold.ttf"},
+    {"INTERI.TTF", "System/Fonts/Inter-Italic.ttf"},
+    {"Inter-Italic.ttf", "System/Fonts/Inter-Italic.ttf"},
+};
+
+const char* RoboVolumeAlias(const char* name) {
+    for (uint32_t index = 0; index < sizeof(gAliases) / sizeof(gAliases[0]); ++index) {
+        const char* from = gAliases[index].from;
+        bool same = true;
+        for (uint32_t letter = 0; letter < 64u; ++letter) {
+            if (from[letter] != name[letter]) {
+                same = false;
+                break;
+            }
+            if (from[letter] == 0) {
+                break;
+            }
+        }
+        if (same) {
+            return gAliases[index].path;
+        }
+    }
+    return nullptr;
+}
+
+bool RoboVolumeMount(const uint8_t* table) {
+    if (!RoboFsMagic(table, ROBO_PARTITION_MAGIC)) {
+        return false;
+    }
+    uint32_t count = RoboFsLoad32(table + 12);
+    if (count > ROBO_PARTITION_LIMIT) {
+        count = ROBO_PARTITION_LIMIT;
+    }
+    for (uint32_t index = 0; index < count; ++index) {
+        const uint8_t* entry = table + ROBO_PARTITION_HEADER + index * ROBO_ENTRY_BYTES;
+        if (RoboFsLoad32(entry + 32) != ROBO_FS_KIND) {
+            continue;
+        }
+        uint64_t start = RoboFsLoad64(entry + 40);
+        if (start == 0 || start > 0xFFFFFFFFu) {
+            continue;
+        }
+        if (!RoboFsRead(static_cast<uint32_t>(start), gSector)) {
+            continue;
+        }
+        if (!RoboFsMagic(gSector, ROBO_FS_MAGIC)) {
+            continue;
+        }
+        gRoboBase = static_cast<uint32_t>(start);
+        gRoboRoot = RoboFsLoad64(gSector + 24);
+        gRoboVolume = true;
+        gMounted = true;
+        return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 bool RoboFsStart(RoboFsSectorRead read) {
     gMounted = false;
+    gRoboVolume = false;
     gRead = read;
     if (read == nullptr || !RoboFsRead(0, gSector)) {
         return false;
+    }
+    uint8_t table[ROBO_SECTOR_BYTES];
+    for (uint32_t index = 0; index < ROBO_SECTOR_BYTES; ++index) {
+        table[index] = gSector[index];
+    }
+    if (RoboVolumeMount(table)) {
+        return true;
     }
     if ((gSector[0] == 0xEBu || gSector[0] == 0xE9u) && RoboFsMountVolume(0)) {
         return true;
@@ -349,10 +572,27 @@ bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t
     if (name == nullptr || dest == nullptr || capacity == 0) {
         return false;
     }
+    bool nested = false;
+    for (uint32_t index = 0; name[index] != 0 && index < 160u; ++index) {
+        if (name[index] == '/') {
+            nested = true;
+            break;
+        }
+    }
+    if (nested) {
+        return gRoboVolume && RoboVolumeRead(name, dest, capacity, size);
+    }
     uint8_t wanted[11];
     RoboFsName83(name, wanted);
     if (RoboHeldRead(wanted, dest, capacity, size)) {
         return true;
+    }
+    if (gRoboVolume) {
+        const char* alias = RoboVolumeAlias(name);
+        if (alias != nullptr) {
+            return RoboVolumeRead(alias, dest, capacity, size);
+        }
+        return RoboVolumeRead(name, dest, capacity, size);
     }
     if (!gMounted) {
         return false;
@@ -384,8 +624,8 @@ bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t
         uint32_t sectorCount = run * gSectorsPerCluster;
         uint32_t byteCount = sectorCount * ROBO_FS_SECTOR;
         uint32_t copy = byteCount > wantedBytes - written ? wantedBytes - written : byteCount;
-        if (copy == byteCount && (reinterpret_cast<uint64_t>(dest + written) & 1u) == 0 && gRead == RoboAtaReadSector) {
-            if (!RoboAtaReadSectors(lba, sectorCount, dest + written)) {
+        if (copy == byteCount && (reinterpret_cast<uint64_t>(dest + written) & 1u) == 0 && gRead == RoboDiskReadSector) {
+            if (!RoboDiskReadSectors(lba, sectorCount, dest + written)) {
                 return false;
             }
         } else {

@@ -77,9 +77,9 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] GPU, desktop, and the damage list stay the shared code
 
 ## Stage 10 — Disks on real machines
-- [ ] AHCI or NVMe beside ATA, and virtio-blk on ARM64
-- [ ] RoboFS mounts the first disk that answers
-- [ ] A missing disk still boots the desktop
+- [x] AHCI or NVMe beside ATA, and virtio-blk on ARM64
+- [x] RoboFS mounts the first disk that answers
+- [x] A missing disk still boots the desktop
 
 ## Stage 11 — Files an app can write
 - [ ] Create, read, write, and delete a file

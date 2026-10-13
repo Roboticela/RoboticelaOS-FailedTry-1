@@ -10,6 +10,8 @@ constexpr uint8_t ROBO_PCI_CLASS_SERIAL = 0x0C;
 constexpr uint8_t ROBO_PCI_SUBCLASS_USB = 0x03;
 constexpr uint8_t ROBO_PCI_PROG_XHCI = 0x30;
 
+}  // namespace
+
 uint32_t RoboPciRead32(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
     uint32_t address = 0x80000000u
         | (static_cast<uint32_t>(bus) << 16)
@@ -29,8 +31,6 @@ void RoboPciWrite32(uint8_t bus, uint8_t device, uint8_t function, uint8_t offse
     RoboPortOut32(ROBO_PCI_ADDRESS, address);
     RoboPortOut32(ROBO_PCI_DATA, value);
 }
-
-}  // namespace
 
 bool RoboPciFindXhci(RoboPciDevice* device) {
     if (device == nullptr) {

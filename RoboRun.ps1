@@ -85,6 +85,15 @@ $arguments = @(
     "-device", "qemu-xhci,id=xhci",
     "-drive", "if=ide,format=raw,file=fat:rw:$espPath"
 )
+$disk = Join-Path $Root "Build\RoboDisk.img"
+if (Test-Path $disk) {
+    $diskPath = $disk -replace '\\', '/'
+    $arguments += @(
+        "-device", "ahci,id=ahci",
+        "-drive", "if=none,id=robo,format=raw,file=$diskPath",
+        "-device", "ide-hd,drive=robo,bus=ahci.0"
+    )
+}
 
 $codeName = Split-Path -Leaf $code
 if ($codeName -eq "OVMF.fd") {
