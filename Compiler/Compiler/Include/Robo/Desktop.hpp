@@ -18,6 +18,76 @@ struct DockItemBounds {
     bool Contains(float pointX, float pointY) const;
 };
 
+struct MenuBounds {
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+
+    bool Contains(float pointX, float pointY) const;
+};
+
+// One title in the top menu bar. The open title is the active menu.
+class TopBarMenuItem {
+public:
+    void SetLabel(const std::string& label);
+    const std::string& GetLabel() const;
+
+    void SetSelected(bool selected);
+    bool IsSelected() const;
+
+    void SetBounds(const MenuBounds& bounds);
+    const MenuBounds& GetBounds() const;
+
+private:
+    std::string label_;
+    bool selected_ = false;
+    MenuBounds bounds_{};
+};
+
+// The menu bar across the top of the desktop, above the wallpaper.
+class TopBarMenu {
+public:
+    void SetApp(const std::string& app);
+    const std::string& GetApp() const;
+
+    void SetClock(const std::string& clock);
+    const std::string& GetClock() const;
+
+    void AddItem(TopBarMenuItem item);
+    std::vector<TopBarMenuItem>& Items();
+    const std::vector<TopBarMenuItem>& Items() const;
+
+    void SetAppleBounds(const MenuBounds& bounds);
+    void SetAppBounds(const MenuBounds& bounds);
+    void SetBar(float x, float y, float width, float height);
+    float BarX() const;
+    float BarY() const;
+    float BarWidth() const;
+    float BarHeight() const;
+
+    void SetHover(int index);
+    int Hover() const;
+
+    int Hit(float x, float y) const;
+    bool Select(int index);
+    bool ClearSelection();
+    int Active() const;
+
+private:
+    std::string app_ = "Finder";
+    std::string clock_;
+    std::vector<TopBarMenuItem> items_;
+    MenuBounds apple_{};
+    MenuBounds appName_{};
+    int active_ = -1;
+    int hover_ = -1;
+    float barX_ = 0.0f;
+    float barY_ = 0.0f;
+    float barWidth_ = 0.0f;
+    float barHeight_ = 0.0f;
+};
+
 // One launch tile on the desktop dock.
 class DockItem {
 public:
@@ -71,6 +141,11 @@ public:
     bool HasAppShell() const;
     const AppShell& GetAppShell() const;
 
+    void SetTopBarMenu(TopBarMenu menu);
+    bool HasTopBarMenu() const;
+    TopBarMenu& GetTopBarMenu();
+    const TopBarMenu& GetTopBarMenu() const;
+
     void AddDockItem(DockItem item);
     std::vector<DockItem>& Dock();
     const std::vector<DockItem>& Dock() const;
@@ -89,6 +164,8 @@ private:
     Background background_;
     bool hasAppShell_ = false;
     AppShell appShell_;
+    bool hasTopBarMenu_ = false;
+    TopBarMenu topBarMenu_;
     std::vector<DockItem> dock_;
     float dockBarX_ = 0.0f;
     float dockBarY_ = 0.0f;

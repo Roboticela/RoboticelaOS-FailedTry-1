@@ -7,4 +7,5 @@ void RoboScheduleNotify(void);
 void RoboSchedule(void);
 void RoboThreadSleep(uint64_t wakeTick);
 extern "C" void RoboSyscallDispatch(uint64_t number);
+void RoboThreadEnd(uint32_t reason);
 void RoboKernelRspSet(uint64_t stackTop);

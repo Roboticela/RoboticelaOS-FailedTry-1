@@ -2,6 +2,7 @@
 
 #include "RoboCpu.hpp"
 #include "RoboMemory.hpp"
+#include "RoboProcess.hpp"
 #include "RoboTimer.hpp"
 
 extern "C" uint64_t gRoboKernelRsp;
@@ -32,10 +33,20 @@ void RoboWorkerMain(void) {
     }
 }
 
+void RoboEnter(uint64_t tables, uint64_t rip, uint64_t rsp) {
+    gThreads[gCurrent].cr3 = tables;
+    __asm__ volatile("mov %0, %%cr3" : : "r"(tables) : "memory");
+    RoboArchEnterUser(rip, rsp);
+}
+
 void RoboUserMain(void) {
+    RoboUserMap map{};
+    if (RoboProcessLoad(&map)) {
+        RoboEnter(map.tables, map.rip, map.rsp);
+    }
     uint64_t rip = 0;
     uint64_t rsp = 0;
-    static const uint8_t code[] = {
+    const uint8_t code[] = {
         0xB8, 0x01, 0x00, 0x00, 0x00,
         0x0F, 0x05,
         0xEB, 0xF7,
@@ -46,9 +57,7 @@ void RoboUserMain(void) {
             RoboThreadSleep(RoboTimerTicks() + 50ull);
         }
     }
-    gThreads[gCurrent].cr3 = userCr3;
-    __asm__ volatile("mov %0, %%cr3" : : "r"(userCr3) : "memory");
-    RoboArchEnterUser(rip, rsp);
+    RoboEnter(userCr3, rip, rsp);
 }
 
 void RoboThreadPrepare(void (*entry)(void), uint64_t cr3) {
@@ -135,7 +144,23 @@ void RoboThreadSleep(uint64_t wakeTick) {
     RoboScheduleSwitch(static_cast<uint32_t>(next));
 }
 
+void RoboThreadEnd(uint32_t reason) {
+    RoboProcessNote(reason);
+    gThreads[gCurrent].used = 0;
+    gThreads[gCurrent].state = 0;
+    gThreads[gCurrent].rsp = 0;
+    int next = RoboScheduleNext(gCurrent);
+    if (next < 0) {
+        return;
+    }
+    RoboScheduleSwitch(static_cast<uint32_t>(next));
+}
+
 extern "C" void RoboSyscallDispatch(uint64_t number) {
+    if (number == 2u) {
+        RoboThreadEnd(2u);
+        return;
+    }
     if (number == 1) {
         int next = RoboScheduleNext(gCurrent);
         gScheduleDue = 0;

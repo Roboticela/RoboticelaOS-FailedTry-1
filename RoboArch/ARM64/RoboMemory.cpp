@@ -1,6 +1,7 @@
 #include "RoboMemory.hpp"
 
 #include "RoboBootInfo.hpp"
+#include "RoboProgram.hpp"
 
 namespace {
 
@@ -11,8 +12,6 @@ constexpr uint64_t ROBO_RAM_BASE = 0x40000000ull;
 constexpr uint64_t ROBO_ARM_KERNEL = 0x42000000ull;
 constexpr uint64_t ROBO_ARM_KERNEL_BYTES = 16ull * 1024ull * 1024ull;
 constexpr uint32_t ROBO_FREE_LIMIT = 4096u;
-constexpr uint64_t ROBO_USER_CODE = 0x00007FFF00000000ull;
-constexpr uint64_t ROBO_USER_STACK = 0x00007FFF00001000ull;
 constexpr uint64_t ROBO_DESC_TABLE = 3ull;
 constexpr uint64_t ROBO_DESC_PAGE = 3ull;
 constexpr uint64_t ROBO_DESC_BLOCK = 1ull;
@@ -298,4 +297,78 @@ uint64_t RoboMemoryCreateUserSpace(const void* code, uint64_t codeSize, uint64_t
     *userRip = ROBO_USER_CODE;
     *userRsp = ROBO_USER_STACK + ROBO_PAGE_BYTES - 16ull;
     return level0;
+}
+
+bool RoboMemoryMapUser(const void* code, uint64_t codeSize, uint64_t heapBytes, RoboUserMap* map) {
+    if (code == nullptr || map == nullptr || codeSize == 0 || heapBytes == 0) {
+        return false;
+    }
+    if (codeSize > static_cast<uint64_t>(ROBO_PROGRAM_CODE_PAGES) * ROBO_PAGE_BYTES) {
+        return false;
+    }
+    if (heapBytes > static_cast<uint64_t>(ROBO_PROGRAM_HEAP_PAGES) * ROBO_PAGE_BYTES) {
+        return false;
+    }
+    uint32_t codePages = static_cast<uint32_t>((codeSize + ROBO_PAGE_BYTES - 1ull) / ROBO_PAGE_BYTES);
+    uint32_t heapPages = static_cast<uint32_t>((heapBytes + ROBO_PAGE_BYTES - 1ull) / ROBO_PAGE_BYTES);
+    uint64_t level0 = RoboPageAlloc();
+    uint64_t level1 = RoboPageAlloc();
+    uint64_t level2 = RoboPageAlloc();
+    uint64_t level3 = RoboPageAlloc();
+    uint64_t stackPage = RoboPageAlloc();
+    if (level0 == 0 || level1 == 0 || level2 == 0 || level3 == 0 || stackPage == 0) {
+        return false;
+    }
+    uint64_t codePhysical[ROBO_PROGRAM_CODE_PAGES];
+    uint64_t heapPhysical[ROBO_PROGRAM_HEAP_PAGES];
+    for (uint32_t index = 0; index < codePages; ++index) {
+        codePhysical[index] = RoboPageAlloc();
+        if (codePhysical[index] == 0) {
+            return false;
+        }
+    }
+    for (uint32_t index = 0; index < heapPages; ++index) {
+        heapPhysical[index] = RoboPageAlloc();
+        if (heapPhysical[index] == 0) {
+            return false;
+        }
+    }
+    uint64_t* userLevel0 = reinterpret_cast<uint64_t*>(level0);
+    uint64_t* userLevel1 = reinterpret_cast<uint64_t*>(level1);
+    uint64_t* userLevel2 = reinterpret_cast<uint64_t*>(level2);
+    uint64_t* userLevel3 = reinterpret_cast<uint64_t*>(level3);
+    userLevel0[0] = RoboTable(0)[0];
+    uint64_t userFlags = ROBO_DESC_PAGE | ROBO_DESC_AF | ROBO_DESC_SH | ROBO_DESC_AP_USER;
+    userLevel0[(ROBO_USER_CODE >> 39) & 0x1FFull] = level1 | ROBO_DESC_TABLE;
+    userLevel1[(ROBO_USER_CODE >> 30) & 0x1FFull] = level2 | ROBO_DESC_TABLE;
+    userLevel2[(ROBO_USER_CODE >> 21) & 0x1FFull] = level3 | ROBO_DESC_TABLE;
+    const uint8_t* bytes = static_cast<const uint8_t*>(code);
+    uint64_t copied = 0;
+    for (uint32_t page = 0; page < codePages; ++page) {
+        userLevel3[page] = codePhysical[page] | userFlags;
+        uint8_t* dest = reinterpret_cast<uint8_t*>(codePhysical[page]);
+        for (uint32_t offset = 0; offset < ROBO_PAGE_BYTES && copied < codeSize; ++offset) {
+            dest[offset] = bytes[copied];
+            copied += 1ull;
+        }
+        RoboClean(dest, ROBO_PAGE_BYTES);
+    }
+    uint32_t stackIndex = static_cast<uint32_t>((ROBO_USER_STACK >> 12) & 0x1FFull);
+    uint32_t heapIndex = static_cast<uint32_t>((ROBO_USER_HEAP >> 12) & 0x1FFull);
+    userLevel3[stackIndex] = stackPage | userFlags | ROBO_DESC_UXN;
+    for (uint32_t page = 0; page < heapPages; ++page) {
+        userLevel3[heapIndex + page] = heapPhysical[page] | userFlags | ROBO_DESC_UXN;
+        RoboClean(reinterpret_cast<void*>(heapPhysical[page]), ROBO_PAGE_BYTES);
+    }
+    RoboClean(userLevel0, ROBO_PAGE_BYTES);
+    RoboClean(userLevel1, ROBO_PAGE_BYTES);
+    RoboClean(userLevel2, ROBO_PAGE_BYTES);
+    RoboClean(userLevel3, ROBO_PAGE_BYTES);
+    RoboClean(reinterpret_cast<void*>(stackPage), ROBO_PAGE_BYTES);
+    map->tables = level0;
+    map->rip = ROBO_USER_CODE;
+    map->rsp = ROBO_USER_STACK + ROBO_PAGE_BYTES - 16ull;
+    map->heap = ROBO_USER_HEAP;
+    map->heapPhysical = heapPhysical[0];
+    return true;
 }

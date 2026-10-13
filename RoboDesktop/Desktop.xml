@@ -4,6 +4,14 @@
 
   <Desktop>
     <Background color="{color.bg.primary}" src="Assets/Background.mp4"/>
+    <TopBarMenu app="Finder" clock="Tue 9:41 AM">
+      <TopBarMenuItem label="File"/>
+      <TopBarMenuItem label="Edit"/>
+      <TopBarMenuItem label="View"/>
+      <TopBarMenuItem label="Go"/>
+      <TopBarMenuItem label="Window"/>
+      <TopBarMenuItem label="Help"/>
+    </TopBarMenu>
     <AppShell title="Roboticela">
       <Heading level="1">Desktop</Heading>
       <Paragraph>

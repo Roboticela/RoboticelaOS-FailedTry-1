@@ -99,13 +99,19 @@ void RoboPicStart(void) {
 }
 
 __attribute__((interrupt)) void RoboInterruptException(RoboInterruptFrame* frame) {
-    (void)frame;
+    if (frame != nullptr && frame->codeSegment == 0x23u) {
+        RoboThreadEnd(3u);
+        return;
+    }
     RoboHalt();
 }
 
 __attribute__((interrupt)) void RoboInterruptExceptionError(RoboInterruptFrame* frame, uint64_t error) {
-    (void)frame;
     (void)error;
+    if (frame != nullptr && frame->codeSegment == 0x23u) {
+        RoboThreadEnd(3u);
+        return;
+    }
     RoboHalt();
 }
 

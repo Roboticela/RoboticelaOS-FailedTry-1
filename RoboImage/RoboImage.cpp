@@ -1,4 +1,5 @@
 #include "RoboPartition.hpp"
+#include "RoboProgram.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -169,6 +170,38 @@ int main(int argc, char** argv) {
     RoboCopy(fonts, esp, "INTERS.TTF", "Inter-SemiBold.ttf");
     RoboCopy(fonts, esp, "INTERI.TTF", "Inter-Italic.ttf");
     RoboCopy(applications, esp, "RoboApp.bin", "RoboApp.bin");
+    const std::uint8_t x64Code[] = {
+        0x48, 0xB8, 0x00, 0x00, 0x03, 0x00, 0xFF, 0x7F, 0x00, 0x00,
+        0xC7, 0x00, 0x58, 0x58, 0x58, 0x58,
+        0x48, 0xC7, 0xC0, 0x02, 0x00, 0x00, 0x00,
+        0x0F, 0x05,
+    };
+    const std::uint8_t armCode[] = {
+        0x00, 0x00, 0x80, 0xD2,
+        0x60, 0x00, 0xA0, 0xF2,
+        0xE0, 0xFF, 0xCF, 0xF2,
+        0x01, 0x0B, 0x8B, 0x52,
+        0x01, 0x0B, 0xAB, 0x72,
+        0x01, 0x00, 0x00, 0xB9,
+        0x48, 0x00, 0x80, 0xD2,
+        0x01, 0x00, 0x00, 0xD4,
+    };
+    auto program = [](std::uint32_t arch, const std::uint8_t* code, std::uint32_t codeBytes) {
+        std::vector<std::uint8_t> image(ROBO_PROGRAM_HEADER + codeBytes, 0);
+        for (std::uint32_t index = 0; index < 8u; ++index) {
+            image[index] = static_cast<std::uint8_t>(ROBO_PROGRAM_MAGIC[index]);
+        }
+        RoboStore32(image.data() + 8, arch);
+        RoboStore32(image.data() + 12, 0);
+        RoboStore32(image.data() + 16, codeBytes);
+        RoboStore32(image.data() + 20, ROBO_PROGRAM_PAGE);
+        for (std::uint32_t index = 0; index < codeBytes; ++index) {
+            image[ROBO_PROGRAM_HEADER + index] = code[index];
+        }
+        return image;
+    };
+    RoboAdd(applications, "X64.bin", false, program(ROBO_PROGRAM_X64, x64Code, sizeof(x64Code)));
+    RoboAdd(applications, "ARM.bin", false, program(ROBO_PROGRAM_ARM64, armCode, sizeof(armCode)));
     RoboCopy(desktop, esp, "DESKTOP.BIN", "Desktop.bin");
     RoboCopy(desktop, esp, "BACKGROU.RJP", "Background.rjp");
     RoboCopy(desktop, esp, "BACKGROU.MP4", "Background.mp4");

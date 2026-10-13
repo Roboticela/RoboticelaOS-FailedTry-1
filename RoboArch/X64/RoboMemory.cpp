@@ -14,8 +14,6 @@ constexpr uint64_t ROBO_PAGE_BYTES = 4096ull;
 constexpr uint64_t ROBO_TWO_MB = 2ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_MAP_BYTES = 4ull * 1024ull * 1024ull * 1024ull;
 constexpr uint32_t ROBO_FREE_LIMIT = 4096u;
-constexpr uint64_t ROBO_USER_CODE = 0x00007FFF00000000ull;
-constexpr uint64_t ROBO_USER_STACK = 0x00007FFF00001000ull;
 
 alignas(4096) uint8_t gTablePages[7 * 4096];
 uint64_t gFreePages[ROBO_FREE_LIMIT];
@@ -246,4 +244,71 @@ uint64_t RoboMemoryCreateUserSpace(const void* code, uint64_t codeSize, uint64_t
     *userRip = ROBO_USER_CODE;
     *userRsp = ROBO_USER_STACK + ROBO_PAGE_BYTES - 16ull;
     return pml4;
+}
+
+bool RoboMemoryMapUser(const void* code, uint64_t codeSize, uint64_t heapBytes, RoboUserMap* map) {
+    if (code == nullptr || map == nullptr || codeSize == 0 || heapBytes == 0) {
+        return false;
+    }
+    if (codeSize > static_cast<uint64_t>(ROBO_PROGRAM_CODE_PAGES) * ROBO_PAGE_BYTES) {
+        return false;
+    }
+    if (heapBytes > static_cast<uint64_t>(ROBO_PROGRAM_HEAP_PAGES) * ROBO_PAGE_BYTES) {
+        return false;
+    }
+    uint32_t codePages = static_cast<uint32_t>((codeSize + ROBO_PAGE_BYTES - 1ull) / ROBO_PAGE_BYTES);
+    uint32_t heapPages = static_cast<uint32_t>((heapBytes + ROBO_PAGE_BYTES - 1ull) / ROBO_PAGE_BYTES);
+    uint64_t pml4 = RoboPageAlloc();
+    uint64_t pdpt = RoboPageAlloc();
+    uint64_t directory = RoboPageAlloc();
+    uint64_t table = RoboPageAlloc();
+    uint64_t stackPage = RoboPageAlloc();
+    if (pml4 == 0 || pdpt == 0 || directory == 0 || table == 0 || stackPage == 0) {
+        return false;
+    }
+    uint64_t codePhysical[ROBO_PROGRAM_CODE_PAGES];
+    uint64_t heapPhysical[ROBO_PROGRAM_HEAP_PAGES];
+    for (uint32_t index = 0; index < codePages; ++index) {
+        codePhysical[index] = RoboPageAlloc();
+        if (codePhysical[index] == 0) {
+            return false;
+        }
+    }
+    for (uint32_t index = 0; index < heapPages; ++index) {
+        heapPhysical[index] = RoboPageAlloc();
+        if (heapPhysical[index] == 0) {
+            return false;
+        }
+    }
+    uint64_t flags = ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE | ROBO_PAGE_USER;
+    uint64_t* pml4Entries = reinterpret_cast<uint64_t*>(pml4);
+    uint64_t* userPdpt = reinterpret_cast<uint64_t*>(pdpt);
+    uint64_t* userDirectory = reinterpret_cast<uint64_t*>(directory);
+    uint64_t* userTable = reinterpret_cast<uint64_t*>(table);
+    pml4Entries[0] = reinterpret_cast<uint64_t>(RoboTable(1)) | ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE;
+    userPdpt[(ROBO_USER_CODE >> 30) & 0x1FFull] = directory | flags;
+    userDirectory[(ROBO_USER_CODE >> 21) & 0x1FFull] = table | flags;
+    pml4Entries[(ROBO_USER_CODE >> 39) & 0x1FFull] = pdpt | flags;
+    const uint8_t* bytes = static_cast<const uint8_t*>(code);
+    uint64_t copied = 0;
+    for (uint32_t page = 0; page < codePages; ++page) {
+        userTable[page] = codePhysical[page] | flags;
+        uint8_t* dest = reinterpret_cast<uint8_t*>(codePhysical[page]);
+        for (uint32_t offset = 0; offset < ROBO_PAGE_BYTES && copied < codeSize; ++offset) {
+            dest[offset] = bytes[copied];
+            copied += 1ull;
+        }
+    }
+    uint32_t stackIndex = static_cast<uint32_t>((ROBO_USER_STACK >> 12) & 0x1FFull);
+    uint32_t heapIndex = static_cast<uint32_t>((ROBO_USER_HEAP >> 12) & 0x1FFull);
+    userTable[stackIndex] = stackPage | flags;
+    for (uint32_t page = 0; page < heapPages; ++page) {
+        userTable[heapIndex + page] = heapPhysical[page] | flags;
+    }
+    map->tables = pml4;
+    map->rip = ROBO_USER_CODE;
+    map->rsp = ROBO_USER_STACK + ROBO_PAGE_BYTES - 16ull;
+    map->heap = ROBO_USER_HEAP;
+    map->heapPhysical = heapPhysical[0];
+    return true;
 }

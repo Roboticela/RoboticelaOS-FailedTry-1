@@ -2279,6 +2279,8 @@ void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int in
                     code << ConvertNode(content, indent);
                 }
             }
+        } else if (child.name == "TopBarMenu") {
+            EmitTopBarMenu(code, child, indent);
         } else if (child.name == "Dock") {
             for (const XmlNode& item : child.children) {
                 if (item.name != "DockItem") {
@@ -2292,6 +2294,46 @@ void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int in
             }
         }
     }
+}
+
+void XmlToCpp::EmitTopBarMenu(std::ostringstream& code, const XmlNode& node, int indent) const {
+    code << Indent(indent) << "{\n";
+    code << Indent(indent + 1) << "Robo::TopBarMenu topBarMenu;\n";
+    std::string app = "Finder";
+    if (node.attributes.count("app") != 0) {
+        app = node.attributes.at("app");
+    } else if (node.attributes.count("title") != 0) {
+        app = node.attributes.at("title");
+    }
+    code << Indent(indent + 1) << "topBarMenu.SetApp(\"" << EscapeCpp(app) << "\");\n";
+    if (node.attributes.count("clock") != 0) {
+        code << Indent(indent + 1) << "topBarMenu.SetClock(\"" << EscapeCpp(node.attributes.at("clock")) << "\");\n";
+    }
+    int itemIndex = 0;
+    for (const XmlNode& item : node.children) {
+        if (item.name != "TopBarMenuItem") {
+            continue;
+        }
+        std::string label;
+        if (item.attributes.count("label") != 0) {
+            label = item.attributes.at("label");
+        }
+        for (const XmlNode& text : item.children) {
+            if (text.isText) {
+                label += text.text;
+            }
+        }
+        const std::string itemName = "topBarMenuItem" + std::to_string(itemIndex++);
+        code << Indent(indent + 1) << "Robo::TopBarMenuItem " << itemName << ";\n";
+        code << Indent(indent + 1) << itemName << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
+        if (item.attributes.count("selected") != 0 && item.attributes.at("selected") != "false" &&
+            item.attributes.at("selected") != "0") {
+            code << Indent(indent + 1) << itemName << ".SetSelected(true);\n";
+        }
+        code << Indent(indent + 1) << "topBarMenu.AddItem(std::move(" << itemName << "));\n";
+    }
+    code << Indent(indent + 1) << "scene.SetTopBarMenu(std::move(topBarMenu));\n";
+    code << Indent(indent) << "}\n";
 }
 
 void XmlToCpp::EmitTitleBar(std::ostringstream& code,

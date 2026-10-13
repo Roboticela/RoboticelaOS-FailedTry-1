@@ -75,6 +75,6 @@ RoboVectorIrq:
 RoboVectorLowerSync:
     RoboSaveCaller
     ldr x0, [sp, #80]
-    bl RoboSyscallDispatch
+    bl RoboArmLowerSync
     RoboRestoreCaller
     eret

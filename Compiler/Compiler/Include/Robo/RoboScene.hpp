@@ -103,6 +103,7 @@ public:
     void SetDesktopBackgroundPath(const std::string& path);
     void SetAppShell(AppShell shell);
     void SetAppShellTitle(const std::string& title);
+    void SetTopBarMenu(TopBarMenu menu);
     void AddDockItem(DockItem item);
     void Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding);
     void SetPaintPump(void (*pump)(void*), void* cookie);
@@ -204,6 +205,7 @@ private:
     void MarkFullDirty();
     void MarkSurfaceDirty();
     void MarkDirty(float x, float y, float width, float height);
+    void DirtyMenuBar();
     void DirtyButton(const Button* button);
     void DirtyInput(const Input* input);
     void DirtyScrollbar(const Scrollbar* scrollbar);
@@ -223,6 +225,7 @@ private:
     std::vector<SceneItem> items_;
     Desktop desktop_;
     int hoveredDock_ = -1;
+    int hoveredMenu_ = -1;
     Button* hoveredButton_ = nullptr;
     Input* hoveredInput_ = nullptr;
     Scrollbar* hoveredScrollbar_ = nullptr;

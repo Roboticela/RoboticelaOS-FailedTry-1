@@ -2,6 +2,7 @@
 
 #include "RoboCpu.hpp"
 #include "RoboMemory.hpp"
+#include "RoboProcess.hpp"
 #include "RoboTimer.hpp"
 
 extern "C" uint64_t gRoboKernelRsp;
@@ -32,10 +33,21 @@ void RoboWorkerMain(void) {
     }
 }
 
+void RoboEnter(uint64_t tables, uint64_t rip, uint64_t rsp) {
+    gThreads[gCurrent].cr3 = tables;
+    __asm__ volatile("msr ttbr0_el1, %0" : : "r"(tables) : "memory");
+    __asm__ volatile("tlbi vmalle1; dsb ish; isb" ::: "memory");
+    RoboArchEnterUser(rip, rsp);
+}
+
 void RoboUserMain(void) {
+    RoboUserMap map{};
+    if (RoboProcessLoad(&map)) {
+        RoboEnter(map.tables, map.rip, map.rsp);
+    }
     uint64_t rip = 0;
     uint64_t rsp = 0;
-    static const uint8_t code[] = {
+    const uint8_t code[] = {
         0x28, 0x00, 0x80, 0xD2,
         0x01, 0x00, 0x00, 0xD4,
         0xFE, 0xFF, 0xFF, 0x17,
@@ -46,10 +58,7 @@ void RoboUserMain(void) {
             RoboThreadSleep(RoboTimerTicks() + 50ull);
         }
     }
-    gThreads[gCurrent].cr3 = userTables;
-    __asm__ volatile("msr ttbr0_el1, %0" : : "r"(userTables) : "memory");
-    __asm__ volatile("tlbi vmalle1; dsb ish; isb" ::: "memory");
-    RoboArchEnterUser(rip, rsp);
+    RoboEnter(userTables, rip, rsp);
 }
 
 void RoboThreadPrepare(void (*entry)(void), uint64_t tables) {
@@ -137,7 +146,33 @@ void RoboThreadSleep(uint64_t wakeTick) {
     RoboScheduleSwitch(static_cast<uint32_t>(next));
 }
 
+void RoboThreadEnd(uint32_t reason) {
+    RoboProcessNote(reason);
+    gThreads[gCurrent].used = 0;
+    gThreads[gCurrent].state = 0;
+    gThreads[gCurrent].rsp = 0;
+    int next = RoboScheduleNext(gCurrent);
+    if (next < 0) {
+        return;
+    }
+    RoboScheduleSwitch(static_cast<uint32_t>(next));
+}
+
+extern "C" void RoboArmLowerSync(uint64_t number) {
+    uint64_t syndrome = 0;
+    __asm__ volatile("mrs %0, esr_el1" : "=r"(syndrome));
+    if (((syndrome >> 26) & 0x3Fu) == 0x15u) {
+        RoboSyscallDispatch(number);
+        return;
+    }
+    RoboThreadEnd(3u);
+}
+
 extern "C" void RoboSyscallDispatch(uint64_t number) {
+    if (number == 2u) {
+        RoboThreadEnd(2u);
+        return;
+    }
     if (number == 1) {
         int next = RoboScheduleNext(gCurrent);
         gScheduleDue = 0;

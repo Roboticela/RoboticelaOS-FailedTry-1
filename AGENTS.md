@@ -87,9 +87,9 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] A failed write returns an error and does not panic the kernel
 
 ## Stage 12 — App processes
-- [ ] Load a Compiler app from RoboFS into its own user address space
-- [ ] The app heap is not the kernel heap; paint still does not call a general allocator
-- [ ] Exit, or a fault, ends that process and leaves the desktop up
+- [x] Load a Compiler app from RoboFS into its own user address space
+- [x] The app heap is not the kernel heap; paint still does not call a general allocator
+- [x] Exit, or a fault, ends that process and leaves the desktop up
 
 ## Stage 13 — Syscalls for the OS platform
 - [ ] Present, input, clock, files, and exit cross rings; generated C++ does not change

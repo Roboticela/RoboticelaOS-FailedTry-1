@@ -6,6 +6,151 @@ bool DockItemBounds::Contains(float pointX, float pointY) const {
     return pointX >= x && pointY >= y && pointX < x + width && pointY < y + height;
 }
 
+bool MenuBounds::Contains(float pointX, float pointY) const {
+    return pointX >= x && pointY >= y && pointX < x + width && pointY < y + height;
+}
+
+void TopBarMenuItem::SetLabel(const std::string& label) {
+    label_ = label;
+}
+
+const std::string& TopBarMenuItem::GetLabel() const {
+    return label_;
+}
+
+void TopBarMenuItem::SetSelected(bool selected) {
+    selected_ = selected;
+}
+
+bool TopBarMenuItem::IsSelected() const {
+    return selected_;
+}
+
+void TopBarMenuItem::SetBounds(const MenuBounds& bounds) {
+    bounds_ = bounds;
+}
+
+const MenuBounds& TopBarMenuItem::GetBounds() const {
+    return bounds_;
+}
+
+void TopBarMenu::SetApp(const std::string& app) {
+    if (!app.empty()) {
+        app_ = app;
+    }
+}
+
+const std::string& TopBarMenu::GetApp() const {
+    return app_;
+}
+
+void TopBarMenu::SetClock(const std::string& clock) {
+    clock_ = clock;
+}
+
+const std::string& TopBarMenu::GetClock() const {
+    return clock_;
+}
+
+void TopBarMenu::AddItem(TopBarMenuItem item) {
+    if (item.IsSelected() && active_ < 0) {
+        active_ = static_cast<int>(items_.size()) + 2;
+    }
+    items_.push_back(std::move(item));
+}
+
+std::vector<TopBarMenuItem>& TopBarMenu::Items() {
+    return items_;
+}
+
+const std::vector<TopBarMenuItem>& TopBarMenu::Items() const {
+    return items_;
+}
+
+void TopBarMenu::SetAppleBounds(const MenuBounds& bounds) {
+    apple_ = bounds;
+}
+
+void TopBarMenu::SetAppBounds(const MenuBounds& bounds) {
+    appName_ = bounds;
+}
+
+void TopBarMenu::SetBar(float x, float y, float width, float height) {
+    barX_ = x;
+    barY_ = y;
+    barWidth_ = width;
+    barHeight_ = height;
+}
+
+float TopBarMenu::BarX() const {
+    return barX_;
+}
+
+float TopBarMenu::BarY() const {
+    return barY_;
+}
+
+float TopBarMenu::BarWidth() const {
+    return barWidth_;
+}
+
+float TopBarMenu::BarHeight() const {
+    return barHeight_;
+}
+
+void TopBarMenu::SetHover(int index) {
+    hover_ = index;
+}
+
+int TopBarMenu::Hover() const {
+    return hover_;
+}
+
+int TopBarMenu::Hit(float x, float y) const {
+    if (barHeight_ <= 0.0f || y < barY_ || y >= barY_ + barHeight_) {
+        return -1;
+    }
+    if (apple_.Contains(x, y)) {
+        return 0;
+    }
+    if (appName_.Contains(x, y)) {
+        return 1;
+    }
+    for (int index = 0; index < static_cast<int>(items_.size()); ++index) {
+        if (items_[static_cast<std::size_t>(index)].GetBounds().Contains(x, y)) {
+            return index + 2;
+        }
+    }
+    return -1;
+}
+
+bool TopBarMenu::Select(int index) {
+    const int count = 2 + static_cast<int>(items_.size());
+    if (index < 0 || index >= count) {
+        return false;
+    }
+    active_ = active_ == index ? -1 : index;
+    for (int item = 0; item < static_cast<int>(items_.size()); ++item) {
+        items_[static_cast<std::size_t>(item)].SetSelected(active_ == item + 2);
+    }
+    return true;
+}
+
+bool TopBarMenu::ClearSelection() {
+    if (active_ < 0) {
+        return false;
+    }
+    active_ = -1;
+    for (TopBarMenuItem& item : items_) {
+        item.SetSelected(false);
+    }
+    return true;
+}
+
+int TopBarMenu::Active() const {
+    return active_;
+}
+
 void DockItem::SetLabel(const std::string& label) {
     label_ = label;
 }
@@ -102,6 +247,23 @@ bool Desktop::HasAppShell() const {
 
 const AppShell& Desktop::GetAppShell() const {
     return appShell_;
+}
+
+void Desktop::SetTopBarMenu(TopBarMenu menu) {
+    topBarMenu_ = std::move(menu);
+    hasTopBarMenu_ = true;
+}
+
+bool Desktop::HasTopBarMenu() const {
+    return hasTopBarMenu_;
+}
+
+TopBarMenu& Desktop::GetTopBarMenu() {
+    return topBarMenu_;
+}
+
+const TopBarMenu& Desktop::GetTopBarMenu() const {
+    return topBarMenu_;
 }
 
 void Desktop::AddDockItem(DockItem item) {

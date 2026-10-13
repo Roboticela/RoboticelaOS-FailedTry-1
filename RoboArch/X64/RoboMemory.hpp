@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RoboProgram.hpp"
+
 #include <stdint.h>
 
 struct RoboBootInfo;
@@ -21,3 +23,4 @@ void* RoboArenaAlloc(RoboArena* arena, uint64_t size, uint64_t align);
 RoboArena* RoboArenaFrame(void);
 RoboArena* RoboArenaLong(void);
 uint64_t RoboMemoryCreateUserSpace(const void* code, uint64_t codeSize, uint64_t* userRip, uint64_t* userRsp);
+bool RoboMemoryMapUser(const void* code, uint64_t codeSize, uint64_t heapBytes, RoboUserMap* map);

@@ -1678,6 +1678,7 @@ void RoboScene::Clear() {
     items_.clear();
     desktop_ = Desktop();
     hoveredDock_ = -1;
+    hoveredMenu_ = -1;
     hoveredButton_ = nullptr;
     hoveredInput_ = nullptr;
     hoveredScrollbar_ = nullptr;
@@ -1836,9 +1837,26 @@ void RoboScene::SetAppShellTitle(const std::string& title) {
     SetAppShell(std::move(shell));
 }
 
+void RoboScene::SetTopBarMenu(TopBarMenu menu) {
+    desktop_.SetEnabled(true);
+    desktop_.SetTopBarMenu(std::move(menu));
+}
+
 void RoboScene::AddDockItem(DockItem item) {
     desktop_.SetEnabled(true);
     desktop_.AddDockItem(std::move(item));
+}
+
+void RoboScene::DirtyMenuBar() {
+    if (!desktop_.HasTopBarMenu()) {
+        return;
+    }
+    const TopBarMenu& menu = desktop_.GetTopBarMenu();
+    if (menu.BarHeight() > 0.0f) {
+        MarkDirty(menu.BarX(), menu.BarY(), menu.BarWidth(), menu.BarHeight());
+    } else {
+        MarkFullDirty();
+    }
 }
 
 void RoboScene::AddMotionShape(MotionShape shape) {
@@ -2282,7 +2300,8 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         bool desktopClip = false;
         if (desktop_.IsEnabled()) {
             desktopChrome = DesktopPainter::Layout(static_cast<float>(width), static_cast<float>(height), paintScale,
-                                                   desktop_.HasAppShell(), !desktop_.Dock().empty());
+                                                   desktop_.HasTopBarMenu(), desktop_.HasAppShell(),
+                                                   !desktop_.Dock().empty());
             frame.PushClipRect(0.0f, desktopChrome.contentY, static_cast<float>(width), desktopChrome.contentHeight);
             desktopClip = true;
             cursorY = desktopChrome.contentY + pad - scrollY_;
@@ -4141,6 +4160,26 @@ bool RoboScene::PointerMove(float x, float y) {
     selectX_ = x;
     selectY_ = y;
     if (desktop_.IsEnabled()) {
+        if (desktop_.HasTopBarMenu()) {
+            TopBarMenu& menu = desktop_.GetTopBarMenu();
+            const bool insideMenu = menu.BarHeight() > 0.0f && y >= menu.BarY() && y < menu.BarY() + menu.BarHeight();
+            const int menuHover = insideMenu ? menu.Hit(x, y) : -1;
+            if (menuHover != hoveredMenu_) {
+                hoveredMenu_ = menuHover;
+                menu.SetHover(menuHover);
+                DirtyMenuBar();
+            }
+            if (insideMenu) {
+                if (hoveredDock_ != -1) {
+                    hoveredDock_ = -1;
+                    if (desktop_.DockBarHeight() > 0.0f) {
+                        MarkDirty(desktop_.DockBarX(), desktop_.DockBarY(), desktop_.DockBarWidth(), desktop_.DockBarHeight());
+                    }
+                }
+                SetHoveredButton(nullptr);
+                return true;
+            }
+        }
         const int hover = desktop_.HitDock(x, y);
         if (hover != hoveredDock_) {
             hoveredDock_ = hover;
@@ -4285,6 +4324,23 @@ bool RoboScene::LongPressSelect(float x, float y) {
 
 bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
     if (desktop_.IsEnabled()) {
+        if (desktop_.HasTopBarMenu()) {
+            TopBarMenu& menu = desktop_.GetTopBarMenu();
+            const bool insideMenu = menu.BarHeight() > 0.0f && y >= menu.BarY() && y < menu.BarY() + menu.BarHeight();
+            if (insideMenu) {
+                const int slot = menu.Hit(x, y);
+                if (slot >= 0) {
+                    menu.Select(slot);
+                } else {
+                    menu.ClearSelection();
+                }
+                DirtyMenuBar();
+                return true;
+            }
+            if (menu.ClearSelection()) {
+                DirtyMenuBar();
+            }
+        }
         const int dock = desktop_.HitDock(x, y);
         if (dock >= 0) {
             if (desktop_.SelectDock(dock)) {
@@ -4524,6 +4580,14 @@ bool RoboScene::PointerUp(float x, float y) {
 
 bool RoboScene::PointerLeave() {
     bool changed = false;
+    if (hoveredMenu_ != -1) {
+        hoveredMenu_ = -1;
+        if (desktop_.HasTopBarMenu()) {
+            desktop_.GetTopBarMenu().SetHover(-1);
+            DirtyMenuBar();
+        }
+        changed = true;
+    }
     if (pressedButton_) {
         changed = SetPressedButton(nullptr) || changed;
     }
