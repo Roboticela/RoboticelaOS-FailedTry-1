@@ -122,6 +122,100 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
     if (scanout_ == nullptr) {
         return;
     }
+    const bool retina = scanoutWidth_ > 0 && scanoutHeight_ > 0 && width_ == scanoutWidth_ * 2 && height_ == scanoutHeight_ * 2;
+    if (retina) {
+        int screenX0 = damageX / 2;
+        int screenY0 = damageY / 2;
+        int screenX1 = (damageX + damageWidth + 1) / 2;
+        int screenY1 = (damageY + damageHeight + 1) / 2;
+        if (screenX0 < 0) {
+            screenX0 = 0;
+        }
+        if (screenY0 < 0) {
+            screenY0 = 0;
+        }
+        if (screenX1 > scanoutWidth_) {
+            screenX1 = scanoutWidth_;
+        }
+        if (screenY1 > scanoutHeight_) {
+            screenY1 = scanoutHeight_;
+        }
+        const int screenWidth = screenX1 - screenX0;
+        const int screenHeight = screenY1 - screenY0;
+        presentX_ = screenX0;
+        presentY_ = screenY0;
+        presentWidth_ = screenWidth;
+        presentHeight_ = screenHeight;
+        if (screenWidth <= 0 || screenHeight <= 0) {
+            return;
+        }
+#ifdef ROBO_KERNEL
+        int32_t cursorX = 0;
+        int32_t cursorY = 0;
+        int32_t cursorWidth = 0;
+        int32_t cursorHeight = 0;
+        const bool cursor = RoboDesktopCursorRect(&cursorX, &cursorY, &cursorWidth, &cursorHeight);
+#endif
+        for (int row = 0; row < screenHeight; ++row) {
+            const int screenY = screenY0 + row;
+            const int sceneY = screenY * 2;
+            std::uint8_t* to = scanout_ + static_cast<std::size_t>(screenY) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(screenX0) * 4u;
+            auto* packed = reinterpret_cast<std::uint32_t*>(to);
+#ifdef ROBO_KERNEL
+            const bool cursorRow = cursor && screenY >= cursorY && screenY < cursorY + cursorHeight;
+#endif
+            for (int column = 0; column < screenWidth; ++column) {
+                const int screenX = screenX0 + column;
+                const int sceneX = screenX * 2;
+                unsigned int red = 0;
+                unsigned int green = 0;
+                unsigned int blue = 0;
+                int samples = 0;
+                for (int sampleY = 0; sampleY < 2; ++sampleY) {
+                    const int sourceY = sceneY + sampleY;
+                    if (sourceY < 0 || sourceY >= height_) {
+                        continue;
+                    }
+                    for (int sampleX = 0; sampleX < 2; ++sampleX) {
+                        const int sourceX = sceneX + sampleX;
+                        if (sourceX < 0 || sourceX >= width_) {
+                            continue;
+                        }
+                        const std::uint8_t* from = source + (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(sourceX)) * 4u;
+                        red += from[0];
+                        green += from[1];
+                        blue += from[2];
+                        samples += 1;
+                    }
+                }
+                if (samples == 0) {
+                    continue;
+                }
+                uint32_t scene = Pack(static_cast<std::uint8_t>(red / samples),
+                                      static_cast<std::uint8_t>(green / samples),
+                                      static_cast<std::uint8_t>(blue / samples));
+#ifdef ROBO_KERNEL
+                uint32_t cursorRgb = 0;
+                if (cursorRow && RoboDesktopCursorSample(screenX - cursorX, screenY - cursorY, &cursorRgb)) {
+                    RoboDesktopRememberCursor(screenX - cursorX, screenY - cursorY, scene);
+                    packed[column] = Pack(static_cast<std::uint8_t>(cursorRgb >> 16), static_cast<std::uint8_t>(cursorRgb >> 8), static_cast<std::uint8_t>(cursorRgb));
+                } else {
+                    packed[column] = scene;
+                }
+#else
+                packed[column] = scene;
+#endif
+            }
+        }
+#ifdef ROBO_KERNEL
+        const std::uint8_t* vendor = scanout_ + static_cast<std::size_t>(screenY0) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(screenX0) * 4u;
+        if (RoboGPUVendorPresent(vendor, scanoutStride_, screenX0, screenY0, screenWidth, screenHeight, scanoutWidth_, scanoutHeight_, pixelFormat_)) {
+            return;
+        }
+        __asm__ volatile("sfence" ::: "memory");
+#endif
+        return;
+    }
     const int copyWidth = std::min(damageWidth, std::max(0, scanoutWidth_ - damageX));
     const int copyHeight = std::min(damageHeight, std::max(0, scanoutHeight_ - damageY));
     if (copyWidth <= 0 || copyHeight <= 0) {

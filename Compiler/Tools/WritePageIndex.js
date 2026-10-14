@@ -31,7 +31,7 @@ function WritePageIndex(outDir, title, assetBase) {
     CreateRoboModule({
       locateFile: (name) => assetBase + name
     }).then((app) => {
-      const pixelScale = () => window.devicePixelRatio || 1;
+      const pixelScale = () => Math.max(window.devicePixelRatio || 1, 2);
       const point = (event) => {
         const rect = canvas.getBoundingClientRect();
         const scale = pixelScale();

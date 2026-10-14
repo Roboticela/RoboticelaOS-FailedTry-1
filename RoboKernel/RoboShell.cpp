@@ -35,6 +35,11 @@ bool gLongPressSent = false;
 uint32_t gHeldMs = 0;
 int32_t gPressX = 0;
 int32_t gPressY = 0;
+float gSceneScale = 1.0f;
+
+float RoboSceneCoord(int32_t value) {
+    return static_cast<float>(value) * gSceneScale;
+}
 
 bool RoboShellIsCtrl(uint16_t code) {
     return code == 0x1Du || code == 0xE01Du;
@@ -191,11 +196,25 @@ bool RoboShellStart(RoboDesktop* desktop) {
     RoboLoadFace(Robo::FontFaceId::Italic, "INTERI.TTF");
     gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
     gScene->SetPaintPump(RoboShellTrackCursor, nullptr);
-    gPlatform->SetSurfaceSize(desktop->gpu->width, desktop->gpu->height);
-    const float pixelScale = desktop->gpu->height >= 1800 ? 2.0f : desktop->gpu->height >= 1400 ? 1.5f : 1.0f;
+    const int frameWidth = desktop->gpu->width;
+    const int frameHeight = desktop->gpu->height;
+    float pixelScale = 1.0f;
+    int surfaceWidth = frameWidth;
+    int surfaceHeight = frameHeight;
+    if (frameHeight >= 1800) {
+        pixelScale = 2.0f;
+    } else if (frameHeight >= 1400) {
+        pixelScale = 1.5f;
+    } else if (frameWidth > 0 && frameHeight > 0) {
+        pixelScale = 2.0f;
+        surfaceWidth = frameWidth * 2;
+        surfaceHeight = frameHeight * 2;
+    }
+    gSceneScale = frameWidth > 0 ? static_cast<float>(surfaceWidth) / static_cast<float>(frameWidth) : 1.0f;
     gPlatform->SetPixelScale(pixelScale);
     gFonts->WarmChrome(pixelScale);
     gPlatform->SetScanout(desktop->gpu->base, desktop->gpu->width, desktop->gpu->height, desktop->gpu->stride, desktop->gpu->pixelFormat);
+    gPlatform->SetSurfaceSize(surfaceWidth, surfaceHeight);
     BuildPage(*gScene);
     RoboDesktopUseCursor(desktop);
     RoboDesktopShowCursor(desktop);
@@ -212,7 +231,7 @@ void RoboShellPointerMove(int32_t x, int32_t y) {
         }
     }
     if (gScene != nullptr) {
-        gScene->PointerMove(static_cast<float>(x), static_cast<float>(y));
+        gScene->PointerMove(RoboSceneCoord(x), RoboSceneCoord(y));
     }
 }
 
@@ -221,7 +240,7 @@ void RoboShellPointerContext(int32_t x, int32_t y) {
         return;
     }
     RoboShellApplyModifiers();
-    gScene->PointerContext(static_cast<float>(x), static_cast<float>(y));
+    gScene->PointerContext(RoboSceneCoord(x), RoboSceneCoord(y));
 }
 
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
@@ -229,7 +248,7 @@ void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
         return;
     }
     RoboShellApplyModifiers();
-    gScene->PointerDown(static_cast<float>(x), static_cast<float>(y), fromTouch, RoboShellClicks(x, y));
+    gScene->PointerDown(RoboSceneCoord(x), RoboSceneCoord(y), fromTouch, RoboShellClicks(x, y));
     if (fromTouch) {
         gTouchHeld = true;
         gLongPressSent = false;
@@ -242,7 +261,7 @@ void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
 void RoboShellPointerUp(int32_t x, int32_t y) {
     gTouchHeld = false;
     if (gScene != nullptr) {
-        gScene->PointerUp(static_cast<float>(x), static_cast<float>(y));
+        gScene->PointerUp(RoboSceneCoord(x), RoboSceneCoord(y));
     }
 }
 
@@ -316,7 +335,7 @@ bool RoboShellTick(uint32_t deltaMs) {
         gHeldMs += deltaMs;
         if (gHeldMs >= 500u) {
             gLongPressSent = true;
-            changed = gScene->LongPressSelect(static_cast<float>(gPressX), static_cast<float>(gPressY));
+            changed = gScene->LongPressSelect(RoboSceneCoord(gPressX), RoboSceneCoord(gPressY));
         }
     }
     return gScene->Tick(static_cast<double>(deltaMs)) || changed;
@@ -333,7 +352,7 @@ void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {
     if (gScene == nullptr || width <= 0 || height <= 0) {
         return;
     }
-    gScene->DamageRect(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), static_cast<float>(height));
+    gScene->DamageRect(RoboSceneCoord(x), RoboSceneCoord(y), RoboSceneCoord(width), RoboSceneCoord(height));
 }
 
 bool RoboShellFlush(RoboDesktop* desktop) {
