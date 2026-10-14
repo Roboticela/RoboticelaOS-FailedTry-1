@@ -16,6 +16,11 @@ void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
     (void)fromTouch;
 }
 
+void RoboShellPointerContext(int32_t x, int32_t y) {
+    (void)x;
+    (void)y;
+}
+
 void RoboShellPointerUp(int32_t x, int32_t y) {
     (void)x;
     (void)y;

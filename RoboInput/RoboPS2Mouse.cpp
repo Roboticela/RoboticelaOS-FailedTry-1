@@ -170,8 +170,9 @@ void RoboPS2MouseArm(void) {
 }
 
 uint8_t gLeftButton = 0;
+uint8_t gRightButton = 0;
 
-bool RoboPS2MouseReadPacket(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged) {
+bool RoboPS2MouseReadPacket(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged, uint8_t* rightPressed, uint8_t* rightChanged) {
     if (dx != nullptr) {
         *dx = 0;
     }
@@ -183,6 +184,12 @@ bool RoboPS2MouseReadPacket(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint
     }
     if (leftChanged != nullptr) {
         *leftChanged = 0;
+    }
+    if (rightPressed != nullptr) {
+        *rightPressed = gRightButton;
+    }
+    if (rightChanged != nullptr) {
+        *rightChanged = 0;
     }
     uint8_t byte = 0;
     while (RoboMousePop(&byte)) {
@@ -223,12 +230,22 @@ bool RoboPS2MouseReadPacket(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint
                 *leftChanged = 1u;
             }
         }
+        uint8_t right = (flags & 0x02u) != 0 ? 1u : 0u;
+        if (rightPressed != nullptr) {
+            *rightPressed = right;
+        }
+        if (right != gRightButton) {
+            gRightButton = right;
+            if (rightChanged != nullptr) {
+                *rightChanged = 1u;
+            }
+        }
         return true;
     }
     return false;
 }
 
-void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged) {
+void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged, uint8_t* rightPressed, uint8_t* rightChanged) {
     *dx = 0;
     *dy = 0;
     if (leftPressed != nullptr) {
@@ -237,13 +254,21 @@ void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* 
     if (leftChanged != nullptr) {
         *leftChanged = 0;
     }
+    if (rightPressed != nullptr) {
+        *rightPressed = gRightButton;
+    }
+    if (rightChanged != nullptr) {
+        *rightChanged = 0;
+    }
     int32_t reads = 0;
     while (reads < ROBO_PS2_DRAIN_LIMIT) {
         int32_t packetDx = 0;
         int32_t packetDy = 0;
         uint8_t pressed = 0;
         uint8_t changed = 0;
-        if (!RoboPS2MouseReadPacket(&packetDx, &packetDy, &pressed, &changed)) {
+        uint8_t right = 0;
+        uint8_t rightEdge = 0;
+        if (!RoboPS2MouseReadPacket(&packetDx, &packetDy, &pressed, &changed, &right, &rightEdge)) {
             return;
         }
         reads += 1;
@@ -254,6 +279,12 @@ void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* 
         }
         if (changed != 0 && leftChanged != nullptr) {
             *leftChanged = 1u;
+        }
+        if (rightPressed != nullptr) {
+            *rightPressed = right;
+        }
+        if (rightEdge != 0 && rightChanged != nullptr) {
+            *rightChanged = 1u;
         }
     }
 }

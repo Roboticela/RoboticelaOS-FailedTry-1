@@ -77,6 +77,13 @@ function WritePageIndex(outDir, title, assetBase) {
           follow(app.PointerUp(x, y));
         }
       });
+      canvas.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        canvas.focus();
+        app.SetModifiers(modifiers(event));
+        const [x, y] = point(event);
+        follow(app.PointerContext(x, y));
+      });
       canvas.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) {
           return;

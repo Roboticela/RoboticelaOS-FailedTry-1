@@ -117,6 +117,23 @@ TopBarMenu& Desktop::GetTopBarMenu() {
     return topBarMenu_;
 }
 
+void Desktop::SetContextMenu(ContextMenu menu) {
+    contextMenu_ = std::move(menu);
+    hasContextMenu_ = true;
+}
+
+bool Desktop::HasContextMenu() const {
+    return hasContextMenu_;
+}
+
+ContextMenu& Desktop::GetContextMenu() {
+    return contextMenu_;
+}
+
+const ContextMenu& Desktop::GetContextMenu() const {
+    return contextMenu_;
+}
+
 const TopBarMenu& Desktop::GetTopBarMenu() const {
     return topBarMenu_;
 }

@@ -213,6 +213,14 @@ void RoboShellPointerMove(int32_t x, int32_t y) {
     }
 }
 
+void RoboShellPointerContext(int32_t x, int32_t y) {
+    if (gScene == nullptr) {
+        return;
+    }
+    RoboShellApplyModifiers();
+    gScene->PointerContext(static_cast<float>(x), static_cast<float>(y));
+}
+
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
     if (gScene == nullptr) {
         return;

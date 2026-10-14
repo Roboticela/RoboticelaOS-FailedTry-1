@@ -110,6 +110,7 @@ public:
     void SetAppShell(AppShell shell);
     void SetAppShellTitle(const std::string& title);
     void SetTopBarMenu(TopBarMenu menu);
+    void SetContextMenu(ContextMenu menu);
     void SetMenuTransparency(float amount);
     void AddDockItem(DockItem item);
     void Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding);
@@ -124,6 +125,7 @@ public:
 
     bool PointerMove(float x, float y);
     bool PointerDown(float x, float y, bool fromTouch = false, int clicks = 1);
+    bool PointerContext(float x, float y);
     bool LongPressSelect(float x, float y);
     bool PointerUp(float x, float y);
     bool PointerLeave();
@@ -214,6 +216,8 @@ private:
     void MarkSurfaceDirty();
     void MarkDirty(float x, float y, float width, float height);
     void DirtyMenuBar();
+    void DirtyContextMenu();
+    void RunContextAction(const std::string& action);
     void DirtySelection(SelectionArea& area);
     SelectionArea* GesturingSelection();
     SelectionArea* SelectionAt(float x, float y);

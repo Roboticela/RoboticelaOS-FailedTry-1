@@ -49,6 +49,8 @@ function Get-CoreSources {
         (Join-Path $Root "Compiler\Source\TitleBar.cpp"),
         (Join-Path $Root "Compiler\Source\Desktop.cpp"),
         (Join-Path $Root "Compiler\Source\TopBarMenu.cpp"),
+        (Join-Path $Root "Compiler\Source\ContextMenu.cpp"),
+        (Join-Path $Root "Compiler\Source\ContextMenuPainter.cpp"),
         (Join-Path $Root "Compiler\Source\SelectionArea.cpp"),
         (Join-Path $Root "Compiler\Source\SelectionAreaPainter.cpp"),
         (Join-Path $Root "Compiler\Source\Background.cpp"),

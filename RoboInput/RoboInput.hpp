@@ -10,6 +10,7 @@
 struct RoboInputEvent {
     uint8_t kind;
     uint8_t pressed;
+    uint8_t button;
     uint16_t code;
     int32_t dx;
     int32_t dy;

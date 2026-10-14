@@ -2365,6 +2365,8 @@ void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int in
             }
         } else if (child.name == "TopBarMenu") {
             EmitTopBarMenu(code, child, indent);
+        } else if (child.name == "ContextMenu") {
+            EmitContextMenu(code, child, indent);
         } else if (IsSelectionAreaName(child.name)) {
             EmitSelectionArea(code, child, indent);
         } else if (child.name == "Dock") {
@@ -2445,6 +2447,79 @@ void XmlToCpp::EmitTopBarMenu(std::ostringstream& code, const XmlNode& node, int
         code << Indent(indent + 1) << "topBarMenu.AddItem(std::move(" << itemName << "));\n";
     }
     code << Indent(indent + 1) << "scene.SetTopBarMenu(std::move(topBarMenu));\n";
+    code << Indent(indent) << "}\n";
+}
+
+void XmlToCpp::EmitContextMenuItem(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable, int& index) const {
+    code << Indent(indent) << "Robo::ContextMenuItem " << variable << ";\n";
+    if (node.name == "ContextMenuSeparator") {
+        code << Indent(indent) << variable << ".SetSeparator(true);\n";
+        return;
+    }
+    std::string label;
+    if (node.attributes.count("label") != 0) {
+        label = node.attributes.at("label");
+    }
+    for (const XmlNode& text : node.children) {
+        if (text.isText) {
+            label += text.text;
+        }
+    }
+    code << Indent(indent) << variable << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
+    auto menuFlag = [&](const char* name) {
+        return node.attributes.count(name) != 0 && node.attributes.at(name) != "false" && node.attributes.at(name) != "0";
+    };
+    if (menuFlag("disabled")) {
+        code << Indent(indent) << variable << ".SetDisabled(true);\n";
+    }
+    if (menuFlag("separator")) {
+        code << Indent(indent) << variable << ".SetSeparator(true);\n";
+    }
+    if (menuFlag("checked")) {
+        code << Indent(indent) << variable << ".SetChecked(true);\n";
+        code << Indent(indent) << variable << ".SetCheckable(true);\n";
+    }
+    if (menuFlag("checkable")) {
+        code << Indent(indent) << variable << ".SetCheckable(true);\n";
+    }
+    for (const XmlNode& child : node.children) {
+        if (child.name != "ContextMenuItem" && child.name != "ContextMenuSeparator") {
+            continue;
+        }
+        const std::string childName = variable + "Item" + std::to_string(index++);
+        EmitContextMenuItem(code, child, indent, childName, index);
+        code << Indent(indent) << variable << ".AddItem(std::move(" << childName << "));\n";
+    }
+}
+
+void XmlToCpp::EmitContextMenu(std::ostringstream& code, const XmlNode& node, int indent) const {
+    code << Indent(indent) << "{\n";
+    code << Indent(indent + 1) << "Robo::ContextMenu contextMenu;\n";
+    if (node.attributes.count("appearance") != 0) {
+        const std::string appearance = node.attributes.at("appearance");
+        const bool dark = appearance == "dark" || appearance == "Dark";
+        code << Indent(indent + 1) << "contextMenu.SetAppearanceDark(" << (dark ? "true" : "false") << ");\n";
+    }
+    if (node.attributes.count("transparent") != 0) {
+        const std::string transparent = node.attributes.at("transparent");
+        std::string amount = "0.0f";
+        if (transparent == "true") {
+            amount = "0.35f";
+        } else if (transparent != "false" && transparent != "0") {
+            amount = FloatLiteral(transparent);
+        }
+        code << Indent(indent + 1) << "contextMenu.SetTransparency(" << amount << ");\n";
+    }
+    int itemIndex = 0;
+    for (const XmlNode& item : node.children) {
+        if (item.name != "ContextMenuItem" && item.name != "ContextMenuSeparator") {
+            continue;
+        }
+        const std::string itemName = "contextMenuItem" + std::to_string(itemIndex++);
+        EmitContextMenuItem(code, item, indent + 1, itemName, itemIndex);
+        code << Indent(indent + 1) << "contextMenu.AddItem(std::move(" << itemName << "));\n";
+    }
+    code << Indent(indent + 1) << "scene.SetContextMenu(std::move(contextMenu));\n";
     code << Indent(indent) << "}\n";
 }
 

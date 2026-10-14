@@ -12,7 +12,7 @@ void RoboPS2MouseArm(void) {
 void RoboPS2MouseInterrupt(void) {
 }
 
-void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged) {
+void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* leftChanged, uint8_t* rightPressed, uint8_t* rightChanged) {
     if (dx != nullptr) {
         *dx = 0;
     }
@@ -24,6 +24,12 @@ void RoboPS2MouseDrain(int32_t* dx, int32_t* dy, uint8_t* leftPressed, uint8_t* 
     }
     if (leftChanged != nullptr) {
         *leftChanged = 0;
+    }
+    if (rightPressed != nullptr) {
+        *rightPressed = 0;
+    }
+    if (rightChanged != nullptr) {
+        *rightChanged = 0;
     }
 }
 

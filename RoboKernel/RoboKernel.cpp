@@ -181,7 +181,11 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                         }
                     } else if (!RoboCallOffer(&event, desktop.cursorX, desktop.cursorY)) {
                         RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
-                        if (event.code != 0) {
+                        if (event.code != 0 && event.button != 0) {
+                            if (event.pressed != 0) {
+                                RoboShellPointerContext(desktop.cursorX, desktop.cursorY);
+                            }
+                        } else if (event.code != 0) {
                             if (event.pressed != 0) {
                                 RoboShellPointerDown(desktop.cursorX, desktop.cursorY, false);
                             } else {
@@ -235,9 +239,13 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                         }
                     } else if (!RoboCallOffer(&event, desktop.cursorX, desktop.cursorY)) {
                         RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
-                        if (event.code != 0) {
+                        if (event.code != 0 && event.button != 0) {
                             if (event.pressed != 0) {
-                                RoboShellPointerDown(desktop.cursorX, desktop.cursorY, true);
+                                RoboShellPointerContext(desktop.cursorX, desktop.cursorY);
+                            }
+                        } else if (event.code != 0) {
+                            if (event.pressed != 0) {
+                                RoboShellPointerDown(desktop.cursorX, desktop.cursorY, event.kind == ROBO_INPUT_TOUCH);
                             } else {
                                 RoboShellPointerUp(desktop.cursorX, desktop.cursorY);
                             }

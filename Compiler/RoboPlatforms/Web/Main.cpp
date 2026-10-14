@@ -106,6 +106,15 @@ bool PointerDown(float x, float y, bool fromTouch, int clicks) {
     return changed;
 }
 
+bool PointerContext(float x, float y) {
+    if (!EnsureApp()) {
+        return false;
+    }
+    const bool changed = gScene.PointerContext(x, y);
+    SchedulePresent();
+    return changed;
+}
+
 bool LongPressSelect(float x, float y) {
     if (!EnsureApp()) {
         return false;
@@ -426,6 +435,7 @@ EMSCRIPTEN_BINDINGS(RoboModule) {
     emscripten::function("Render", &Render);
     emscripten::function("PointerMove", &PointerMove);
     emscripten::function("PointerDown", &PointerDown);
+    emscripten::function("PointerContext", &PointerContext);
     emscripten::function("LongPressSelect", &LongPressSelect);
     emscripten::function("HasCaret", &HasCaret);
     emscripten::function("MoveSelection", &MoveSelection);

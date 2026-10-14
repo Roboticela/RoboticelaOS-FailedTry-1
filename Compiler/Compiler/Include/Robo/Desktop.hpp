@@ -3,6 +3,7 @@
 #include "Background.hpp"
 #include "Color.hpp"
 #include "Svg.hpp"
+#include "ContextMenu.hpp"
 #include "TopBarMenu.hpp"
 
 #include <string>
@@ -77,6 +78,11 @@ public:
     TopBarMenu& GetTopBarMenu();
     const TopBarMenu& GetTopBarMenu() const;
 
+    void SetContextMenu(ContextMenu menu);
+    bool HasContextMenu() const;
+    ContextMenu& GetContextMenu();
+    const ContextMenu& GetContextMenu() const;
+
     void AddDockItem(DockItem item);
     std::vector<DockItem>& Dock();
     const std::vector<DockItem>& Dock() const;
@@ -97,6 +103,8 @@ private:
     AppShell appShell_;
     bool hasTopBarMenu_ = false;
     TopBarMenu topBarMenu_;
+    bool hasContextMenu_ = false;
+    ContextMenu contextMenu_;
     std::vector<DockItem> dock_;
     float dockBarX_ = 0.0f;
     float dockBarY_ = 0.0f;

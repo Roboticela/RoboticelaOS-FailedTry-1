@@ -12,6 +12,33 @@
       <TopBarMenuItem label="Window"/>
       <TopBarMenuItem label="Help"/>
     </TopBarMenu>
+    <ContextMenu appearance="light">
+      <ContextMenuItem label="New Folder"/>
+      <ContextMenuItem label="Get Info"/>
+      <ContextMenuItem label="Change Desktop Background…"/>
+      <ContextMenuSeparator/>
+      <ContextMenuItem label="Use Stacks" checkable="true"/>
+      <ContextMenuItem label="Sort By">
+        <ContextMenuItem label="Name"/>
+        <ContextMenuItem label="Kind"/>
+        <ContextMenuItem label="Date Modified"/>
+        <ContextMenuItem label="Date Created"/>
+        <ContextMenuItem label="Size"/>
+        <ContextMenuItem label="Tags"/>
+      </ContextMenuItem>
+      <ContextMenuSeparator/>
+      <ContextMenuItem label="Clean Up"/>
+      <ContextMenuItem label="Clean Up By">
+        <ContextMenuItem label="Name"/>
+        <ContextMenuItem label="Kind"/>
+        <ContextMenuItem label="Date Modified"/>
+        <ContextMenuItem label="Date Created"/>
+        <ContextMenuItem label="Size"/>
+        <ContextMenuItem label="Tags"/>
+      </ContextMenuItem>
+      <ContextMenuSeparator/>
+      <ContextMenuItem label="Show View Options"/>
+    </ContextMenu>
     <SelectionArea/>
   </Desktop>
 </Robo>

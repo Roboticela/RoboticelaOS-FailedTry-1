@@ -38,7 +38,9 @@ void RoboInputCollect(void) {
     int32_t dy = 0;
     uint8_t leftPressed = 0;
     uint8_t leftChanged = 0;
-    RoboPS2MouseDrain(&dx, &dy, &leftPressed, &leftChanged);
+    uint8_t rightPressed = 0;
+    uint8_t rightChanged = 0;
+    RoboPS2MouseDrain(&dx, &dy, &leftPressed, &leftChanged, &rightPressed, &rightChanged);
     if (dx != 0 || dy != 0 || leftChanged != 0) {
         RoboInputEvent motion{};
         motion.kind = ROBO_INPUT_MOTION;
@@ -46,6 +48,14 @@ void RoboInputCollect(void) {
         motion.dy = dy;
         motion.pressed = leftPressed;
         motion.code = leftChanged;
+        RoboInputPush(&motion);
+    }
+    if (rightChanged != 0) {
+        RoboInputEvent motion{};
+        motion.kind = ROBO_INPUT_MOTION;
+        motion.button = 1;
+        motion.pressed = rightPressed;
+        motion.code = 1;
         RoboInputPush(&motion);
     }
     RoboPS2KeyboardCollect();

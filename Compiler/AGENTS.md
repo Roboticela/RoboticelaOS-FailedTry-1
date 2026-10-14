@@ -14,7 +14,7 @@ Board -> The board will not be containing anything by default it will be just a 
 Dropdown
 ✅ - Icons -> The icons will be basically SVGs which user can add by <SVGName /> which will load from the Assets/RoboCountry.pack and RoboIcons.pack.
 Menu
-Context Menu
+✅ - ContextMenu and ContextMenuItem (also ContextMenuSeparator). A floating glass panel, 252px wide, 29px rows, 13px type, 13px outer radius. `appearance="light"` is a near-white glass with `#202126` text and a `#D5E7FF` highlight; `appearance="dark"` is `#23242A` glass with `#F5F5F7` text and a `#2A4A72` highlight. With no appearance, it follows the page theme. `transparent` is 0 (the glass) to 1 (the wallpaper showing through). Right-click, or Control-click, on the desktop opens it at the pointer and keeps it on screen. Hover highlights a row, a submenu opens beside Sort By and Clean Up By, Escape or a click outside dismisses it, and arrows, Enter, and Space move through it.
 ✅ - SVGs -> SVGs will be directly supported in XML user can write <svg><path> etc</svg> they can write the SVg directly in XML how they write the components. They can use the icons too as <IconName />
 Ellipse/Circle
 Rectangle
