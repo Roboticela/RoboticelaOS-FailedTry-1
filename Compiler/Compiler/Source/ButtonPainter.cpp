@@ -273,7 +273,7 @@ ButtonPaintResult ButtonPainter::Paint(FrameBuffer& buffer,
 
     if (!visibleLabel.empty()) {
         const float baseline = buttonY + (buttonHeight - textHeight) * 0.5f + ascent;
-        fonts.DrawString(buffer, contentX, baseline, visibleLabel, fontSize, faceId, textColor, opacity, letterSpacing);
+        fonts.DrawString(buffer, contentX, baseline, visibleLabel, fontSize, faceId, textColor, opacity, letterSpacing, true);
     }
 
     return result;

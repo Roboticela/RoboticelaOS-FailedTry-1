@@ -445,6 +445,8 @@ const RoboAlias gAliases[] = {
     {"Inter-Medium.ttf", "System/Fonts/Inter-Medium.ttf"},
     {"INTERS.TTF", "System/Fonts/Inter-SemiBold.ttf"},
     {"Inter-SemiBold.ttf", "System/Fonts/Inter-SemiBold.ttf"},
+    {"INTERB.TTF", "System/Fonts/Inter-Bold.ttf"},
+    {"Inter-Bold.ttf", "System/Fonts/Inter-Bold.ttf"},
     {"INTERI.TTF", "System/Fonts/Inter-Italic.ttf"},
     {"Inter-Italic.ttf", "System/Fonts/Inter-Italic.ttf"},
 };

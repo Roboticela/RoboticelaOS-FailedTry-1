@@ -22,7 +22,7 @@ void DrawLabel(FrameBuffer& buffer,
     const float lineTop = y + std::max(0.0f, (height - fontSize) * 0.5f);
     const float baseline = lineTop + (fontSize - (ascent + descent)) * 0.5f + ascent;
     const float textX = x + std::max(0.0f, (width - textWidth) * 0.5f);
-    fonts.DrawString(buffer, textX, baseline, text, fontSize, FontFaceId::Medium, color, 1.0f, 0.0f);
+    fonts.DrawString(buffer, textX, baseline, text, fontSize, FontFaceId::Medium, color, 1.0f, 0.0f, true);
 }
 
 void DrawOutline(FrameBuffer& buffer, float x, float y, float width, float height, const Color& color) {

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <vector>
 
@@ -56,7 +57,7 @@ struct FontEngine::FaceData {
 };
 
 FontEngine::FontEngine() {
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         faces_[i] = std::make_unique<FaceData>();
     }
 }
@@ -84,6 +85,9 @@ bool FontEngine::IsReady() const {
 FontFaceId FontEngine::ResolveFace(FontWeight weight, FontStyleKind style) const {
     if (style == FontStyleKind::Italic && faces_[FaceIndex(FontFaceId::Italic)]->ready) {
         return FontFaceId::Italic;
+    }
+    if (weight == FontWeight::Bold && faces_[FaceIndex(FontFaceId::Bold)]->ready) {
+        return FontFaceId::Bold;
     }
     if (weight == FontWeight::Bold || weight == FontWeight::SemiBold) {
         if (faces_[FaceIndex(FontFaceId::SemiBold)]->ready) {
@@ -178,7 +182,101 @@ float FontEngine::GetLineGap(float fontSize, FontFaceId faceId) const {
     return stbtt_ScaleForPixelHeight(&face.info, fontSize) * lineGap;
 }
 
-const FontEngine::CachedGlyph& FontEngine::CachedGlyphFor(int faceIndex,
+float DarkenCoverage(float coverage) {
+    if (coverage <= 0.0f) {
+        return 0.0f;
+    }
+    if (coverage >= 1.0f) {
+        return 1.0f;
+    }
+    return std::pow(coverage, 1.0f / 1.8f);
+}
+
+void FontEngine::EnsureAtlas() const {
+    if (atlas_.size() == static_cast<std::size_t>(ATLAS_WIDTH * ATLAS_HEIGHT)) {
+        return;
+    }
+    atlas_.assign(static_cast<std::size_t>(ATLAS_WIDTH * ATLAS_HEIGHT), 0);
+    atlasRows_.clear();
+    atlasPenY_ = 0;
+}
+
+void FontEngine::ResetAtlas() const {
+    EnsureAtlas();
+    memset(atlas_.data(), 0, atlas_.size());
+    atlasRows_.clear();
+    atlasPenY_ = 0;
+    glyphCache_.clear();
+}
+
+void FontEngine::EvictOldestRow() const {
+    if (atlasRows_.empty()) {
+        ResetAtlas();
+        return;
+    }
+    int oldest = 0;
+    for (int index = 1; index < static_cast<int>(atlasRows_.size()); ++index) {
+        if (atlasRows_[static_cast<std::size_t>(index)].stamp < atlasRows_[static_cast<std::size_t>(oldest)].stamp) {
+            oldest = index;
+        }
+    }
+    for (auto entry = glyphCache_.begin(); entry != glyphCache_.end();) {
+        if (entry->second.row == oldest) {
+            entry = glyphCache_.erase(entry);
+        } else {
+            ++entry;
+        }
+    }
+    AtlasRow& row = atlasRows_[static_cast<std::size_t>(oldest)];
+    if (row.height > 0) {
+        memset(atlas_.data() + static_cast<std::size_t>(row.y * ATLAS_WIDTH), 0, static_cast<std::size_t>(row.height * ATLAS_WIDTH));
+    }
+    row.used = 0;
+    row.stamp = atlasStamp_;
+}
+
+int FontEngine::PlaceGlyph(int width, int height, int& outX, int& outY) const {
+    EnsureAtlas();
+    if (width <= 0 || height <= 0 || width > ATLAS_WIDTH || height > ATLAS_HEIGHT) {
+        return -1;
+    }
+    const int padded = width + 1;
+    int best = -1;
+    int bestSlack = ATLAS_HEIGHT;
+    for (int index = 0; index < static_cast<int>(atlasRows_.size()); ++index) {
+        const AtlasRow& row = atlasRows_[static_cast<std::size_t>(index)];
+        if (row.height >= height && row.used + padded <= ATLAS_WIDTH) {
+            const int slack = row.height - height;
+            if (slack < bestSlack) {
+                best = index;
+                bestSlack = slack;
+            }
+        }
+    }
+    if (best >= 0) {
+        AtlasRow& row = atlasRows_[static_cast<std::size_t>(best)];
+        outX = row.used;
+        outY = row.y;
+        row.used += padded;
+        row.stamp = atlasStamp_;
+        return best;
+    }
+    if (atlasPenY_ + height <= ATLAS_HEIGHT) {
+        AtlasRow row;
+        row.y = atlasPenY_;
+        row.height = height;
+        row.used = padded;
+        row.stamp = atlasStamp_;
+        outX = 0;
+        outY = row.y;
+        atlasPenY_ += height;
+        atlasRows_.push_back(row);
+        return static_cast<int>(atlasRows_.size()) - 1;
+    }
+    return -1;
+}
+
+FontEngine::AtlasGlyph FontEngine::CachedGlyphFor(int faceIndex,
                                                              int glyph,
                                                              float fontSize,
                                                              float shiftX,
@@ -194,10 +292,14 @@ const FontEngine::CachedGlyph& FontEngine::CachedGlyphFor(int faceIndex,
                               | (static_cast<std::uint64_t>(subY) << 44);
     const auto found = glyphCache_.find(key);
     if (found != glyphCache_.end()) {
+        found->second.stamp = ++atlasStamp_;
+        if (found->second.row >= 0 && found->second.row < static_cast<int>(atlasRows_.size())) {
+            atlasRows_[static_cast<std::size_t>(found->second.row)].stamp = found->second.stamp;
+        }
         return found->second;
     }
 
-    CachedGlyph cached;
+    AtlasGlyph cached;
     const FaceData& face = *faces_[faceIndex];
     const float snappedSize = static_cast<float>(sizeQ) / 4.0f;
     const float scale = stbtt_ScaleForPixelHeight(&face.info, snappedSize);
@@ -245,7 +347,7 @@ const FontEngine::CachedGlyph& FontEngine::CachedGlyphFor(int faceIndex,
     cached.height = std::max(0, outH);
     cached.xOff = FloorDiv(ix0, OVERSAMPLE);
     cached.yOff = FloorDiv(iy0, OVERSAMPLE);
-    cached.coverage.assign(static_cast<std::size_t>(cached.width * cached.height), 0);
+    std::vector<std::uint8_t> coverage(static_cast<std::size_t>(cached.width * cached.height), 0);
     const int originSampleX = FloorDiv(ix0, OVERSAMPLE) * OVERSAMPLE;
     const int originSampleY = FloorDiv(iy0, OVERSAMPLE) * OVERSAMPLE;
     const float sampleCount = static_cast<float>(OVERSAMPLE * OVERSAMPLE);
@@ -264,11 +366,35 @@ const FontEngine::CachedGlyph& FontEngine::CachedGlyphFor(int faceIndex,
                     sum += bitmap[static_cast<std::size_t>(sourceY * glyphWidth + sourceX)];
                 }
             }
-            cached.coverage[static_cast<std::size_t>(row * cached.width + col)] =
-                static_cast<unsigned char>(std::min(255, static_cast<int>(sum / sampleCount + 0.5f)));
+            const float linear = static_cast<float>(sum) / sampleCount / 255.0f;
+            coverage[static_cast<std::size_t>(row * cached.width + col)] =
+                static_cast<std::uint8_t>(std::min(255.0f, DarkenCoverage(linear) * 255.0f + 0.5f));
         }
     }
-    return glyphCache_.emplace(key, std::move(cached)).first->second;
+
+    int placeX = 0;
+    int placeY = 0;
+    int rowIndex = PlaceGlyph(cached.width, cached.height, placeX, placeY);
+    if (rowIndex < 0) {
+        EvictOldestRow();
+        rowIndex = PlaceGlyph(cached.width, cached.height, placeX, placeY);
+    }
+    if (rowIndex < 0) {
+        ResetAtlas();
+        rowIndex = PlaceGlyph(cached.width, cached.height, placeX, placeY);
+    }
+    if (rowIndex < 0) {
+        return cached;
+    }
+    cached.x = placeX;
+    cached.y = placeY;
+    cached.row = rowIndex;
+    cached.stamp = ++atlasStamp_;
+    for (int row = 0; row < cached.height; ++row) {
+        std::uint8_t* dest = atlas_.data() + static_cast<std::size_t>((cached.y + row) * ATLAS_WIDTH + cached.x);
+        memcpy(dest, coverage.data() + static_cast<std::size_t>(row * cached.width), static_cast<std::size_t>(cached.width));
+    }
+    return glyphCache_.emplace(key, cached).first->second;
 }
 
 void FontEngine::RecordString(std::vector<TextGlyphDraw>& out,
@@ -392,17 +518,18 @@ void FontEngine::PaintGlyphDraws(FrameBuffer& buffer, const std::vector<TextGlyp
         if (onScreen) {
             const float shiftX = item.x - std::floor(item.x);
             const float shiftY = item.baseline - std::floor(item.baseline);
-            const CachedGlyph& cached = CachedGlyphFor(item.faceIndex, item.glyph, item.fontSize, shiftX, shiftY);
+            const AtlasGlyph cached = CachedGlyphFor(item.faceIndex, item.glyph, item.fontSize, shiftX, shiftY);
             const int destX = static_cast<int>(std::floor(item.x)) + cached.xOff;
             const int destY = static_cast<int>(std::floor(item.baseline)) + cached.yOff;
-            if (!buffer.MissesClip(destX, destY, cached.width, cached.height)) {
+            if (cached.width > 0 && cached.height > 0 && !buffer.MissesClip(destX, destY, cached.width, cached.height)) {
                 for (int row = 0; row < cached.height; ++row) {
                     const int py = destY + row;
                     if (py < 0 || py >= buffer.GetHeight()) {
                         continue;
                     }
+                    const std::uint8_t* src = atlas_.data() + static_cast<std::size_t>((cached.y + row) * ATLAS_WIDTH + cached.x);
                     for (int col = 0; col < cached.width; ++col) {
-                        const unsigned char coverage = cached.coverage[static_cast<std::size_t>(row * cached.width + col)];
+                        const unsigned char coverage = src[col];
                         if (coverage == 0) {
                             continue;
                         }
@@ -436,11 +563,42 @@ void FontEngine::DrawString(FrameBuffer& buffer,
                             FontFaceId faceId,
                             const Color& color,
                             float opacity,
-                            float letterSpacing) const {
+                            float letterSpacing,
+                            bool snap) const {
+    if (snap) {
+        x = std::round(x);
+        baselineY = std::round(baselineY);
+    }
     std::vector<TextGlyphDraw> draws;
     RecordString(draws, x, baselineY, utf8, fontSize, faceId, color, opacity, letterSpacing);
     PaintSelectionBands(buffer, draws);
     PaintGlyphDraws(buffer, draws);
+}
+
+void FontEngine::WarmChrome(float pixelScale) const {
+    const float scale = std::max(0.5f, pixelScale);
+    const int scaleKey = std::max(1, static_cast<int>(std::round(scale * 4.0f)));
+    if (warmedScale_ == scaleKey) {
+        return;
+    }
+    warmedScale_ = scaleKey;
+    const float sizes[] = {12.0f * scale, 13.0f * scale, 16.0f * scale};
+    const FontFaceId faces[] = {FontFaceId::Regular, FontFaceId::Medium, FontFaceId::SemiBold, FontFaceId::Bold};
+    for (FontFaceId faceId : faces) {
+        const FaceData& face = *faces_[FaceIndex(faceId)];
+        if (!face.ready) {
+            continue;
+        }
+        for (float fontSize : sizes) {
+            for (int codepoint = 32; codepoint <= 126; ++codepoint) {
+                const int glyph = stbtt_FindGlyphIndex(&face.info, codepoint);
+                if (glyph == 0) {
+                    continue;
+                }
+                CachedGlyphFor(FaceIndex(faceId), glyph, fontSize, 0.0f, 0.0f);
+            }
+        }
+    }
 }
 
 }  // namespace Robo

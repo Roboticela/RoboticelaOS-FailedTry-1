@@ -648,6 +648,7 @@ std::string HtmlFromXml::ConvertNode(const XmlNode& node) const {
              << "<style>@font-face{font-family:'Inter';src:url('/Assets/Fonts/Inter-Regular.ttf');font-weight:400;}"
              << "@font-face{font-family:'Inter';src:url('/Assets/Fonts/Inter-Medium.ttf');font-weight:500;}"
              << "@font-face{font-family:'Inter';src:url('/Assets/Fonts/Inter-SemiBold.ttf');font-weight:600;}"
+             << "@font-face{font-family:'Inter';src:url('/Assets/Fonts/Inter-Bold.ttf');font-weight:700;}"
              << "@font-face{font-family:'Inter';src:url('/Assets/Fonts/Inter-Italic.ttf');font-style:italic;font-weight:400;}"
              << "body{margin:0;padding:24px;background:#FFFFFF;color:#1A1A1A;font-family:'Inter',sans-serif;}"
              << ".RoboContainer{box-sizing:border-box;overflow:hidden;}"

@@ -168,6 +168,7 @@ int main(int argc, char** argv) {
     RoboCopy(fonts, esp, "INTERR.TTF", "Inter-Regular.ttf");
     RoboCopy(fonts, esp, "INTERM.TTF", "Inter-Medium.ttf");
     RoboCopy(fonts, esp, "INTERS.TTF", "Inter-SemiBold.ttf");
+    RoboCopy(fonts, esp, "INTERB.TTF", "Inter-Bold.ttf");
     RoboCopy(fonts, esp, "INTERI.TTF", "Inter-Italic.ttf");
     RoboCopy(applications, esp, "RoboApp.bin", "RoboApp.bin");
     auto readCode = [](const char* path) {

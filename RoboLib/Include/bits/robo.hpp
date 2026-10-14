@@ -915,6 +915,10 @@ public:
         return pair<iterator, bool>(items_.end() - 1, true);
     }
 
+    iterator erase(iterator pos) {
+        return items_.erase(pos);
+    }
+
 private:
     vector<pair<K, V>> items_;
 };

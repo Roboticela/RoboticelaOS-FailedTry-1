@@ -11,7 +11,7 @@ namespace {
 
 constexpr float MENU_WIDTH = 252.0f;
 constexpr float MENU_MIN_WIDTH = 230.0f;
-constexpr float MENU_MAX_WIDTH = 300.0f;
+constexpr float MENU_MAX_WIDTH = 340.0f;
 constexpr float MENU_PAD = 6.0f;
 constexpr float MENU_ROW = 29.0f;
 constexpr float MENU_FONT = 13.0f;
@@ -34,14 +34,26 @@ float MeasurePanelWidth(const FontEngine& fonts, const std::vector<ContextMenuIt
     float width = MENU_WIDTH * scale;
     const float fontSize = MENU_FONT * scale;
     const float pad = MENU_ROW_PAD * scale;
+    const float glyph = 14.0f * scale;
+    bool anyIcon = false;
+    for (const ContextMenuItem& item : items) {
+        if (item.HasIcon()) {
+            anyIcon = true;
+        }
+    }
+    const float lead = anyIcon ? glyph + 8.0f * scale : 0.0f;
     for (const ContextMenuItem& item : items) {
         if (item.IsSeparator()) {
             continue;
         }
-        float text = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Regular, 0.0f);
-        float extra = item.HasSubmenu() ? MENU_CHEVRON * scale : 0.0f;
-        if (item.IsCheckable()) {
-            extra += 16.0f * scale;
+        float text = fonts.MeasureWidth(item.GetLabel(), fontSize, FontFaceId::Medium, 0.0f);
+        float extra = lead;
+        if (item.HasChevron() || item.HasSubmenu()) {
+            extra += glyph + 8.0f * scale;
+        }
+        extra += item.ShortcutWidth(fonts, fontSize, glyph);
+        if (item.Shortcut().empty() && extra > lead) {
+            extra += 8.0f * scale;
         }
         width = std::max(width, text + pad * 2.0f + extra);
     }
@@ -131,6 +143,87 @@ void ContextMenuItem::SetCheckable(bool checkable) {
 
 bool ContextMenuItem::IsCheckable() const {
     return checkable_;
+}
+
+void ContextMenuItem::SetIcon(Svg icon) {
+    icon_ = std::move(icon);
+    hasIcon_ = true;
+}
+
+bool ContextMenuItem::HasIcon() const {
+    return hasIcon_;
+}
+
+Svg& ContextMenuItem::Icon() {
+    return icon_;
+}
+
+const Svg& ContextMenuItem::Icon() const {
+    return icon_;
+}
+
+void ContextMenuItem::SetChevron(Svg graphic) {
+    chevron_ = std::move(graphic);
+    hasChevron_ = true;
+}
+
+bool ContextMenuItem::HasChevron() const {
+    return hasChevron_;
+}
+
+Svg& ContextMenuItem::Chevron() {
+    return chevron_;
+}
+
+void ContextMenuItem::SetCheckGraphic(Svg graphic) {
+    check_ = std::move(graphic);
+    hasCheck_ = true;
+}
+
+bool ContextMenuItem::HasCheckGraphic() const {
+    return hasCheck_;
+}
+
+Svg& ContextMenuItem::CheckGraphic() {
+    return check_;
+}
+
+void ContextMenuItem::AddShortcutGlyph(Svg graphic) {
+    ContextMenuGlyph part;
+    part.graphic = std::move(graphic);
+    shortcut_.push_back(std::move(part));
+}
+
+void ContextMenuItem::AddShortcutText(const std::string& text) {
+    if (text.empty()) {
+        return;
+    }
+    ContextMenuGlyph part;
+    part.text = true;
+    part.label = text;
+    shortcut_.push_back(std::move(part));
+}
+
+const std::vector<ContextMenuGlyph>& ContextMenuItem::Shortcut() const {
+    return shortcut_;
+}
+
+float ContextMenuItem::ShortcutWidth(const FontEngine& fonts, float fontSize, float glyphSize) const {
+    float width = 0.0f;
+    for (const ContextMenuGlyph& part : shortcut_) {
+        if (width > 0.0f) {
+            width += glyphSize * 0.15f;
+        }
+        if (part.text) {
+            width += fonts.MeasureWidth(part.label, fontSize, FontFaceId::Medium, 0.0f);
+        } else {
+            width += glyphSize;
+        }
+    }
+    if (!shortcut_.empty()) {
+        width += glyphSize * 0.7f;
+    }
+    return width;
 }
 
 void ContextMenuItem::AddItem(ContextMenuItem item) {

@@ -206,7 +206,7 @@ SeparatorMeasureResult SeparatorPainter::Measure(const FontEngine& fonts,
     float labelSize = 0.0f;
     if (labeled) {
         const float fontSize = Css(LabelCss(separator), scale);
-        const FontFaceId face = fonts.ResolveFace(FontWeight::Regular, FontStyleKind::Normal);
+        const FontFaceId face = fonts.ResolveFace(FontWeight::Medium, FontStyleKind::Normal);
         labelSize = std::max(fontSize, fonts.GetAscent(fontSize, face) + fonts.GetDescent(fontSize, face));
     }
     const float content = std::max(line, labelSize);
@@ -269,7 +269,7 @@ SeparatorPaintResult SeparatorPainter::Paint(FrameBuffer& buffer,
         }
     } else {
         const float fontSize = Css(LabelCss(separator), scale);
-        const FontFaceId face = fonts.ResolveFace(FontWeight::Regular, FontStyleKind::Normal);
+        const FontFaceId face = fonts.ResolveFace(FontWeight::Medium, FontStyleKind::Normal);
         const float letterSpacing = 0.0f;
         float textWidth = fonts.MeasureWidth(label, fontSize, face, letterSpacing);
         const float ascent = fonts.GetAscent(fontSize, face);
@@ -299,7 +299,7 @@ SeparatorPaintResult SeparatorPainter::Paint(FrameBuffer& buffer,
                 rule(textX + textWidth + gap, midY, right, true, fade ? FadeEdge::Out : FadeEdge::None);
             }
             const float baseline = midY - textHeight * 0.5f + ascent;
-            fonts.DrawString(buffer, textX, baseline, label, fontSize, face, LabelColor(separator.GetTone(), separator.IsDisabled()), opacity, letterSpacing);
+            fonts.DrawString(buffer, textX, baseline, label, fontSize, face, LabelColor(separator.GetTone(), separator.IsDisabled()), opacity, letterSpacing, true);
         } else {
             const float limit = contentH * 0.7f;
             float textBlock = std::min(textHeight, limit);
@@ -319,7 +319,7 @@ SeparatorPaintResult SeparatorPainter::Paint(FrameBuffer& buffer,
             }
             const float baseline = textY + (textBlock - textHeight) * 0.5f + ascent;
             const float textX = midX - textWidth * 0.5f;
-            fonts.DrawString(buffer, textX, baseline, label, fontSize, face, LabelColor(separator.GetTone(), separator.IsDisabled()), opacity, letterSpacing);
+            fonts.DrawString(buffer, textX, baseline, label, fontSize, face, LabelColor(separator.GetTone(), separator.IsDisabled()), opacity, letterSpacing, true);
         }
     }
 

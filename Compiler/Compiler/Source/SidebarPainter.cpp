@@ -215,7 +215,7 @@ void PaintRow(FrameBuffer& buffer,
     const float baseline = y + (height - fontSize) * 0.5f + (fontSize - (ascent + descent)) * 0.5f + ascent;
     const float textX = iconX + icon + LABEL_GAP * scale;
     buffer.PushClipRect(textX, y, std::max(1.0f, x + width - textX - 8.0f * scale), height);
-    fonts.DrawString(buffer, textX, baseline, item.GetLabel(), fontSize, FontFaceId::Medium, ink, labelOpacity * opacity, -0.01f * fontSize);
+    fonts.DrawString(buffer, textX, baseline, item.GetLabel(), fontSize, FontFaceId::Medium, ink, labelOpacity * opacity, -0.01f * fontSize, true);
     buffer.PopClip();
 }
 
@@ -253,7 +253,7 @@ void PaintSection(FrameBuffer& buffer,
         const float fontSize = SECTION_SIZE * scale;
         const float ascent = fonts.GetAscent(fontSize, FontFaceId::Medium);
         const Color title = ResolveColor(Color::FromHex("#6E6E73"), "color.text.secondary");
-        fonts.DrawString(buffer, x + 16.0f * scale, y + 24.0f * scale + ascent * 0.15f, item.GetLabel(), fontSize, FontFaceId::Medium, title, opacity, 0.02f * fontSize);
+        fonts.DrawString(buffer, x + 16.0f * scale, y + 24.0f * scale + ascent * 0.15f, item.GetLabel(), fontSize, FontFaceId::Medium, title, opacity, 0.02f * fontSize, true);
     }
     buffer.PopClip();
 }
@@ -411,7 +411,7 @@ void SidebarPainter::Paint(FrameBuffer& buffer,
         const float fontSize = 13.0f * scale;
         const float ascent = fonts.GetAscent(fontSize, FontFaceId::SemiBold);
         const Color title = ResolveColor(Color::FromHex("#6E6E73"), "color.text.secondary");
-        fonts.DrawString(buffer, panelX + 16.0f * scale, originY + 22.0f * scale + ascent * 0.2f, current.GetLabel(), fontSize, FontFaceId::SemiBold, title, 1.0f, 0.04f * fontSize);
+        fonts.DrawString(buffer, panelX + 16.0f * scale, originY + 22.0f * scale + ascent * 0.2f, current.GetLabel(), fontSize, FontFaceId::SemiBold, title, 1.0f, 0.04f * fontSize, true);
     }
     const float header = 44.0f * scale;
     float content = 0.0f;

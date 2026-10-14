@@ -61,7 +61,7 @@ float Css(float value, float scale) {
 }
 
 float LabelWidth(const FontEngine& fonts, const char* text, float scale) {
-    return fonts.MeasureWidth(text, Css(12.0f, scale), FontFaceId::Regular, 0.0f);
+    return fonts.MeasureWidth(text, Css(12.0f, scale), FontFaceId::Medium, 0.0f);
 }
 
 ToggleLayout LayoutOf(const FontEngine& fonts, const ThemeToggle& toggle, float availableWidth, float scale) {
@@ -158,10 +158,10 @@ void DrawCaption(FrameBuffer& buffer,
                  float opacity,
                  float scale) {
     const float fontSize = Css(12.0f, scale);
-    const float ascent = fonts.GetAscent(fontSize, FontFaceId::Regular);
-    const float descent = fonts.GetDescent(fontSize, FontFaceId::Regular);
+    const float ascent = fonts.GetAscent(fontSize, FontFaceId::Medium);
+    const float descent = fonts.GetDescent(fontSize, FontFaceId::Medium);
     const float baseline = y + (lineHeight - (ascent + descent)) * 0.5f + ascent;
-    fonts.DrawString(buffer, x, baseline, text, fontSize, FontFaceId::Regular, color, opacity, 0.0f);
+    fonts.DrawString(buffer, x, baseline, text, fontSize, FontFaceId::Medium, color, opacity, 0.0f, true);
 }
 
 Color LerpColor(const Color& a, const Color& b, float t) {

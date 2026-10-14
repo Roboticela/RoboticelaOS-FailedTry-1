@@ -29,7 +29,7 @@ enum class ButtonInteraction {
 struct ButtonStyle {
     ButtonVariant variant = ButtonVariant::Filled;
     double fontSize = 17.0;
-    FontWeight fontWeight = FontWeight::SemiBold;
+    FontWeight fontWeight = FontWeight::Medium;
     FontStyleKind fontStyle = FontStyleKind::Normal;
     Color textColor = Color::FromHex("#FFFFFF");
     Color backgroundColor = Color::FromHex("#007AFF");

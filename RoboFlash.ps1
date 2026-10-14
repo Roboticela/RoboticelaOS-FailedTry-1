@@ -30,6 +30,7 @@ $files = @(
     "INTERR.TTF",
     "INTERM.TTF",
     "INTERS.TTF",
+    "INTERB.TTF",
     "INTERI.TTF",
     "BACKGROU.RJP",
     "BACKGROU.MP4"

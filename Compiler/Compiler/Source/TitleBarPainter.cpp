@@ -119,7 +119,7 @@ TitleBarPaintResult TitleBarPainter::Paint(FrameBuffer& buffer,
         const float baseline = lineTop + (fontSize - (ascent + descent)) * 0.5f + ascent;
         const float textX = originX + std::max(0.0f, (measured.width - textWidth) * 0.5f);
         const Color ink = ResolveColor(Color::FromHex("#1D1D1F"), "color.text.primary");
-        fonts.DrawString(buffer, textX, baseline, bar.GetTitle(), fontSize, FontFaceId::SemiBold, ink, 1.0f, tracking);
+        fonts.DrawString(buffer, textX, baseline, bar.GetTitle(), fontSize, FontFaceId::SemiBold, ink, 1.0f, tracking, true);
     }
 
     TitleBarPaintResult result;

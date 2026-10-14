@@ -362,9 +362,9 @@ void DrawLine(FrameBuffer& buffer,
     const float lineTop = originY + std::max(0.0f, (height - fontSize) * 0.5f);
     const float baseline = lineTop + (fontSize - (ascent + descent)) * 0.5f + ascent;
     const float textX = center ? originX + std::max(0.0f, (width - textWidth) * 0.5f) : originX;
-    fonts.DrawString(buffer, textX, baseline, text, fontSize, face, color, 1.0f, 0.0f);
+    fonts.DrawString(buffer, textX, baseline, text, fontSize, face, color, 1.0f, 0.0f, true);
     if (thicken) {
-        fonts.DrawString(buffer, textX + std::max(0.7f, fontSize * 0.035f), baseline, text, fontSize, face, color, 1.0f, 0.0f);
+        fonts.DrawString(buffer, textX + std::max(0.7f, fontSize * 0.035f), baseline, text, fontSize, face, color, 1.0f, 0.0f, true);
     }
 }
 
@@ -458,7 +458,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         const float appleSlotW = appleSlotRight - appleSlotX;
         menu.SetAppleBounds(Slot(appleSlotX, 0.0f, appleSlotW, buttonHeight));
 
-        const float appWidth = fonts.MeasureWidth(menu.GetApp(), fontSize, FontFaceId::SemiBold, 0.0f);
+        const float appWidth = fonts.MeasureWidth(menu.GetApp(), fontSize, FontFaceId::Medium, 0.0f);
         float appSlotX = appX - itemPad;
         const float appleLimit = appleSlotRight + 2.0f * scale;
         if (appSlotX < appleLimit) {
@@ -545,7 +545,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
 
             PaintGlyph(buffer, AppleMark(), appleX, appleY, itemInk(0, false), scale);
             DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
-                     FontFaceId::SemiBold, itemInk(1, false), false, true);
+                     FontFaceId::Medium, itemInk(1, false), false, false);
             for (int index = 0; index < static_cast<int>(labels.size()); ++index) {
                 const TopBarMenuItem& item = labels[static_cast<std::size_t>(index)];
                 const MenuBounds& bounds = item.GetBounds();

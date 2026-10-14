@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Svg.hpp"
+
 #include <string>
 #include <vector>
 
@@ -14,6 +16,13 @@ struct ContextMenuBounds {
     float height = 0.0f;
 
     bool Contains(float pointX, float pointY) const;
+};
+
+// One piece of a keyboard shortcut: a pack icon, or a letter.
+struct ContextMenuGlyph {
+    bool text = false;
+    std::string label;
+    Svg graphic;
 };
 
 // One row in a context menu. A separator is a rule. Children make a submenu.
@@ -34,6 +43,24 @@ public:
     void SetCheckable(bool checkable);
     bool IsCheckable() const;
 
+    void SetIcon(Svg icon);
+    bool HasIcon() const;
+    Svg& Icon();
+    const Svg& Icon() const;
+
+    void SetChevron(Svg graphic);
+    bool HasChevron() const;
+    Svg& Chevron();
+
+    void SetCheckGraphic(Svg graphic);
+    bool HasCheckGraphic() const;
+    Svg& CheckGraphic();
+
+    void AddShortcutGlyph(Svg graphic);
+    void AddShortcutText(const std::string& text);
+    const std::vector<ContextMenuGlyph>& Shortcut() const;
+    float ShortcutWidth(const FontEngine& fonts, float fontSize, float glyphSize) const;
+
     void AddItem(ContextMenuItem item);
     std::vector<ContextMenuItem>& Items();
     const std::vector<ContextMenuItem>& Items() const;
@@ -48,6 +75,13 @@ private:
     bool separator_ = false;
     bool checked_ = false;
     bool checkable_ = false;
+    bool hasIcon_ = false;
+    bool hasChevron_ = false;
+    bool hasCheck_ = false;
+    Svg icon_;
+    Svg chevron_;
+    Svg check_;
+    std::vector<ContextMenuGlyph> shortcut_;
     std::vector<ContextMenuItem> items_;
     ContextMenuBounds bounds_{};
 };

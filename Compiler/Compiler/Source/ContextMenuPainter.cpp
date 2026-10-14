@@ -1,5 +1,7 @@
 #include "Robo/ContextMenuPainter.hpp"
 
+#include "Robo/SvgPainter.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -8,24 +10,14 @@ namespace Robo {
 
 namespace {
 
-void DrawChevron(FrameBuffer& buffer, float originX, float originY, float size, const Color& color, float opacity) {
-    const int steps = std::max(3, static_cast<int>(std::round(size)));
-    for (int step = 0; step <= steps; ++step) {
-        const float t = static_cast<float>(step) / static_cast<float>(steps);
-        const float x = originX + t * size;
-        const float upper = originY + t * size * 0.5f;
-        const float lower = originY + size - t * size * 0.5f;
-        buffer.FillRect(static_cast<int>(std::round(x)), static_cast<int>(std::round(upper)), 2, 2, color, opacity);
-        buffer.FillRect(static_cast<int>(std::round(x)), static_cast<int>(std::round(lower)) - 1, 2, 2, color, opacity);
-    }
-}
-
-void DrawCheck(FrameBuffer& buffer, float x, float y, float size, const Color& color, float opacity) {
-    const int left = static_cast<int>(std::round(x));
-    const int top = static_cast<int>(std::round(y + size * 0.45f));
-    buffer.FillRect(left, top, std::max(1, static_cast<int>(size * 0.35f)), 2, color, opacity);
-    buffer.FillRect(left + static_cast<int>(size * 0.28f), top - static_cast<int>(size * 0.28f), 2,
-                    std::max(2, static_cast<int>(size * 0.55f)), color, opacity);
+void PaintIcon(FrameBuffer& buffer, Svg& graphic, float x, float y, float size, const Color& color, float opacity, float scale) {
+    graphic.GetStyle().width = size / scale;
+    graphic.GetStyle().height = size / scale;
+    graphic.GetStyle().widthSpec.clear();
+    graphic.GetStyle().heightSpec.clear();
+    graphic.GetStyle().color = color;
+    graphic.GetStyle().opacity = opacity;
+    SvgPainter::Paint(buffer, graphic, x, y, size, scale);
 }
 
 void DrawLabel(FrameBuffer& buffer,
@@ -38,12 +30,12 @@ void DrawLabel(FrameBuffer& buffer,
                float fontSize,
                const Color& color,
                float opacity) {
-    const float textWidth = fonts.MeasureWidth(text, fontSize, FontFaceId::Regular, 0.0f);
-    const float ascent = fonts.GetAscent(fontSize, FontFaceId::Regular);
-    const float descent = fonts.GetDescent(fontSize, FontFaceId::Regular);
+    const float textWidth = fonts.MeasureWidth(text, fontSize, FontFaceId::Medium, 0.0f);
+    const float ascent = fonts.GetAscent(fontSize, FontFaceId::Medium);
+    const float descent = fonts.GetDescent(fontSize, FontFaceId::Medium);
     const float baseline = y + (height - (ascent + descent)) * 0.5f + ascent;
     buffer.PushClipRect(x, y, width, height);
-    fonts.DrawString(buffer, x, baseline, text, fontSize, FontFaceId::Regular, color, opacity, 0.0f);
+    fonts.DrawString(buffer, x, baseline, text, fontSize, FontFaceId::Medium, color, opacity, 0.0f, true);
     buffer.PopClip();
     (void)textWidth;
 }
@@ -66,14 +58,15 @@ void PaintPanel(FrameBuffer& buffer,
     const float rowRadius = 6.0f * scale;
     const float fontSize = 13.0f * scale;
     const float pad = 10.0f * scale;
-    const Color surface = dark ? Color::FromRgba(35, 36, 42, 255) : Color::FromRgba(248, 249, 252, 255);
-    const Color ink = dark ? Color::FromHex("#F5F5F7") : Color::FromHex("#202126");
-    const Color highlight = dark ? Color::FromHex("#2A4A72") : Color::FromHex("#D5E7FF");
-    const Color pressedFill = dark ? Color::FromHex("#1A3558") : Color::FromHex("#B7D4FF");
-    const Color highlightInk = dark ? Color::FromHex("#F5F5F7") : Color::FromHex("#172A44");
+    const Color surface = dark ? Color::FromHex("#2C2C2E") : Color::FromHex("#F5F5F7");
+    const Color ink = dark ? Color::FromHex("#F5F5F7") : Color::FromHex("#1D1D1F");
+    const Color shortcutInk = dark ? Color::FromHex("#98989D") : Color::FromHex("#8E8E93");
+    const Color highlight = dark ? Color::FromHex("#0A84FF") : Color::FromHex("#007AFF");
+    const Color pressedFill = dark ? Color::FromHex("#0866CC") : Color::FromHex("#0063CC");
+    const Color highlightInk = Color::FromHex("#FFFFFF");
     const Color border = dark ? Color::FromRgba(255, 255, 255, 255) : Color::FromRgba(80, 85, 98, 255);
     const Color separator = border;
-    const float surfaceAlpha = (dark ? 0.82f : 0.84f) * cover * amount;
+    const float surfaceAlpha = (dark ? 0.92f : 0.94f) * cover * amount;
     const float borderAlpha = (dark ? 0.16f : 0.20f) * amount * std::max(0.35f, cover);
     const float separatorAlpha = (dark ? 0.12f : 0.18f) * amount * std::max(0.35f, cover);
     const float shadow = 0.16f * amount;
@@ -86,6 +79,14 @@ void PaintPanel(FrameBuffer& buffer,
                     std::max(1, static_cast<int>(panel.width - radius * 2.0f)), 1,
                     Color::FromHex("#FFFFFF"), (dark ? 0.18f : 0.55f) * amount);
 
+    bool anyIcon = false;
+    for (const ContextMenuItem& item : items) {
+        if (item.HasIcon()) {
+            anyIcon = true;
+        }
+    }
+    const float iconSize = 15.0f * scale;
+    const float lead = anyIcon ? iconSize + 8.0f * scale : 0.0f;
     for (int index = 0; index < static_cast<int>(items.size()); ++index) {
         ContextMenuItem& item = items[static_cast<std::size_t>(index)];
         const ContextMenuBounds& bounds = item.GetBounds();
@@ -99,23 +100,54 @@ void PaintPanel(FrameBuffer& buffer,
                             std::max(1, static_cast<int>(bounds.width - inset * 2.0f)), 1, separator, separatorAlpha);
             continue;
         }
-        const bool hot = hover == index || focus == index;
+        const bool hot = (hover == index || focus == index) && !item.IsDisabled();
         const bool down = pressed == index && hot;
-        Color text = item.IsDisabled() ? ink : (hot ? highlightInk : ink);
-        float textOpacity = amount * (item.IsDisabled() ? 0.45f : 1.0f);
-        if (hot && !item.IsDisabled()) {
+        const Color text = hot ? highlightInk : ink;
+        const Color trailing = hot ? highlightInk : shortcutInk;
+        const float textOpacity = amount * (item.IsDisabled() ? 0.45f : 1.0f);
+        if (hot) {
             buffer.FillRoundedRect(bounds.x, bounds.y, bounds.width, bounds.height, rowRadius, down ? pressedFill : highlight, amount);
         }
-        const float mark = item.HasSubmenu() ? 14.0f * scale : (item.IsCheckable() ? 16.0f * scale : 0.0f);
-        DrawLabel(buffer, fonts, item.GetLabel(), bounds.x + pad, bounds.y, std::max(1.0f, bounds.width - pad * 2.0f - mark),
-                  bounds.height, fontSize, text, textOpacity);
-        if (item.IsChecked()) {
-            DrawCheck(buffer, bounds.x + bounds.width - pad - 12.0f * scale, bounds.y + (bounds.height - 10.0f * scale) * 0.5f,
-                      10.0f * scale, text, textOpacity);
+        float cursor = bounds.x + pad;
+        if (anyIcon) {
+            if (item.HasIcon()) {
+                PaintIcon(buffer, item.Icon(), cursor, bounds.y + (bounds.height - iconSize) * 0.5f, iconSize, text, textOpacity, scale);
+            }
+            cursor += lead;
         }
-        if (item.HasSubmenu()) {
-            const float chevron = 7.0f * scale;
-            DrawChevron(buffer, bounds.x + bounds.width - pad - chevron, bounds.y + (bounds.height - chevron) * 0.5f, chevron, text, textOpacity);
+        float trailingWidth = 0.0f;
+        if (item.HasChevron()) {
+            trailingWidth += iconSize;
+        } else if (item.IsChecked() && item.HasCheckGraphic()) {
+            trailingWidth += iconSize;
+        }
+        trailingWidth += item.ShortcutWidth(fonts, fontSize, iconSize);
+        DrawLabel(buffer, fonts, item.GetLabel(), cursor, bounds.y,
+                  std::max(1.0f, bounds.width - (cursor - bounds.x) - pad - trailingWidth),
+                  bounds.height, fontSize, text, textOpacity);
+        float markX = bounds.x + bounds.width - pad;
+        if (item.HasChevron()) {
+            markX -= iconSize;
+            PaintIcon(buffer, item.Chevron(), markX, bounds.y + (bounds.height - iconSize) * 0.5f, iconSize, trailing, textOpacity, scale);
+            markX -= 6.0f * scale;
+        } else if (item.IsChecked() && item.HasCheckGraphic()) {
+            markX -= iconSize;
+            PaintIcon(buffer, item.CheckGraphic(), markX, bounds.y + (bounds.height - iconSize) * 0.5f, iconSize, trailing, textOpacity, scale);
+            markX -= 6.0f * scale;
+        }
+        const std::vector<ContextMenuGlyph>& shortcut = item.Shortcut();
+        for (int part = static_cast<int>(shortcut.size()) - 1; part >= 0; --part) {
+            const ContextMenuGlyph& glyph = shortcut[static_cast<std::size_t>(part)];
+            if (glyph.text) {
+                const float textWidth = fonts.MeasureWidth(glyph.label, fontSize, FontFaceId::Medium, 0.0f);
+                markX -= textWidth;
+                DrawLabel(buffer, fonts, glyph.label, markX, bounds.y, textWidth, bounds.height, fontSize, trailing, textOpacity);
+            } else {
+                markX -= iconSize;
+                Svg graphic = glyph.graphic;
+                PaintIcon(buffer, graphic, markX, bounds.y + (bounds.height - iconSize) * 0.5f, iconSize, trailing, textOpacity, scale);
+            }
+            markX -= 2.0f * scale;
         }
     }
 }

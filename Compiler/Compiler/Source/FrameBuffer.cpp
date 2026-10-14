@@ -220,7 +220,10 @@ void FrameBuffer::FillRoundedRect(float x, float y, float width, float height, f
         const float outsideX = std::max(qx, 0.0f);
         const float outsideY = std::max(qy, 0.0f);
         const float distance = std::sqrt(outsideX * outsideX + outsideY * outsideY) + std::min(std::max(qx, qy), 0.0f) - cappedRadius;
-        const float coverage = std::max(0.0f, std::min(1.0f, 0.5f - distance));
+        float coverage = std::max(0.0f, std::min(1.0f, 0.5f - distance));
+        if (coverage > 0.0f && coverage < 1.0f) {
+            coverage = std::pow(coverage, 1.0f / 1.8f);
+        }
         if (coverage > 0.0f) {
             BlendPixel(px, py, color, opacity * coverage);
         }

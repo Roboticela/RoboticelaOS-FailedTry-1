@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <unordered_map>
 #include <vector>
 
 namespace Robo {
@@ -238,6 +240,97 @@ void StrokeMask(const std::vector<Subpath>& paths,
     }
 }
 
+float DarkenCoverage(float coverage) {
+    if (coverage <= 0.0f) {
+        return 0.0f;
+    }
+    if (coverage >= 1.0f) {
+        return 1.0f;
+    }
+    return std::pow(coverage, 1.0f / 1.8f);
+}
+
+struct IconRecord {
+    int width = 0;
+    int height = 0;
+    std::uint32_t stamp = 0;
+    std::vector<std::uint8_t> alpha;
+};
+
+std::unordered_map<std::uint64_t, IconRecord>& IconMasks() {
+    static std::unordered_map<std::uint64_t, IconRecord> masks;
+    return masks;
+}
+
+std::uint32_t& IconStamp() {
+    static std::uint32_t stamp = 1;
+    return stamp;
+}
+
+std::uint64_t HashShape(const SvgShape& shape, int fitQ, int sample, int kind) {
+    std::uint64_t hash = 1469598103934665603ull;
+    auto mix = [&hash](std::uint64_t value) {
+        hash ^= value;
+        hash *= 1099511628211ull;
+    };
+    mix(static_cast<std::uint64_t>(fitQ));
+    mix(static_cast<std::uint64_t>(sample));
+    mix(static_cast<std::uint64_t>(kind));
+    mix(static_cast<std::uint64_t>(std::lround(shape.strokeWidth * 16.0f)));
+    mix(shape.commands.size());
+    for (const SvgCommand& command : shape.commands) {
+        mix(static_cast<std::uint64_t>(command.kind));
+        mix(static_cast<std::uint64_t>(std::lround(command.x * 16.0f)));
+        mix(static_cast<std::uint64_t>(std::lround(command.y * 16.0f)));
+        mix(static_cast<std::uint64_t>(std::lround(command.c1x * 16.0f)));
+        mix(static_cast<std::uint64_t>(std::lround(command.c1y * 16.0f)));
+        mix(static_cast<std::uint64_t>(std::lround(command.c2x * 16.0f)));
+        mix(static_cast<std::uint64_t>(std::lround(command.c2y * 16.0f)));
+    }
+    return hash;
+}
+
+void RememberIcon(std::uint64_t key, int width, int height, std::vector<std::uint8_t> alpha) {
+    if (width <= 0 || height <= 0 || width * height > 96 * 96) {
+        return;
+    }
+    std::unordered_map<std::uint64_t, IconRecord>& masks = IconMasks();
+    if (masks.find(key) == masks.end() && masks.size() >= 64) {
+        auto oldest = masks.begin();
+        for (auto entry = masks.begin(); entry != masks.end(); ++entry) {
+            if (entry->second.stamp < oldest->second.stamp) {
+                oldest = entry;
+            }
+        }
+        masks.erase(oldest);
+    }
+    IconRecord record;
+    record.width = width;
+    record.height = height;
+    record.stamp = ++IconStamp();
+    record.alpha = std::move(alpha);
+    masks[key] = std::move(record);
+}
+
+void BlitAlpha(FrameBuffer& buffer,
+               const std::uint8_t* alpha,
+               int originX,
+               int originY,
+               int width,
+               int height,
+               const Color& color,
+               float opacity) {
+    for (int row = 0; row < height; ++row) {
+        for (int col = 0; col < width; ++col) {
+            const unsigned char coverage = alpha[static_cast<std::size_t>(row * width + col)];
+            if (coverage == 0) {
+                continue;
+            }
+            buffer.BlendPixel(originX + col, originY + row, color, (coverage / 255.0f) * opacity);
+        }
+    }
+}
+
 void BlitMask(FrameBuffer& buffer,
               const std::vector<unsigned char>& mask,
               int originX,
@@ -246,10 +339,14 @@ void BlitMask(FrameBuffer& buffer,
               int height,
               int sample,
               const Color& color,
-              float opacity) {
+              float opacity,
+              std::vector<std::uint8_t>* stored) {
     const int destW = (width + sample - 1) / sample;
     const int destH = (height + sample - 1) / sample;
     const float sampleCount = static_cast<float>(sample * sample);
+    if (stored != nullptr) {
+        stored->assign(static_cast<std::size_t>(destW * destH), 0);
+    }
     for (int row = 0; row < destH; ++row) {
         for (int col = 0; col < destW; ++col) {
             int covered = 0;
@@ -266,7 +363,12 @@ void BlitMask(FrameBuffer& buffer,
             if (covered == 0) {
                 continue;
             }
-            buffer.BlendPixel(originX + col, originY + row, color, (static_cast<float>(covered) / sampleCount) * opacity);
+            const float ink = DarkenCoverage(static_cast<float>(covered) / sampleCount);
+            if (stored != nullptr) {
+                (*stored)[static_cast<std::size_t>(row * destW + col)] =
+                    static_cast<std::uint8_t>(std::min(255.0f, ink * 255.0f + 0.5f));
+            }
+            buffer.BlendPixel(originX + col, originY + row, color, ink * opacity);
         }
     }
 }
@@ -304,25 +406,39 @@ void PaintShape(FrameBuffer& buffer, const SvgShape& shape, const SvgStyle& styl
     }
     std::vector<unsigned char> mask;
     const float opacity = style.opacity * shape.opacity;
+    const int fitQ = static_cast<int>(std::lround(fitScale * 4.0f));
+    const int destW = (maskW + sample - 1) / sample;
+    const int destH = (maskH + sample - 1) / sample;
+    auto paintCached = [&](int kind, const Color& color, auto raster) {
+        const std::uint64_t key = HashShape(shape, fitQ, sample, kind);
+        const auto found = IconMasks().find(key);
+        if (found != IconMasks().end() && found->second.width == destW && found->second.height == destH) {
+            found->second.stamp = ++IconStamp();
+            BlitAlpha(buffer, found->second.alpha.data(), originX, originY, destW, destH, color, opacity);
+            return;
+        }
+        raster();
+        std::vector<std::uint8_t> stored;
+        BlitMask(buffer, mask, originX, originY, maskW, maskH, sample, color, opacity, &stored);
+        RememberIcon(key, destW, destH, std::move(stored));
+    };
     if (shape.hasFill) {
-        FillMask(paths, shape.fillRule, originX, originY, maskW, maskH, sample, mask);
         Color fill = shape.fill;
         if (!shape.fillToken.empty()) {
             fill = ResolveColor(shape.fill, shape.fillToken);
         } else if (shape.currentFill) {
             fill = style.color;
         }
-        BlitMask(buffer, mask, originX, originY, maskW, maskH, sample, fill, opacity);
+        paintCached(0, fill, [&]() { FillMask(paths, shape.fillRule, originX, originY, maskW, maskH, sample, mask); });
     }
     if (shape.hasStroke && radius > 0.0f) {
-        StrokeMask(paths, radius, originX, originY, maskW, maskH, sample, mask);
         Color stroke = shape.stroke;
         if (!shape.strokeToken.empty()) {
             stroke = ResolveColor(shape.stroke, shape.strokeToken);
         } else if (shape.currentStroke) {
             stroke = style.color;
         }
-        BlitMask(buffer, mask, originX, originY, maskW, maskH, sample, stroke, opacity);
+        paintCached(1, stroke, [&]() { StrokeMask(paths, radius, originX, originY, maskW, maskH, sample, mask); });
     }
 }
 
@@ -361,8 +477,8 @@ SvgPaintResult SvgPainter::Paint(FrameBuffer& buffer,
     const float fit = std::min(width / viewW, height / viewH);
     const float fittedW = viewW * fit;
     const float fittedH = viewH * fit;
-    const float contentX = drawX + (width - fittedW) * 0.5f - style.viewX * fit;
-    const float contentY = originY + (height - fittedH) * 0.5f - style.viewY * fit;
+    const float contentX = std::round(drawX + (width - fittedW) * 0.5f - style.viewX * fit);
+    const float contentY = std::round(originY + (height - fittedH) * 0.5f - style.viewY * fit);
     for (const SvgShape& shape : svg.GetShapes()) {
         PaintShape(buffer, shape, style, contentX, contentY, fit);
     }

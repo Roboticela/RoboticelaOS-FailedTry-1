@@ -101,46 +101,79 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] Z-order; a repaint dirties only the rectangles that changed
 - [x] Closing a window stops its process and restores only the uncovered pixels
 
-## Stage 15 — Text
-- [ ] Unicode data stays a host download
-- [ ] Glyphs are drawn into damage rectangles
-- [ ] Windows show text and never fill the whole screen to do it
+## Stage 15 — Sharp UI type
+- [x] Partial glyph coverage is darkened before it is cached
+- [x] Menu, bar, button, and icon labels snap to whole pixels
+- [x] Inter Bold is its own face; Bold does not alias to SemiBold
+- [x] Menu rows, the top bar, buttons, and folder labels use Medium
+- [x] Glyphs are rasterized at the framebuffer's real pixel size
 
-## Stage 16 — Launcher
+## Stage 16 — Glyph atlas
+- [x] One atlas of 8-bit alpha replaces the per-glyph heap bitmap
+- [x] Paint copies an atlas rectangle into the damage clip
+- [x] Least-recently-used rows leave when the atlas fills
+- [x] Latin glyphs for the menu and bar sizes are built at boot
+
+## Stage 17 — Text runs
+- [ ] A paragraph is styled runs: face, size, color, letter spacing, underline
+- [ ] Wrapping uses advances and kerning
+- [ ] A text change dirties only the lines whose bounds changed
+- [ ] Selection and the caret stay on the glyph records
+
+## Stage 18 — Unicode
+- [ ] Unicode data stays a host download
+- [ ] Cursor, delete, and selection move by grapheme cluster
+- [ ] Line wrap follows the line-break table
+- [ ] Mixed left-to-right and right-to-left text is ordered before glyphs are placed
+
+## Stage 19 — Shaping and fallback
+- [ ] Inter covers Latin, Greek, and Cyrillic
+- [ ] A missing script switches to a fallback face mid-line
+- [ ] Arabic, Hebrew, and Indic shaping is cached per run
+- [ ] A missing glyph draws an empty box and does not stop the line
+- [ ] Emoji and color glyphs come after the shaped runs
+
+## Stage 20 — Text in windows
+- [ ] A window paints its text into its own damage list
+- [ ] The desktop copies that rectangle
+- [ ] Scroll or close invalidates only the uncovered lines
+- [ ] The glyph atlas lives in the long-lived arena; paint does not allocate
+
+## Stage 21 — Launcher
 - [ ] The desktop lists Compiler apps stored on RoboFS
 - [ ] Choosing one starts it in a window
 - [ ] An empty disk still shows the desktop
 
-## Stage 17 — USB keyboard and more pointers
+## Stage 22 — USB keyboard and more pointers
 - [x] USB keyboard on the same RoboInput queue
 - [x] More than one mouse, touchpad, or touch device
 - [x] A missing controller still boots
 
-## Stage 18 — More cores
+## Stage 23 — More cores
 - [x] Further cores join only after the one-core switch stays solid
 - [x] A core with nothing to run sleeps
 - [x] One painter owns the framebuffer
 
-## Stage 19 — GPUs that stay behind rectangles
+## Stage 24 — GPUs that stay behind rectangles
 - [x] Each vendor path, including virtio-gpu, accepts the same rectangles
 - [x] An unknown GPU uses the firmware framebuffer
 - [x] No vendor path blocks boot
 
-## Stage 20 — Network
+## Stage 25 — Network
 - [ ] One NIC, virtio-net or a common PCI Ethernet device
 - [ ] TCP and UDP sockets for an app
 - [ ] A missing NIC still boots the desktop
 
-## Stage 21 — Sound
+## Stage 26 — Sound
 - [ ] One playback path
 - [ ] An app writes samples; audio does not repaint the desktop
 - [ ] A missing device still boots
 
-## Stage 22 — Power
+## Stage 27 — Power
 - [ ] Shutdown and reboot through the firmware tables
 - [ ] Halt remains the fallback when those tables are missing
 
-## Stage 23 — Install and boot
+## Stage 28 — Install and boot
 - [ ] The installed volume holds the bootloader, the kernel, and the apps
 - [ ] RoboFlash.ps1 writes that layout, and still refuses the system drive
 - [ ] QEMU boots that image the same way it boots the build folder

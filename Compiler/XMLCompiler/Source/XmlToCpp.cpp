@@ -2459,10 +2459,11 @@ void XmlToCpp::EmitContextMenuItem(std::ostringstream& code, const XmlNode& node
     std::string label;
     if (node.attributes.count("label") != 0) {
         label = node.attributes.at("label");
-    }
-    for (const XmlNode& text : node.children) {
-        if (text.isText) {
-            label += text.text;
+    } else {
+        for (const XmlNode& text : node.children) {
+            if (text.isText) {
+                label += text.text;
+            }
         }
     }
     code << Indent(indent) << variable << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
@@ -2481,6 +2482,90 @@ void XmlToCpp::EmitContextMenuItem(std::ostringstream& code, const XmlNode& node
     }
     if (menuFlag("checkable")) {
         code << Indent(indent) << variable << ".SetCheckable(true);\n";
+    }
+    int graphicIndex = 0;
+    auto bakeIcon = [&](const std::string& iconName, const std::string& setter) {
+        const auto found = icons_.find(iconName);
+        if (iconName.empty() || found == icons_.end()) {
+            return;
+        }
+        const std::string graphic = variable + "Graphic" + std::to_string(graphicIndex++);
+        code << Indent(indent) << "{\n";
+        code << Indent(indent + 1) << "Robo::Icon " << graphic << ";\n";
+        code << Indent(indent + 1) << graphic << ".SetViewBox(" << FloatLiteral(std::to_string(found->second.viewX)) << ", "
+             << FloatLiteral(std::to_string(found->second.viewY)) << ", "
+             << FloatLiteral(std::to_string(found->second.viewWidth)) << ", "
+             << FloatLiteral(std::to_string(found->second.viewHeight)) << ");\n";
+        code << Indent(indent + 1) << graphic << ".SetWidth(16.0f);\n";
+        code << Indent(indent + 1) << graphic << ".SetHeight(16.0f);\n";
+        code << EmitCompiledShapes(found->second.shapes, indent + 1, graphic, true);
+        code << Indent(indent + 1) << variable << "." << setter << "(" << graphic << ".Bake());\n";
+        code << Indent(indent) << "}\n";
+    };
+    if (node.attributes.count("icon") != 0) {
+        bakeIcon(node.attributes.at("icon"), "SetIcon");
+    }
+    bool submenu = false;
+    for (const XmlNode& child : node.children) {
+        if (child.name == "ContextMenuItem" || child.name == "ContextMenuSeparator") {
+            submenu = true;
+        }
+    }
+    if (submenu || menuFlag("submenu")) {
+        bakeIcon("Chevron", "SetChevron");
+    }
+    if (menuFlag("checkable") || menuFlag("checked")) {
+        bakeIcon("Check", "SetCheckGraphic");
+    }
+    if (node.attributes.count("shortcut") != 0) {
+        std::string shortcut = node.attributes.at("shortcut");
+        while (!shortcut.empty()) {
+            if (shortcut[0] == ' ') {
+                shortcut.erase(0, 1);
+                continue;
+            }
+            std::string iconName;
+            std::size_t used = 0;
+            if (shortcut.compare(0, 5, "Shift") == 0) {
+                iconName = "Shift";
+                used = 5;
+            } else if (shortcut.compare(0, 7, "Command") == 0) {
+                iconName = "Command";
+                used = 7;
+            } else if (shortcut.compare(0, 3, "Cmd") == 0) {
+                iconName = "Command";
+                used = 3;
+            } else if (shortcut.compare(0, 3, "\xE2\x87\xA7") == 0) {
+                iconName = "Shift";
+                used = 3;
+            } else if (shortcut.compare(0, 3, "\xE2\x8C\x98") == 0) {
+                iconName = "Command";
+                used = 3;
+            }
+            if (!iconName.empty()) {
+                const auto found = icons_.find(iconName);
+                if (found != icons_.end()) {
+                    const std::string graphic = variable + "Graphic" + std::to_string(graphicIndex++);
+                    code << Indent(indent) << "{\n";
+                    code << Indent(indent + 1) << "Robo::Icon " << graphic << ";\n";
+                    code << Indent(indent + 1) << graphic << ".SetViewBox(" << FloatLiteral(std::to_string(found->second.viewX)) << ", "
+                         << FloatLiteral(std::to_string(found->second.viewY)) << ", "
+                         << FloatLiteral(std::to_string(found->second.viewWidth)) << ", "
+                         << FloatLiteral(std::to_string(found->second.viewHeight)) << ");\n";
+                    code << Indent(indent + 1) << graphic << ".SetWidth(13.0f);\n";
+                    code << Indent(indent + 1) << graphic << ".SetHeight(13.0f);\n";
+                    code << EmitCompiledShapes(found->second.shapes, indent + 1, graphic, true);
+                    code << Indent(indent + 1) << variable << ".AddShortcutGlyph(" << graphic << ".Bake());\n";
+                    code << Indent(indent) << "}\n";
+                }
+                shortcut.erase(0, used);
+                continue;
+            }
+            const std::size_t end = shortcut.find(' ');
+            const std::string piece = shortcut.substr(0, end);
+            code << Indent(indent) << variable << ".AddShortcutText(\"" << EscapeCpp(piece) << "\");\n";
+            shortcut.erase(0, piece.size());
+        }
     }
     for (const XmlNode& child : node.children) {
         if (child.name != "ContextMenuItem" && child.name != "ContextMenuSeparator") {

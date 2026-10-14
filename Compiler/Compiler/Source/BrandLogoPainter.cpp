@@ -67,7 +67,7 @@ BrandLogoPaintResult BrandLogoPainter::Paint(FrameBuffer& buffer,
         const Color primary = ResolveColor(Color::FromHex("#1D1D1F"), "color.text.primary");
         const Color secondary = ResolveColor(Color::FromHex("#6E6E73"), "color.text.secondary");
         const float tracking = LABEL_TRACKING * fontSize;
-        fonts.DrawString(buffer, textX, baseline, logo.Title(), fontSize, FontFaceId::SemiBold, primary, 1.0f, tracking);
+        fonts.DrawString(buffer, textX, baseline, logo.Title(), fontSize, FontFaceId::SemiBold, primary, 1.0f, tracking, true);
         if (logo.GetVariant() == BrandLogoVariant::Lockup) {
             const float titleWidth = LabelWidth(fonts, logo.Title(), FontFaceId::SemiBold, fontSize);
             const float spaceWidth = LabelWidth(fonts, " ", FontFaceId::SemiBold, fontSize);
@@ -79,7 +79,8 @@ BrandLogoPaintResult BrandLogoPainter::Paint(FrameBuffer& buffer,
                              FontFaceId::Medium,
                              secondary,
                              1.0f,
-                             tracking);
+                             tracking,
+                             true);
         }
     }
     BrandLogoPaintResult result;

@@ -64,6 +64,7 @@ bool EnsureApp() {
     const bool regular = gFonts->LoadFace(Robo::FontFaceId::Regular, gPlatform->LoadAsset("Assets/Fonts/Inter-Regular.ttf"));
     gFonts->LoadFace(Robo::FontFaceId::Medium, gPlatform->LoadAsset("Assets/Fonts/Inter-Medium.ttf"));
     gFonts->LoadFace(Robo::FontFaceId::SemiBold, gPlatform->LoadAsset("Assets/Fonts/Inter-SemiBold.ttf"));
+    gFonts->LoadFace(Robo::FontFaceId::Bold, gPlatform->LoadAsset("Assets/Fonts/Inter-Bold.ttf"));
     gFonts->LoadFace(Robo::FontFaceId::Italic, gPlatform->LoadAsset("Assets/Fonts/Inter-Italic.ttf"));
     if (!regular) {
         return false;
@@ -83,6 +84,7 @@ void Render(int width, int height, float pixelScale) {
     gPixelScale = pixelScale > 0.0f ? pixelScale : 1.0f;
     gPlatform->SetSurfaceSize(gWidth, gHeight);
     gPlatform->SetPixelScale(gPixelScale);
+    gFonts->WarmChrome(gPixelScale);
     gScene.Render(*gPlatform, *gFonts, Robo::Color::FromHex("#FFFFFF"), 28.0f);
     const Robo::Color page = gScene.GetBackground();
     JsSetPageBackground(page.red, page.green, page.blue);

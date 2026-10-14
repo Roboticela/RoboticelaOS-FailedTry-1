@@ -114,12 +114,12 @@ void RoboShellTrackCursor(void* cookie) {
 }
 
 bool RoboLoadFace(Robo::FontFaceId face, const char* name) {
-    uint8_t* file = static_cast<uint8_t*>(malloc(96u * 1024u));
+    uint8_t* file = static_cast<uint8_t*>(malloc(160u * 1024u));
     if (file == nullptr) {
         return false;
     }
     uint32_t size = 0;
-    bool loaded = RoboFsReadFile(name, file, 96u * 1024u, &size) && size > 0;
+    bool loaded = RoboFsReadFile(name, file, 160u * 1024u, &size) && size > 0;
     if (loaded) {
         std::vector<std::uint8_t> bytes(file, file + size);
         loaded = gFonts->LoadFace(face, bytes);
@@ -187,11 +187,14 @@ bool RoboShellStart(RoboDesktop* desktop) {
     RoboLoadFace(Robo::FontFaceId::Regular, "INTERR.TTF");
     RoboLoadFace(Robo::FontFaceId::Medium, "INTERM.TTF");
     RoboLoadFace(Robo::FontFaceId::SemiBold, "INTERS.TTF");
+    RoboLoadFace(Robo::FontFaceId::Bold, "INTERB.TTF");
     RoboLoadFace(Robo::FontFaceId::Italic, "INTERI.TTF");
     gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
     gScene->SetPaintPump(RoboShellTrackCursor, nullptr);
     gPlatform->SetSurfaceSize(desktop->gpu->width, desktop->gpu->height);
-    gPlatform->SetPixelScale(1.0f);
+    const float pixelScale = desktop->gpu->height >= 1800 ? 2.0f : desktop->gpu->height >= 1400 ? 1.5f : 1.0f;
+    gPlatform->SetPixelScale(pixelScale);
+    gFonts->WarmChrome(pixelScale);
     gPlatform->SetScanout(desktop->gpu->base, desktop->gpu->width, desktop->gpu->height, desktop->gpu->stride, desktop->gpu->pixelFormat);
     BuildPage(*gScene);
     RoboDesktopUseCursor(desktop);

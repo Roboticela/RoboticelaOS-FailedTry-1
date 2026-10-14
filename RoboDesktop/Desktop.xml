@@ -13,9 +13,9 @@
       <TopBarMenuItem label="Help"/>
     </TopBarMenu>
     <ContextMenu appearance="light">
-      <ContextMenuItem label="New Folder"/>
-      <ContextMenuItem label="Get Info"/>
-      <ContextMenuItem label="Change Desktop Background…"/>
+      <ContextMenuItem label="New Folder" icon="Folder" shortcut="Shift Command N"/>
+      <ContextMenuItem label="Get Info" icon="Info" shortcut="Command I"/>
+      <ContextMenuItem label="Change Desktop Background…" icon="Image"/>
       <ContextMenuSeparator/>
       <ContextMenuItem label="Use Stacks" checkable="true"/>
       <ContextMenuItem label="Sort By">
@@ -37,7 +37,7 @@
         <ContextMenuItem label="Tags"/>
       </ContextMenuItem>
       <ContextMenuSeparator/>
-      <ContextMenuItem label="Show View Options"/>
+      <ContextMenuItem label="Show View Options" shortcut="Command J"/>
     </ContextMenu>
     <SelectionArea/>
   </Desktop>

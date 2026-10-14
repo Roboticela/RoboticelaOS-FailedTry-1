@@ -16,7 +16,8 @@ enum class FontFaceId {
     Regular,
     Medium,
     SemiBold,
-    Italic
+    Italic,
+    Bold
 };
 
 struct TextGlyphDraw {
@@ -55,7 +56,12 @@ public:
                     FontFaceId faceId,
                     const Color& color,
                     float opacity,
-                    float letterSpacing) const;
+                    float letterSpacing,
+                    bool snap = false) const;
+
+    // Builds the Latin glyphs for menu and bar sizes. The same sizes are used
+    // on QEMU and on real hardware; pixelScale is the framebuffer scale.
+    void WarmChrome(float pixelScale) const;
 
     // Layout one span into a line. The line is highlighted once, then blitted,
     // so adjacent words do not paint overlapping selection edges.
@@ -73,18 +79,39 @@ public:
 
 private:
     struct FaceData;
-    struct CachedGlyph {
+    struct AtlasRow {
+        int y = 0;
+        int height = 0;
+        int used = 0;
+        std::uint32_t stamp = 0;
+    };
+    struct AtlasGlyph {
+        int x = 0;
+        int y = 0;
         int width = 0;
         int height = 0;
         int xOff = 0;
         int yOff = 0;
-        std::vector<std::uint8_t> coverage;
+        int row = -1;
+        std::uint32_t stamp = 0;
     };
 
-    const CachedGlyph& CachedGlyphFor(int faceIndex, int glyph, float fontSize, float shiftX, float shiftY) const;
+    AtlasGlyph CachedGlyphFor(int faceIndex, int glyph, float fontSize, float shiftX, float shiftY) const;
+    void EnsureAtlas() const;
+    void ResetAtlas() const;
+    void EvictOldestRow() const;
+    int PlaceGlyph(int width, int height, int& outX, int& outY) const;
 
-    std::unique_ptr<FaceData> faces_[4];
-    mutable std::unordered_map<std::uint64_t, CachedGlyph> glyphCache_;
+    static constexpr int ATLAS_WIDTH = 512;
+    static constexpr int ATLAS_HEIGHT = 1024;
+
+    std::unique_ptr<FaceData> faces_[5];
+    mutable std::vector<std::uint8_t> atlas_;
+    mutable std::vector<AtlasRow> atlasRows_;
+    mutable int atlasPenY_ = 0;
+    mutable std::uint32_t atlasStamp_ = 1;
+    mutable int warmedScale_ = -1;
+    mutable std::unordered_map<std::uint64_t, AtlasGlyph> glyphCache_;
 };
 
 }  // namespace Robo

@@ -119,10 +119,12 @@ Copy-Item -Force $image (Join-Path $espArm "DESKTOP.BIN")
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-Regular.ttf") (Join-Path $esp "INTERR.TTF")
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-Medium.ttf") (Join-Path $esp "INTERM.TTF")
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-SemiBold.ttf") (Join-Path $esp "INTERS.TTF")
+Copy-Item -Force (Join-Path $assets "Fonts\Inter-Bold.ttf") (Join-Path $esp "INTERB.TTF")
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-Italic.ttf") (Join-Path $esp "INTERI.TTF")
 Copy-Item -Force (Join-Path $esp "INTERR.TTF") (Join-Path $espArm "INTERR.TTF")
 Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")
+Copy-Item -Force (Join-Path $esp "INTERB.TTF") (Join-Path $espArm "INTERB.TTF")
 Copy-Item -Force (Join-Path $esp "INTERI.TTF") (Join-Path $espArm "INTERI.TTF")
 $video = Join-Path $Root "Assets\Background.mp4"
 if (Test-Path $video) {

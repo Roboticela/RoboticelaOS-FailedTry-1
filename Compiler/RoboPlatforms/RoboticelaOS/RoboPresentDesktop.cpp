@@ -61,7 +61,9 @@ int main(int argc, char** argv) {
     const bool regular = fonts.LoadFace(Robo::FontFaceId::Regular, ReadFile(assetRoot + "/Fonts/Inter-Regular.ttf"));
     fonts.LoadFace(Robo::FontFaceId::Medium, ReadFile(assetRoot + "/Fonts/Inter-Medium.ttf"));
     fonts.LoadFace(Robo::FontFaceId::SemiBold, ReadFile(assetRoot + "/Fonts/Inter-SemiBold.ttf"));
+    fonts.LoadFace(Robo::FontFaceId::Bold, ReadFile(assetRoot + "/Fonts/Inter-Bold.ttf"));
     fonts.LoadFace(Robo::FontFaceId::Italic, ReadFile(assetRoot + "/Fonts/Inter-Italic.ttf"));
+    fonts.WarmChrome(1.0f);
     if (!regular) {
         std::cerr << "Inter-Regular.ttf was not loaded. The shell will draw without text.\n";
     }
