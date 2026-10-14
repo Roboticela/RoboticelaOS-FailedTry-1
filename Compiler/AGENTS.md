@@ -43,6 +43,7 @@ ThemeIconToggle
 ✅ - Background (`color` or `fill`, a foundation token such as `{color.bg.primary}`). Fills the shell behind the app.
 ✅ - AppShell (`title`). The bar above the app. Its children are the page: headings, buttons, flex, and the other components.
 ✅ - Dock and DockItem (`icon`, `label`, `selected="true"`). The dock sits on the bottom. A click selects that item and dirties only the dock.
+✅ - SelectionArea (also MarqueeSelection, RubberBandSelection, DragBoxSelection) and SelectionAreaItem (also MarqueeSelectionItem, RubberBandSelectionItem, DragBoxSelectionItem). A drag on empty space draws a rectangle and selects the items it covers. `rule="intersect"` (default) or `rule="contain"`. A click on empty space clears the selection. Ctrl or Command adds, Alt subtracts, and Shift toggles during the drag, using the modifiers from pointer-down. Arrow keys move the selection, Shift+Arrow extends it, and Ctrl or Command+A selects every item. Escape cancels the drag.
 
 
 Use the current which already exists as folders to make everything and put everything correctly in these structure. I want to build first for the web so build it for the web platform first but the implementation must be independant of everything so we will just need to put implementation in RoboPlatforms and must not need any other changes to the code. Use the WebAssembly for web and on request of the page the HTMl will be provided too which will be made of the XML so we can get the best SEO.

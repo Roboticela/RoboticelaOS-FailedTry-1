@@ -11,6 +11,7 @@
 #include "RoboUsb.hpp"
 #include "RoboDisk.hpp"
 #include "RoboCall.hpp"
+#include "RoboFrame.hpp"
 #include "RoboFS.hpp"
 #include "RoboDesktopImage.hpp"
 #include "RoboShell.hpp"
@@ -138,6 +139,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboScheduleStart();
     gShellLive = RoboShellStart(&desktop);
     gShellLoaded = gShellLive || RoboShellLoad(&desktop);
+    RoboFrameStart(&desktop);
     RoboWindow appWindow{};
     appWindow.pixels = gAppPixels;
     if (!gShellLoaded) {
@@ -169,8 +171,15 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                     if (event.dx != 0 || event.dy != 0) {
                         RoboDesktopMoveCursor(&desktop, event.dx, event.dy);
                     }
-                    const bool appOwns = RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
-                    if (!appOwns) {
+                    uint8_t appClient = 0;
+                    int32_t localX = 0;
+                    int32_t localY = 0;
+                    const bool framed = RoboFramePointer(&event, desktop.cursorX, desktop.cursorY, &appClient, &localX, &localY);
+                    if (framed) {
+                        if (appClient != 0) {
+                            RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
+                        }
+                    } else if (!RoboCallOffer(&event, desktop.cursorX, desktop.cursorY)) {
                         RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
                         if (event.code != 0) {
                             if (event.pressed != 0) {
@@ -187,7 +196,9 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                     moved = true;
                 }
             } else if (event.kind == ROBO_INPUT_KEY && gShellLive) {
-                if (!RoboCallOffer(&event, desktop.cursorX, desktop.cursorY)) {
+                if (RoboFrameAppFocused()) {
+                    RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
+                } else {
                     RoboShellKey(event.code, event.pressed != 0);
                 }
                 shellInput = true;
@@ -214,8 +225,15 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
                 }
                 if (gShellLive) {
                     RoboDesktopPlaceCursor(&desktop, placeX, placeY);
-                    const bool appOwns = RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
-                    if (!appOwns) {
+                    uint8_t appClient = 0;
+                    int32_t localX = 0;
+                    int32_t localY = 0;
+                    const bool framed = RoboFramePointer(&event, desktop.cursorX, desktop.cursorY, &appClient, &localX, &localY);
+                    if (framed) {
+                        if (appClient != 0) {
+                            RoboCallOffer(&event, desktop.cursorX, desktop.cursorY);
+                        }
+                    } else if (!RoboCallOffer(&event, desktop.cursorX, desktop.cursorY)) {
                         RoboShellPointerMove(desktop.cursorX, desktop.cursorY);
                         if (event.code != 0) {
                             if (event.pressed != 0) {
@@ -249,6 +267,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
             }
             RoboArchSti();
             if (RoboShellFlush(&desktop)) {
+                RoboFrameCompose(&desktop);
                 shellInput = true;
             }
         }

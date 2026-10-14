@@ -1679,6 +1679,8 @@ void RoboScene::Clear() {
     desktop_ = Desktop();
     hoveredDock_ = -1;
     hoveredMenu_ = -1;
+    focusedSelection_ = -1;
+    modifiers_ = 0;
     hoveredButton_ = nullptr;
     hoveredInput_ = nullptr;
     hoveredScrollbar_ = nullptr;
@@ -1729,6 +1731,23 @@ void RoboScene::AddContainer(Container container) {
     item.kind = SceneItemKind::Container;
     item.container = std::make_shared<Container>(std::move(container));
     items_.push_back(std::move(item));
+}
+
+void RoboScene::AddSelectionArea(SelectionArea area) {
+    if (focusedSelection_ < 0) {
+        area.SetKeyboardFocus(true);
+    }
+    SceneItem item;
+    item.kind = SceneItemKind::SelectionArea;
+    item.selectionArea = std::move(area);
+    if (focusedSelection_ < 0) {
+        focusedSelection_ = static_cast<int>(items_.size());
+    }
+    items_.push_back(std::move(item));
+}
+
+void RoboScene::SetModifiers(int modifiers) {
+    modifiers_ = modifiers;
 }
 
 void RoboScene::AddFlexbox(Flexbox flexbox) {
@@ -1855,6 +1874,34 @@ void RoboScene::AddDockItem(DockItem item) {
     desktop_.AddDockItem(std::move(item));
 }
 
+void RoboScene::DirtySelection(SelectionArea& area) {
+    const SelectionBounds& bounds = area.GetBounds();
+    if (bounds.width > 0.0f && bounds.height > 0.0f) {
+        MarkDirty(bounds.x, bounds.y, bounds.width, bounds.height);
+    } else {
+        MarkFullDirty();
+    }
+}
+
+SelectionArea* RoboScene::GesturingSelection() {
+    for (SceneItem& item : items_) {
+        if (item.kind == SceneItemKind::SelectionArea && item.selectionArea.GetGesture() != SelectionGesture::Idle) {
+            return &item.selectionArea;
+        }
+    }
+    return nullptr;
+}
+
+SelectionArea* RoboScene::SelectionAt(float x, float y) {
+    for (int index = static_cast<int>(items_.size()) - 1; index >= 0; --index) {
+        SceneItem& item = items_[static_cast<std::size_t>(index)];
+        if (item.kind == SceneItemKind::SelectionArea && item.selectionArea.GetBounds().Contains(x, y)) {
+            return &item.selectionArea;
+        }
+    }
+    return nullptr;
+}
+
 void RoboScene::DirtyMenuBar() {
     if (!desktop_.HasTopBarMenu()) {
         return;
@@ -1900,6 +1947,10 @@ void RoboScene::MarkSurfaceDirty() {
     dirtyTop_ = 0.0f;
     dirtyRight_ = static_cast<float>(paintedWidth_);
     dirtyBottom_ = static_cast<float>(paintedHeight_);
+}
+
+void RoboScene::DamageRect(float x, float y, float width, float height) {
+    MarkDirty(x, y, width, height);
 }
 
 void RoboScene::MarkDirty(float x, float y, float width, float height) {
@@ -2454,6 +2505,23 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 const float advance = item.motionShape.Height() * paintScale + 12.0f * paintScale;
                 cursorY += advance;
                 contentRight = std::max(contentRight, columnX + item.motionShape.Width() * paintScale + scrollX_);
+            } else if (item.kind == SceneItemKind::SelectionArea) {
+                float areaX = columnX;
+                float areaY = cursorY;
+                float areaW = columnW;
+                float areaH = 420.0f * paintScale;
+                if (desktop_.IsEnabled()) {
+                    areaX = 0.0f;
+                    areaY = desktopChrome.contentY;
+                    areaW = static_cast<float>(width);
+                    areaH = desktopChrome.contentHeight;
+                }
+                SelectionAreaPainter::Paint(frame, fonts, item.selectionArea, areaX, areaY, areaW, areaH, paintScale,
+                                            theme_ == Theme::Dark);
+                if (!desktop_.IsEnabled()) {
+                    cursorY += areaH;
+                    contentRight = std::max(contentRight, areaX + areaW + scrollX_);
+                }
             } else if (item.kind == SceneItemKind::Position) {
                 const PositionPaintResult painted =
                     PositionPainter::Paint(frame, fonts, item.position, columnX, cursorY, columnW, paintScale);
@@ -3941,7 +4009,21 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
     if (focusedInput_ && key != "Tab") {
         return false;
     }
-    if (desktop_.HasTopBarMenu() && !focusedInput_ && !focusedSidebarItem_) {
+    if (focusedSelection_ >= 0 && focusedSelection_ < static_cast<int>(items_.size())) {
+        SceneItem& item = items_[static_cast<std::size_t>(focusedSelection_)];
+        if (item.kind == SceneItemKind::SelectionArea && item.selectionArea.HasKeyboardFocus()) {
+            if (item.selectionArea.KeyDown(key, shift, modifiers_)) {
+                DirtySelection(item.selectionArea);
+                return true;
+            }
+        }
+    }
+    bool selectionOwnsKeys = false;
+    if (focusedSelection_ >= 0 && focusedSelection_ < static_cast<int>(items_.size())) {
+        const SceneItem& item = items_[static_cast<std::size_t>(focusedSelection_)];
+        selectionOwnsKeys = item.kind == SceneItemKind::SelectionArea && item.selectionArea.HasKeyboardFocus();
+    }
+    if (desktop_.HasTopBarMenu() && !focusedInput_ && !focusedSidebarItem_ && !selectionOwnsKeys) {
         TopBarMenu& menu = desktop_.GetTopBarMenu();
         if (key == "ArrowLeft" || key == "ArrowRight") {
             if (menu.MoveFocus(key == "ArrowRight" ? 1 : -1)) {
@@ -4190,6 +4272,12 @@ bool RoboScene::SetFocusedInput(Input* input) {
 }
 
 bool RoboScene::PointerMove(float x, float y) {
+    if (SelectionArea* area = GesturingSelection()) {
+        if (area->PointerMove(x, y)) {
+            DirtySelection(*area);
+            return true;
+        }
+    }
     selectX_ = x;
     selectY_ = y;
     if (desktop_.IsEnabled()) {
@@ -4333,6 +4421,12 @@ bool RoboScene::PointerMove(float x, float y) {
 }
 
 bool RoboScene::LongPressSelect(float x, float y) {
+    if (SelectionArea* area = SelectionAt(x, y)) {
+        if (area->LongPress(x, y)) {
+            DirtySelection(*area);
+            return true;
+        }
+    }
     selectX_ = x;
     selectY_ = y;
     float oldX = 0.0f;
@@ -4361,6 +4455,13 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
             TopBarMenu& menu = desktop_.GetTopBarMenu();
             const bool insideMenu = menu.BarHeight() > 0.0f && y >= menu.BarY() && y < menu.BarY() + menu.BarHeight();
             if (insideMenu) {
+                if (focusedSelection_ >= 0 && focusedSelection_ < static_cast<int>(items_.size())) {
+                    SceneItem& item = items_[static_cast<std::size_t>(focusedSelection_)];
+                    if (item.kind == SceneItemKind::SelectionArea) {
+                        item.selectionArea.SetKeyboardFocus(false);
+                    }
+                    focusedSelection_ = -1;
+                }
                 const int slot = menu.Hit(x, y);
                 if (slot >= 0 && menu.SlotEnabled(slot)) {
                     menu.Press(slot);
@@ -4386,6 +4487,22 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
             }
             return true;
         }
+    }
+    if (SelectionArea* area = SelectionAt(x, y)) {
+        for (SceneItem& item : items_) {
+            if (item.kind == SceneItemKind::SelectionArea && &item.selectionArea != area) {
+                item.selectionArea.SetKeyboardFocus(false);
+            }
+        }
+        for (int index = 0; index < static_cast<int>(items_.size()); ++index) {
+            if (&items_[static_cast<std::size_t>(index)].selectionArea == area &&
+                items_[static_cast<std::size_t>(index)].kind == SceneItemKind::SelectionArea) {
+                focusedSelection_ = index;
+            }
+        }
+        area->PointerDown(x, y, fromTouch, clicks, modifiers_);
+        DirtySelection(*area);
+        return true;
     }
     panningContainer_ = nullptr;
     selectX_ = x;
@@ -4548,6 +4665,11 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
 
 bool RoboScene::PointerUp(float x, float y) {
     bool changed = false;
+    if (SelectionArea* area = GesturingSelection()) {
+        area->PointerUp(x, y);
+        DirtySelection(*area);
+        changed = true;
+    }
     if (desktop_.HasTopBarMenu() && desktop_.GetTopBarMenu().Pressed() >= 0) {
         TopBarMenu& menu = desktop_.GetTopBarMenu();
         menu.ReleasePress(menu.Hit(x, y));
@@ -4979,6 +5101,13 @@ bool RoboScene::KeyRight() {
 }
 
 bool RoboScene::KeyEscape() {
+    if (focusedSelection_ >= 0 && focusedSelection_ < static_cast<int>(items_.size())) {
+        SceneItem& item = items_[static_cast<std::size_t>(focusedSelection_)];
+        if (item.kind == SceneItemKind::SelectionArea && item.selectionArea.Cancel()) {
+            DirtySelection(item.selectionArea);
+            return true;
+        }
+    }
     if (focusedInput_) {
         const bool changed = SetFocusedInput(nullptr);
         if (changed) {

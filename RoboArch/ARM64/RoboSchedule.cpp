@@ -3,6 +3,7 @@
 #include "RoboCpu.hpp"
 #include "RoboMemory.hpp"
 #include "RoboCall.hpp"
+#include "RoboFrame.hpp"
 #include "RoboProcess.hpp"
 #include "RoboTimer.hpp"
 
@@ -10,7 +11,7 @@ extern "C" uint64_t gRoboKernelRsp;
 
 namespace {
 
-constexpr uint32_t ROBO_THREAD_LIMIT = 4u;
+constexpr uint32_t ROBO_THREAD_LIMIT = 6u;
 constexpr uint8_t ROBO_THREAD_READY = 1u;
 constexpr uint8_t ROBO_THREAD_SLEEP = 2u;
 
@@ -106,6 +107,32 @@ void RoboScheduleSwitch(uint32_t next) {
 
 }  // namespace
 
+uint32_t RoboThreadCurrent(void) {
+    return gCurrent;
+}
+
+uint32_t RoboThreadSpawn(void (*entry)(void)) {
+    uint32_t before = gThreadCount;
+    RoboThreadPrepare(entry, RoboMemoryKernelCr3());
+    if (gThreadCount == before) {
+        return 0;
+    }
+    return gThreadCount - 1u;
+}
+
+void RoboThreadStop(uint32_t index) {
+    if (index == 0 || index >= gThreadCount || gThreads[index].used == 0) {
+        return;
+    }
+    if (index == gCurrent) {
+        RoboThreadEnd(2u);
+        return;
+    }
+    gThreads[index].used = 0;
+    gThreads[index].state = 0;
+    gThreads[index].rsp = 0;
+}
+
 void RoboKernelRspSet(uint64_t stackTop) {
     gRoboKernelRsp = stackTop;
 }
@@ -148,7 +175,9 @@ void RoboThreadSleep(uint64_t wakeTick) {
 }
 
 void RoboThreadEnd(uint32_t reason) {
+    uint32_t thread = gCurrent;
     RoboCallBlur();
+    RoboFrameRelease(thread);
     RoboProcessNote(reason);
     gThreads[gCurrent].used = 0;
     gThreads[gCurrent].state = 0;

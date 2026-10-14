@@ -97,9 +97,9 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 - [x] Keys and the pointer reach the app that owns the focused window
 
 ## Stage 14 — Many windows
-- [ ] More than one window, with focus, drag, resize, and close
-- [ ] Z-order; a repaint dirties only the rectangles that changed
-- [ ] Closing a window stops its process and restores only the uncovered pixels
+- [x] More than one window, with focus, drag, resize, and close
+- [x] Z-order; a repaint dirties only the rectangles that changed
+- [x] Closing a window stops its process and restores only the uncovered pixels
 
 ## Stage 15 — Text
 - [ ] Unicode data stays a host download

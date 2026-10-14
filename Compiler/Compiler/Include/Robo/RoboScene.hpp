@@ -20,6 +20,8 @@
 #include "Parse.hpp"
 #include "Position.hpp"
 #include "Scrollbar.hpp"
+#include "SelectionArea.hpp"
+#include "SelectionAreaPainter.hpp"
 #include "Svg.hpp"
 #include "Text.hpp"
 
@@ -46,7 +48,8 @@ enum class SceneItemKind {
     Separator,
     ThemeToggle,
     ThemeIconToggle,
-    MotionShape
+    MotionShape,
+    SelectionArea
 };
 
 enum class HitKind {
@@ -76,6 +79,7 @@ struct SceneItem {
     ThemeToggle themeToggle;
     ThemeIconToggle themeIconToggle;
     MotionShape motionShape;
+    Robo::SelectionArea selectionArea;
 };
 
 class RoboScene {
@@ -86,6 +90,8 @@ public:
     void AddInput(Input input);
     void AddScrollbar(Scrollbar scrollbar);
     void AddContainer(Container container);
+    void AddSelectionArea(SelectionArea area);
+    void SetModifiers(int modifiers);
     void AddFlexbox(Flexbox flexbox);
     void AddGrid(Grid grid);
     void AddPosition(Position position);
@@ -152,6 +158,7 @@ public:
     // True while any control still needs animation frames.
     bool NeedsTick();
     bool NeedsRender() const;
+    void DamageRect(float x, float y, float width, float height);
 
     bool KeyInsert(const std::string& utf8);
     bool KeyBackspace();
@@ -207,6 +214,9 @@ private:
     void MarkSurfaceDirty();
     void MarkDirty(float x, float y, float width, float height);
     void DirtyMenuBar();
+    void DirtySelection(SelectionArea& area);
+    SelectionArea* GesturingSelection();
+    SelectionArea* SelectionAt(float x, float y);
     void DirtyButton(const Button* button);
     void DirtyInput(const Input* input);
     void DirtyScrollbar(const Scrollbar* scrollbar);
@@ -227,6 +237,8 @@ private:
     Desktop desktop_;
     int hoveredDock_ = -1;
     int hoveredMenu_ = -1;
+    int focusedSelection_ = -1;
+    int modifiers_ = 0;
     Button* hoveredButton_ = nullptr;
     Input* hoveredInput_ = nullptr;
     Scrollbar* hoveredScrollbar_ = nullptr;

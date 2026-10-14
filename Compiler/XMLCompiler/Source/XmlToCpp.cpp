@@ -18,6 +18,16 @@ bool IsPaneItem(const std::string& name) {
     return name == "SidebarItem" || name == "PaneItem" || name == "PaneItems";
 }
 
+bool IsSelectionAreaName(const std::string& name) {
+    return name == "SelectionArea" || name == "MarqueeSelection" || name == "RubberBandSelection" ||
+           name == "DragBoxSelection";
+}
+
+bool IsSelectionItemName(const std::string& name) {
+    return name == "SelectionAreaItem" || name == "MarqueeSelectionItem" || name == "RubberBandSelectionItem" ||
+           name == "DragBoxSelectionItem";
+}
+
 }  // namespace
 
 std::string XmlToCpp::Indent(int level) const {
@@ -463,6 +473,11 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
         }
         code << calls.str();
         code << Indent(indent) << "}\n";
+        return code.str();
+    }
+
+    if (IsSelectionAreaName(node.name)) {
+        EmitSelectionArea(code, node, indent);
         return code.str();
     }
 
@@ -2230,6 +2245,75 @@ void XmlToCpp::EmitDockItem(std::ostringstream& code,
     }
 }
 
+void XmlToCpp::EmitSelectionArea(std::ostringstream& code, const XmlNode& node, int indent) const {
+    code << Indent(indent) << "{\n";
+    code << Indent(indent + 1) << "Robo::SelectionArea selectionArea;\n";
+    if (node.attributes.count("rule") != 0) {
+        const std::string rule = node.attributes.at("rule");
+        const bool contain = rule == "contain" || rule == "contained" || rule == "inside";
+        code << Indent(indent + 1) << "selectionArea.SetInclusion("
+             << (contain ? "Robo::SelectionInclusion::Contain" : "Robo::SelectionInclusion::Intersect") << ");\n";
+    }
+    if (node.attributes.count("mode") != 0) {
+        const std::string mode = node.attributes.at("mode");
+        std::string value = "Robo::SelectionCombine::Replace";
+        if (mode == "add") {
+            value = "Robo::SelectionCombine::Add";
+        } else if (mode == "subtract") {
+            value = "Robo::SelectionCombine::Subtract";
+        } else if (mode == "toggle") {
+            value = "Robo::SelectionCombine::Toggle";
+        }
+        code << Indent(indent + 1) << "selectionArea.SetCombine(" << value << ");\n";
+    }
+    if (node.attributes.count("threshold") != 0) {
+        code << Indent(indent + 1) << "selectionArea.SetThreshold(" << FloatLiteral(node.attributes.at("threshold"))
+             << ");\n";
+    }
+    int itemIndex = 0;
+    for (const XmlNode& item : node.children) {
+        if (!IsSelectionItemName(item.name)) {
+            continue;
+        }
+        std::string label;
+        if (item.attributes.count("label") != 0) {
+            label = item.attributes.at("label");
+        }
+        for (const XmlNode& text : item.children) {
+            if (text.isText) {
+                label += text.text;
+            }
+        }
+        const std::string itemName = "selectionAreaItem" + std::to_string(itemIndex++);
+        code << Indent(indent + 1) << "Robo::SelectionAreaItem " << itemName << ";\n";
+        code << Indent(indent + 1) << itemName << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
+        if (item.attributes.count("x") != 0 || item.attributes.count("y") != 0) {
+            const std::string x = item.attributes.count("x") != 0 ? FloatLiteral(item.attributes.at("x")) : "0.0f";
+            const std::string y = item.attributes.count("y") != 0 ? FloatLiteral(item.attributes.at("y")) : "0.0f";
+            code << Indent(indent + 1) << itemName << ".SetPosition(" << x << ", " << y << ");\n";
+        }
+        if (item.attributes.count("width") != 0 || item.attributes.count("height") != 0) {
+            const std::string width =
+                item.attributes.count("width") != 0 ? FloatLiteral(item.attributes.at("width")) : "104.0f";
+            const std::string height =
+                item.attributes.count("height") != 0 ? FloatLiteral(item.attributes.at("height")) : "96.0f";
+            code << Indent(indent + 1) << itemName << ".SetSize(" << width << ", " << height << ");\n";
+        }
+        auto flag = [&](const char* name) {
+            return item.attributes.count(name) != 0 && item.attributes.at(name) != "false" && item.attributes.at(name) != "0";
+        };
+        if (flag("selected")) {
+            code << Indent(indent + 1) << itemName << ".SetSelected(true);\n";
+        }
+        if (flag("locked") || flag("disabled")) {
+            code << Indent(indent + 1) << itemName << ".SetLocked(true);\n";
+        }
+        code << Indent(indent + 1) << "selectionArea.AddItem(std::move(" << itemName << "));\n";
+    }
+    code << Indent(indent + 1) << "scene.AddSelectionArea(std::move(selectionArea));\n";
+    code << Indent(indent) << "}\n";
+}
+
 void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int indent) const {
     code << Indent(indent) << "scene.EnableDesktop();\n";
     int dockIndex = 0;
@@ -2281,6 +2365,8 @@ void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int in
             }
         } else if (child.name == "TopBarMenu") {
             EmitTopBarMenu(code, child, indent);
+        } else if (IsSelectionAreaName(child.name)) {
+            EmitSelectionArea(code, child, indent);
         } else if (child.name == "Dock") {
             for (const XmlNode& item : child.children) {
                 if (item.name != "DockItem") {

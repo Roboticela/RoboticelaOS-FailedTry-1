@@ -58,16 +58,34 @@ function WritePageIndex(outDir, title, assetBase) {
         requestAnimationFrame(frame);
       };
       requestAnimationFrame(frame);
+      const modifiers = (event) =>
+        (event.shiftKey ? 1 : 0) | (event.ctrlKey ? 2 : 0) | (event.metaKey ? 4 : 0) | (event.altKey ? 8 : 0);
+      let pressTimer = 0;
+      const clearPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = 0;
+        }
+      };
       canvas.addEventListener("pointermove", (event) => {
         const [x, y] = point(event);
         follow(app.PointerMove(x, y));
       });
       canvas.addEventListener("pointerdown", (event) => {
         canvas.focus();
+        app.SetModifiers(modifiers(event));
+        if (canvas.setPointerCapture) {
+          canvas.setPointerCapture(event.pointerId);
+        }
         const [x, y] = point(event);
-        follow(app.PointerDown(x, y, event.pointerType === "touch", 1));
+        clearPress();
+        if (event.pointerType === "touch") {
+          pressTimer = setTimeout(() => follow(app.LongPressSelect(x, y)), 500);
+        }
+        follow(app.PointerDown(x, y, event.pointerType === "touch", event.detail || 1));
       });
       window.addEventListener("pointerup", (event) => {
+        clearPress();
         const [x, y] = point(event);
         follow(app.PointerUp(x, y));
       });
@@ -78,6 +96,11 @@ function WritePageIndex(outDir, title, assetBase) {
         follow(app.Wheel(x, y, event.deltaX, event.deltaY));
       }, { passive: false });
       canvas.addEventListener("keydown", (event) => {
+        app.SetModifiers(modifiers(event));
+        if (app.KeyDown(event.key, event.shiftKey)) {
+          event.preventDefault();
+          return;
+        }
         if (event.key === "Backspace") app.KeyBackspace();
         else if (event.key === "Delete") app.KeyDelete();
         else if (event.key === "Escape") app.KeyEscape();
@@ -85,6 +108,7 @@ function WritePageIndex(outDir, title, assetBase) {
         else if (event.key === "ArrowRight") app.KeyRight();
         else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) app.KeyInsert(event.key);
       });
+      canvas.addEventListener("keyup", (event) => app.SetModifiers(modifiers(event)));
     });
   </script>
 </body>

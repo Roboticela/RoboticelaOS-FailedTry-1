@@ -12,3 +12,4 @@ void RoboShellKey(uint16_t code, bool pressed);
 bool RoboShellFlush(RoboDesktop* desktop);
 bool RoboShellTick(uint32_t deltaMs);
 void RoboShellSetBackground(const char* path);
+void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height);

@@ -404,7 +404,9 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
     if (desktop.HasTopBarMenu()) {
         TopBarMenu& menu = desktop.GetTopBarMenu();
         const float barHeight = chrome.menuHeight;
-        menu.SetBar(0.0f, 0.0f, static_cast<float>(buffer.GetWidth()), barHeight);
+        const int barPixels = std::max(1, static_cast<int>(std::round(barHeight)));
+        const float buttonHeight = static_cast<float>(barPixels);
+        menu.SetBar(0.0f, 0.0f, static_cast<float>(buffer.GetWidth()), buttonHeight);
         const float pad = MENU_PAD * scale;
         const float appX = MENU_APP_X * scale;
         const float fontSize = MENU_FONT * scale;
@@ -454,7 +456,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         const float appleSlotX = std::max(0.0f, appleX - itemPad);
         const float appleSlotRight = appleX + appleW + itemPad;
         const float appleSlotW = appleSlotRight - appleSlotX;
-        menu.SetAppleBounds(Slot(appleSlotX, 0.0f, appleSlotW, barHeight));
+        menu.SetAppleBounds(Slot(appleSlotX, 0.0f, appleSlotW, buttonHeight));
 
         const float appWidth = fonts.MeasureWidth(menu.GetApp(), fontSize, FontFaceId::SemiBold, 0.0f);
         float appSlotX = appX - itemPad;
@@ -463,7 +465,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
             appSlotX = appleLimit;
         }
         const float appSlotW = std::max(appWidth, (appX + appWidth + itemPad) - appSlotX);
-        menu.SetAppBounds(Slot(appSlotX, 0.0f, appSlotW, barHeight));
+        menu.SetAppBounds(Slot(appSlotX, 0.0f, appSlotW, buttonHeight));
 
         float labelX = appX + appWidth + itemPad + gap * 0.25f;
         std::vector<TopBarMenuItem>& labels = menu.Items();
@@ -478,7 +480,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 item.SetBounds(Slot(0.0f, 0.0f, 0.0f, 0.0f));
                 continue;
             }
-            item.SetBounds(Slot(labelX, 0.0f, slotWidth, barHeight));
+            item.SetBounds(Slot(labelX, 0.0f, slotWidth, buttonHeight));
             labelX += slotWidth;
         }
 
@@ -486,7 +488,6 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
             !buffer.MissesClip(0, 0, buffer.GetWidth(), std::max(1, static_cast<int>(std::ceil(barHeight))));
         if (paintBar) {
             buffer.Pump();
-            const int barPixels = std::max(1, static_cast<int>(std::round(barHeight)));
             const float cover = 1.0f - std::max(0.0f, std::min(1.0f, menu.GetTransparency()));
             buffer.FillRect(0, 0, buffer.GetWidth(), barPixels, barColor, cover);
             buffer.FillRect(0, barPixels - 1, buffer.GetWidth(), 1, borderColor, cover);
@@ -510,12 +511,19 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 }
                 const bool highlighted = active == index || focused == index;
                 const bool hot = hovered == index;
+                Color fill = hoverFill;
                 if (pressed == index && highlighted) {
-                    buffer.FillRoundedRect(x, 0.0f, width, barHeight, radius, pressedFill);
+                    fill = pressedFill;
                 } else if (highlighted) {
-                    buffer.FillRoundedRect(x, 0.0f, width, barHeight, radius, focused == index ? focusColor : activeFill);
-                } else if (hot) {
-                    buffer.FillRoundedRect(x, 0.0f, width, barHeight, radius, hoverFill);
+                    fill = focused == index ? focusColor : activeFill;
+                } else if (!hot) {
+                    return;
+                }
+                buffer.FillRoundedRect(x, 0.0f, width, buttonHeight, radius, fill);
+                const int straightLeft = static_cast<int>(std::ceil(x + radius));
+                const int straightRight = static_cast<int>(std::floor(x + width - radius));
+                if (straightRight > straightLeft) {
+                    buffer.FillRect(straightLeft, barPixels - 1, straightRight - straightLeft, 1, fill);
                 }
             };
             paintButton(appleSlotX, appleSlotW, 0, false);

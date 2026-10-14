@@ -2,9 +2,10 @@
 
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
-#include "RoboGPUVendor.hpp"
+#include "RoboFrame.hpp"
 #include "RoboInput.hpp"
 #include "RoboProgram.hpp"
+#include "RoboSchedule.hpp"
 #include "RoboTimer.hpp"
 
 namespace {
@@ -13,8 +14,6 @@ constexpr uint32_t ROBO_CALL_QUEUE = 16u;
 constexpr char ROBO_CALL_APP[] = "App";
 
 RoboDesktop* gDesktop = nullptr;
-uint32_t gWindowPixels[ROBO_CALL_WINDOW_W * ROBO_CALL_WINDOW_H];
-RoboWindow gWindow{};
 uint8_t gFocused = 0;
 uint64_t gCodeBytes = 0;
 uint64_t gHeapBytes = 0;
@@ -73,19 +72,15 @@ void RoboCallEnqueue(const RoboCallInputEvent* event) {
 }
 
 bool RoboCallHit(int32_t x, int32_t y) {
-    return gFocused != 0 && x >= gWindow.x && y >= gWindow.y && x < gWindow.x + gWindow.width && y < gWindow.y + gWindow.height;
+    RoboFrameView view{};
+    if (gFocused == 0 || !RoboFrameAppView(&view)) {
+        return false;
+    }
+    return x >= view.screenX && y >= view.screenY && x < view.screenX + view.width && y < view.screenY + view.height;
 }
 
 uint32_t RoboCallPack(uint8_t red, uint8_t green, uint8_t blue) {
     return (static_cast<uint32_t>(red) << 16) | (static_cast<uint32_t>(green) << 8) | blue;
-}
-
-void RoboCallFence(void) {
-#if defined(__aarch64__)
-    __asm__ volatile("dsb sy" ::: "memory");
-#else
-    __asm__ volatile("sfence" ::: "memory");
-#endif
 }
 
 int RoboCallFile(uint64_t number, uint64_t path, uint64_t data, uint64_t capacityArg, uint64_t sizeOut) {
@@ -140,7 +135,8 @@ int RoboCallFile(uint64_t number, uint64_t path, uint64_t data, uint64_t capacit
 }
 
 uint64_t RoboCallPresentRect(uint64_t requestAddress) {
-    if (!gFocused || gDesktop == nullptr || gDesktop->gpu == nullptr || !RoboCallUser(requestAddress, sizeof(RoboCallPresent))) {
+    RoboFrameView view{};
+    if (!gFocused || gDesktop == nullptr || gDesktop->gpu == nullptr || !RoboFrameAppView(&view) || !RoboCallUser(requestAddress, sizeof(RoboCallPresent))) {
         return 1u;
     }
     RoboCallPresent request = *reinterpret_cast<const RoboCallPresent*>(requestAddress);
@@ -168,14 +164,14 @@ uint64_t RoboCallPresentRect(uint64_t requestAddress) {
     if (y + height > request.surfaceHeight) {
         height = request.surfaceHeight - y;
     }
-    if (x >= gWindow.width || y >= gWindow.height) {
+    if (x >= view.width || y >= view.height) {
         return 1u;
     }
-    if (x + width > gWindow.width) {
-        width = gWindow.width - x;
+    if (x + width > view.width) {
+        width = view.width - x;
     }
-    if (y + height > gWindow.height) {
-        height = gWindow.height - y;
+    if (y + height > view.height) {
+        height = view.height - y;
     }
     if (width <= 0 || height <= 0) {
         return 1u;
@@ -188,18 +184,14 @@ uint64_t RoboCallPresentRect(uint64_t requestAddress) {
     const uint8_t* source = reinterpret_cast<const uint8_t*>(request.pixels + span);
     for (int32_t row = 0; row < height; ++row) {
         const uint8_t* from = source + static_cast<uint64_t>(row) * static_cast<uint32_t>(request.stride);
-        uint32_t* dest = gWindowPixels + static_cast<int64_t>(y + row) * gWindow.width + x;
+        uint32_t* dest = view.pixels + static_cast<int64_t>(view.originY + y + row) * view.stride + view.originX + x;
         for (int32_t column = 0; column < width; ++column) {
             dest[column] = RoboCallPack(from[0], from[1], from[2]);
             from += 4;
         }
     }
-    int32_t screenX = gWindow.x + x;
-    int32_t screenY = gWindow.y + y;
-    if (!RoboGPUVendorPresent(source, request.stride, screenX, screenY, width, height, gDesktop->gpu->width, gDesktop->gpu->height, gDesktop->gpu->pixelFormat)) {
-        RoboGPUCopyRect(gDesktop->gpu, screenX, screenY, gWindowPixels, gWindow.width, gWindow.height, x, y, width, height);
-        RoboCallFence();
-    }
+    RoboFrameShow(RoboThreadCurrent(), x, y, width, height);
+    (void)source;
     return 0u;
 }
 
@@ -207,11 +199,6 @@ uint64_t RoboCallPresentRect(uint64_t requestAddress) {
 
 void RoboCallBind(RoboDesktop* desktop) {
     gDesktop = desktop;
-    gWindow.pixels = gWindowPixels;
-    gWindow.x = ROBO_CALL_WINDOW_X;
-    gWindow.y = ROBO_CALL_WINDOW_Y;
-    gWindow.width = ROBO_CALL_WINDOW_W;
-    gWindow.height = ROBO_CALL_WINDOW_H;
 }
 
 void RoboCallFocus(uint32_t codeBytes, uint32_t heapBytes) {
@@ -226,6 +213,7 @@ void RoboCallFocus(uint32_t codeBytes, uint32_t heapBytes) {
     }
     gQueueHead = 0;
     gQueueTail = 0;
+    RoboFrameOpen(RoboThreadCurrent(), 48, 250, 260, 150, 1u);
 }
 
 void RoboCallBlur(void) {
@@ -245,20 +233,30 @@ bool RoboCallOffer(const RoboInputEvent* event, int32_t x, int32_t y) {
         queued.kind = event->kind;
         queued.pressed = event->pressed;
         queued.code = event->code;
-        queued.x = x - gWindow.x;
-        queued.y = y - gWindow.y;
+        RoboFrameView view{};
+        queued.x = 0;
+        queued.y = 0;
+        if (RoboFrameAppView(&view)) {
+            queued.x = x - view.screenX;
+            queued.y = y - view.screenY;
+        }
         RoboCallEnqueue(&queued);
         return true;
     }
     if (!RoboCallHit(x, y)) {
         return false;
     }
+    RoboFrameView view{};
     RoboCallInputEvent queued{};
     queued.kind = event->kind;
     queued.pressed = event->pressed;
     queued.code = event->code;
-    queued.x = x - gWindow.x;
-    queued.y = y - gWindow.y;
+    queued.x = 0;
+    queued.y = 0;
+    if (RoboFrameAppView(&view)) {
+        queued.x = x - view.screenX;
+        queued.y = y - view.screenY;
+    }
     queued.dx = event->dx;
     queued.dy = event->dy;
     RoboCallEnqueue(&queued);

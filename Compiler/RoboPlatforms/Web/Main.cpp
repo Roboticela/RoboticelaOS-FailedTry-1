@@ -149,6 +149,13 @@ bool ShowOrHideSidebar() {
     return changed;
 }
 
+void SetModifiers(int modifiers) {
+    if (!EnsureApp()) {
+        return;
+    }
+    gScene.SetModifiers(modifiers);
+}
+
 bool KeyDown(const std::string& key, bool shift) {
     if (!EnsureApp()) {
         return false;
@@ -424,6 +431,7 @@ EMSCRIPTEN_BINDINGS(RoboModule) {
     emscripten::function("MoveSelection", &MoveSelection);
     emscripten::function("PointerUp", &PointerUp);
     emscripten::function("KeyDown", &KeyDown);
+    emscripten::function("SetModifiers", &SetModifiers);
     emscripten::function("ShowOrHideSidebar", &ShowOrHideSidebar);
     emscripten::function("KeyUp", &KeyUp);
     emscripten::function("PointerLeave", &PointerLeave);

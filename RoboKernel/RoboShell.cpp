@@ -202,6 +202,13 @@ void RoboShellSetBackground(const char* path) {
     gScene->SetDesktopBackgroundPath(path);
 }
 
+void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {
+    if (gScene == nullptr || width <= 0 || height <= 0) {
+        return;
+    }
+    gScene->DamageRect(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), static_cast<float>(height));
+}
+
 bool RoboShellFlush(RoboDesktop* desktop) {
     if (gScene == nullptr || gPlatform == nullptr || gFonts == nullptr || desktop == nullptr || !gScene->NeedsRender()) {
         return false;
