@@ -39,3 +39,10 @@ bool RoboShellTick(uint32_t deltaMs) {
 void RoboShellSetBackground(const char* path) {
     (void)path;
 }
+
+void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {
+    (void)x;
+    (void)y;
+    (void)width;
+    (void)height;
+}

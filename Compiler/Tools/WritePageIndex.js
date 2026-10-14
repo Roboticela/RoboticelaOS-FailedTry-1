@@ -61,6 +61,7 @@ function WritePageIndex(outDir, title, assetBase) {
       const modifiers = (event) =>
         (event.shiftKey ? 1 : 0) | (event.ctrlKey ? 2 : 0) | (event.metaKey ? 4 : 0) | (event.altKey ? 8 : 0);
       let pressTimer = 0;
+      let pointerDown = false;
       const clearPress = () => {
         if (pressTimer) {
           clearTimeout(pressTimer);
@@ -70,8 +71,16 @@ function WritePageIndex(outDir, title, assetBase) {
       canvas.addEventListener("pointermove", (event) => {
         const [x, y] = point(event);
         follow(app.PointerMove(x, y));
+        if (pointerDown && (event.buttons & 1) === 0) {
+          pointerDown = false;
+          clearPress();
+          follow(app.PointerUp(x, y));
+        }
       });
       canvas.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) {
+          return;
+        }
         canvas.focus();
         app.SetModifiers(modifiers(event));
         if (canvas.setPointerCapture) {
@@ -82,9 +91,11 @@ function WritePageIndex(outDir, title, assetBase) {
         if (event.pointerType === "touch") {
           pressTimer = setTimeout(() => follow(app.LongPressSelect(x, y)), 500);
         }
+        pointerDown = true;
         follow(app.PointerDown(x, y, event.pointerType === "touch", event.detail || 1));
       });
       window.addEventListener("pointerup", (event) => {
+        pointerDown = false;
         clearPress();
         const [x, y] = point(event);
         follow(app.PointerUp(x, y));

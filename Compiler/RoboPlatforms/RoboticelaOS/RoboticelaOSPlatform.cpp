@@ -1,7 +1,9 @@
 #include "RoboticelaOSPlatform.hpp"
 
 #include <algorithm>
+#if defined(ROBO_USER)
 #include "RoboCall.hpp"
+#endif
 #ifdef ROBO_KERNEL
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"

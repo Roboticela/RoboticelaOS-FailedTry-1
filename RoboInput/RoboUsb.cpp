@@ -524,36 +524,30 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
         return;
     }
     const RoboHidField* tip = RoboHidFind(device, 0x0Du, 0x42u, reportId);
-    uint8_t pressed = 1u;
-    if (tip != nullptr) {
+    const RoboHidField* button = RoboHidFind(device, 0x09u, 0x01u, reportId);
+    uint8_t pressed = 0;
+    if (device->kind == ROBO_USB_KIND_TOUCH) {
+        pressed = tip == nullptr || RoboHidValue(report, length, tip) != 0 ? 1u : 0u;
+    } else if (button != nullptr) {
+        pressed = RoboHidValue(report, length, button) != 0 ? 1u : 0u;
+    } else if (tip != nullptr) {
         pressed = RoboHidValue(report, length, tip) != 0 ? 1u : 0u;
-    }
-    if (pressed == 0) {
-        if (device->contact == 0) {
-            return;
-        }
-        device->contact = 0;
-        event.kind = device->kind == ROBO_USB_KIND_TOUCH ? ROBO_INPUT_TOUCH : ROBO_INPUT_TOUCHPAD;
-        event.pressed = 0;
-        event.code = 1;
-        event.x = device->lastX;
-        event.y = device->lastY;
-        event.xMax = device->lastXMax;
-        event.yMax = device->lastYMax;
-        RoboInputPush(&event);
-        return;
     }
     if (xField->logicalMax <= 0 || yField->logicalMax <= 0) {
         return;
     }
-    event.code = device->contact == 0 ? 1u : 0u;
-    device->contact = 1;
+    const uint8_t changed = pressed != device->contact ? 1u : 0u;
+    if (changed == 0 && x == device->lastX && y == device->lastY) {
+        return;
+    }
+    device->contact = pressed;
     device->lastX = x;
     device->lastY = y;
     device->lastXMax = xField->logicalMax;
     device->lastYMax = yField->logicalMax;
     event.kind = device->kind == ROBO_USB_KIND_TOUCH ? ROBO_INPUT_TOUCH : ROBO_INPUT_TOUCHPAD;
     event.pressed = pressed;
+    event.code = changed;
     event.x = x;
     event.y = y;
     event.xMax = xField->logicalMax;

@@ -48,12 +48,13 @@ static int RoboPixelFormatFromInfo(const EfiGraphicsOutputModeInformation* info,
     if (info == 0 || info->pixelFormat == ROBO_GOP_BLT_ONLY) {
         return 0;
     }
+    /* EFI names the first memory byte. ROBO_PIXEL_RGBX keeps red at 0x00FF0000, which is blue in the first byte. */
     if (info->pixelFormat == ROBO_GOP_BGRX) {
-        *format = ROBO_PIXEL_BGRX;
+        *format = ROBO_PIXEL_RGBX;
         return 1;
     }
     if (info->pixelFormat == ROBO_GOP_RGBX) {
-        *format = ROBO_PIXEL_RGBX;
+        *format = ROBO_PIXEL_BGRX;
         return 1;
     }
     if (info->pixelFormat == ROBO_GOP_BITMASK) {

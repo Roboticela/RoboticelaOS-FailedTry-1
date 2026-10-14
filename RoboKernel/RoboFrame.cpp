@@ -5,7 +5,6 @@
 #include "RoboInput.hpp"
 #include "RoboSchedule.hpp"
 #include "RoboShell.hpp"
-#include "RoboTimer.hpp"
 
 namespace {
 
@@ -48,12 +47,6 @@ uint32_t gGestureFrame = 0;
 int32_t gGrabX = 0;
 int32_t gGrabY = 0;
 uint8_t gRgba[ROBO_FRAME_MAX_W * ROBO_FRAME_MAX_H * 4u];
-
-void RoboFrameSleeper(void) {
-    for (;;) {
-        RoboThreadSleep(RoboTimerTicks() + 40ull);
-    }
-}
 
 int32_t RoboFrameFind(uint32_t thread) {
     for (uint32_t index = 0; index < ROBO_FRAME_MAX; ++index) {
@@ -363,14 +356,6 @@ void RoboFrameResize(uint32_t frameIndex, int32_t width, int32_t height) {
 
 void RoboFrameStart(RoboDesktop* desktop) {
     gDesktop = desktop;
-    uint32_t first = RoboThreadSpawn(RoboFrameSleeper);
-    uint32_t second = RoboThreadSpawn(RoboFrameSleeper);
-    if (first != 0) {
-        RoboFrameOpen(first, 72, 64, 240, 150, 0);
-    }
-    if (second != 0) {
-        RoboFrameOpen(second, 380, 128, 220, 160, 0);
-    }
 }
 
 uint32_t RoboFrameOpen(uint32_t thread, int32_t x, int32_t y, int32_t width, int32_t height, uint8_t app) {

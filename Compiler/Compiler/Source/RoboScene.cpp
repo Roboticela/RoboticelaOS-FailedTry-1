@@ -1734,15 +1734,9 @@ void RoboScene::AddContainer(Container container) {
 }
 
 void RoboScene::AddSelectionArea(SelectionArea area) {
-    if (focusedSelection_ < 0) {
-        area.SetKeyboardFocus(true);
-    }
     SceneItem item;
     item.kind = SceneItemKind::SelectionArea;
     item.selectionArea = std::move(area);
-    if (focusedSelection_ < 0) {
-        focusedSelection_ = static_cast<int>(items_.size());
-    }
     items_.push_back(std::move(item));
 }
 
@@ -2516,8 +2510,9 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                     areaW = static_cast<float>(width);
                     areaH = desktopChrome.contentHeight;
                 }
+                const bool selectionDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
                 SelectionAreaPainter::Paint(frame, fonts, item.selectionArea, areaX, areaY, areaW, areaH, paintScale,
-                                            theme_ == Theme::Dark);
+                                            selectionDark);
                 if (!desktop_.IsEnabled()) {
                     cursorY += areaH;
                     contentRight = std::max(contentRight, areaX + areaW + scrollX_);

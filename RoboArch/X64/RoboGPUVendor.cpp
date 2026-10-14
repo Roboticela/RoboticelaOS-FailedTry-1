@@ -192,7 +192,6 @@ constexpr uint32_t ROBO_GPU_CMD_TRANSFER = 0x0105;
 constexpr uint32_t ROBO_GPU_CMD_ATTACH = 0x0106;
 constexpr uint32_t ROBO_GPU_RESP_OK = 0x1100;
 constexpr uint32_t ROBO_GPU_FORMAT_BGRX = 2;
-constexpr uint32_t ROBO_GPU_FORMAT_RGBX = 134;
 constexpr int ROBO_GPU_MAX_WIDTH = 1920;
 constexpr int ROBO_GPU_MAX_HEIGHT = 1080;
 
@@ -417,7 +416,8 @@ bool RoboVirtioStart(int width, int height, uint32_t pixelFormat) {
     RoboVirtioSetStatus(15);
     gCardWidth = width;
     gCardHeight = height;
-    gCardFormat = pixelFormat == ROBO_PIXEL_RGBX ? ROBO_GPU_FORMAT_BGRX : ROBO_GPU_FORMAT_RGBX;
+    (void)pixelFormat;
+    gCardFormat = ROBO_GPU_FORMAT_BGRX;
     uint32_t create[4] = {1u, gCardFormat, static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
     if (!RoboVirtioCommand(ROBO_GPU_CMD_CREATE, create, sizeof(create))) {
         return false;
@@ -475,7 +475,8 @@ void RoboCardStore(const uint8_t* pixels, int pixelStride, int x, int y, int wid
                 green = (cursorRgb >> 8) & 0xFFu;
                 blue = cursorRgb & 0xFFu;
             }
-            uint32_t packed = pixelFormat == ROBO_PIXEL_RGBX ? (red << 16) | (green << 8) | blue : (blue << 16) | (green << 8) | red;
+            (void)pixelFormat;
+            uint32_t packed = (red << 16) | (green << 8) | blue;
             *reinterpret_cast<uint32_t*>(to) = packed;
             from += 4;
             to += 4;

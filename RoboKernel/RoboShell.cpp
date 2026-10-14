@@ -20,8 +20,75 @@ Robo::FontEngine* gFonts = nullptr;
 Robo::RoboScene* gScene = nullptr;
 RoboDesktop* gDesktop = nullptr;
 bool gShift = false;
+int gCtrl = 0;
+int gAlt = 0;
+int gMeta = 0;
 bool gCursorMovedDuringPaint = false;
 int gClickDuringPaint = 0;
+uint32_t gNowMs = 0;
+uint32_t gLastClickMs = 0;
+int32_t gLastClickX = 0;
+int32_t gLastClickY = 0;
+int gLastClicks = 0;
+bool gTouchHeld = false;
+bool gLongPressSent = false;
+uint32_t gHeldMs = 0;
+int32_t gPressX = 0;
+int32_t gPressY = 0;
+
+bool RoboShellIsCtrl(uint16_t code) {
+    return code == 0x1Du || code == 0xE01Du;
+}
+
+bool RoboShellIsAlt(uint16_t code) {
+    return code == 0x38u || code == 0xE038u;
+}
+
+bool RoboShellIsMeta(uint16_t code) {
+    return code == 0xE05Bu || code == 0xE05Cu;
+}
+
+void RoboShellHold(int* count, bool pressed) {
+    *count += pressed ? 1 : -1;
+    if (*count < 0) {
+        *count = 0;
+    }
+}
+
+void RoboShellApplyModifiers(void) {
+    if (gScene == nullptr) {
+        return;
+    }
+    int modifiers = 0;
+    if (gShift) {
+        modifiers |= 1;
+    }
+    if (gCtrl > 0) {
+        modifiers |= 2;
+    }
+    if (gMeta > 0) {
+        modifiers |= 4;
+    }
+    if (gAlt > 0) {
+        modifiers |= 8;
+    }
+    gScene->SetModifiers(modifiers);
+}
+
+int RoboShellClicks(int32_t x, int32_t y) {
+    const int32_t dx = x - gLastClickX;
+    const int32_t dy = y - gLastClickY;
+    const uint32_t elapsed = gNowMs - gLastClickMs;
+    int clicks = 1;
+    if (gLastClicks == 1 && elapsed < 400u && dx > -8 && dx < 8 && dy > -8 && dy < 8) {
+        clicks = 2;
+    }
+    gLastClickMs = gNowMs;
+    gLastClickX = x;
+    gLastClickY = y;
+    gLastClicks = clicks;
+    return clicks;
+}
 
 void RoboShellTrackCursor(void* cookie) {
     (void)cookie;
@@ -134,18 +201,35 @@ bool RoboShellStart(RoboDesktop* desktop) {
 }
 
 void RoboShellPointerMove(int32_t x, int32_t y) {
+    if (gTouchHeld) {
+        const int32_t dx = x - gPressX;
+        const int32_t dy = y - gPressY;
+        if (dx > 12 || dx < -12 || dy > 12 || dy < -12) {
+            gLongPressSent = true;
+        }
+    }
     if (gScene != nullptr) {
         gScene->PointerMove(static_cast<float>(x), static_cast<float>(y));
     }
 }
 
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch) {
-    if (gScene != nullptr) {
-        gScene->PointerDown(static_cast<float>(x), static_cast<float>(y), fromTouch, 1);
+    if (gScene == nullptr) {
+        return;
+    }
+    RoboShellApplyModifiers();
+    gScene->PointerDown(static_cast<float>(x), static_cast<float>(y), fromTouch, RoboShellClicks(x, y));
+    if (fromTouch) {
+        gTouchHeld = true;
+        gLongPressSent = false;
+        gHeldMs = 0;
+        gPressX = x;
+        gPressY = y;
     }
 }
 
 void RoboShellPointerUp(int32_t x, int32_t y) {
+    gTouchHeld = false;
     if (gScene != nullptr) {
         gScene->PointerUp(static_cast<float>(x), static_cast<float>(y));
     }
@@ -157,6 +241,22 @@ void RoboShellKey(uint16_t code, bool pressed) {
     }
     if (code == 0x2A || code == 0x36) {
         gShift = pressed;
+        RoboShellApplyModifiers();
+        return;
+    }
+    if (RoboShellIsCtrl(code)) {
+        RoboShellHold(&gCtrl, pressed);
+        RoboShellApplyModifiers();
+        return;
+    }
+    if (RoboShellIsAlt(code)) {
+        RoboShellHold(&gAlt, pressed);
+        RoboShellApplyModifiers();
+        return;
+    }
+    if (RoboShellIsMeta(code)) {
+        RoboShellHold(&gMeta, pressed);
+        RoboShellApplyModifiers();
         return;
     }
     char printable = 0;
@@ -167,22 +267,29 @@ void RoboShellKey(uint16_t code, bool pressed) {
         }
         return;
     }
-    if (name != nullptr && strcmp(name, "Backspace") == 0) {
-        gScene->KeyBackspace();
-        return;
+    RoboShellApplyModifiers();
+    char keyText[2] = {0, 0};
+    const char* downName = name;
+    if (downName == nullptr && printable != 0) {
+        keyText[0] = printable;
+        downName = keyText;
     }
-    if (name != nullptr && strcmp(name, "Delete") == 0) {
-        gScene->KeyDelete();
-        return;
-    }
-    if (name != nullptr) {
-        if (!gScene->KeyDown(name, gShift) && printable != 0) {
-            char text[2] = {printable, 0};
-            gScene->KeyInsert(text);
+    bool handled = false;
+    if (downName != nullptr && strcmp(downName, "Backspace") == 0) {
+        handled = gScene->KeyBackspace();
+    } else if (downName != nullptr && strcmp(downName, "Delete") == 0) {
+        handled = gScene->KeyDelete();
+    } else if (downName != nullptr) {
+        handled = gScene->KeyDown(downName, gShift);
+        if (!handled && strcmp(downName, "Escape") == 0) {
+            handled = gScene->KeyEscape();
+        } else if (!handled && strcmp(downName, "ArrowLeft") == 0) {
+            handled = gScene->KeyLeft();
+        } else if (!handled && strcmp(downName, "ArrowRight") == 0) {
+            handled = gScene->KeyRight();
         }
-        return;
     }
-    if (printable != 0) {
+    if (!handled && printable != 0 && gCtrl == 0 && gAlt == 0 && gMeta == 0) {
         char text[2] = {printable, 0};
         gScene->KeyInsert(text);
     }
@@ -192,7 +299,16 @@ bool RoboShellTick(uint32_t deltaMs) {
     if (gScene == nullptr || deltaMs == 0) {
         return false;
     }
-    return gScene->Tick(static_cast<double>(deltaMs));
+    gNowMs += deltaMs;
+    bool changed = false;
+    if (gTouchHeld && !gLongPressSent) {
+        gHeldMs += deltaMs;
+        if (gHeldMs >= 500u) {
+            gLongPressSent = true;
+            changed = gScene->LongPressSelect(static_cast<float>(gPressX), static_cast<float>(gPressY));
+        }
+    }
+    return gScene->Tick(static_cast<double>(deltaMs)) || changed;
 }
 
 void RoboShellSetBackground(const char* path) {

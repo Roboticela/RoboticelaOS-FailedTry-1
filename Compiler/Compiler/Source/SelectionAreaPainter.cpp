@@ -69,9 +69,11 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
     area.SetPixelScale(pixelScale);
 
     const Color accent = dark ? Color::FromHex("#0A84FF") : Color::FromHex("#007AFF");
-    const Color labelInk = Color::FromHex("#1D1D1F");
+    const Color labelInk = dark ? Color::FromHex("#F5F5F7") : Color::FromHex("#1D1D1F");
     const Color selectedInk = Color::FromHex("#FFFFFF");
-    const Color folder = Color::FromHex("#F5F5F7");
+    const Color folder = dark ? Color::FromHex("#2C2C2E") : Color::FromHex("#FFFFFF");
+    const Color folderEdge = dark ? Color::FromHex("#454548") : Color::FromHex("#E5E5EA");
+    const Color folderMark = dark ? Color::FromHex("#F5F5F7") : Color::FromHex("#1D1D1F");
     const float scale = pixelScale > 0.0f ? pixelScale : 1.0f;
 
     for (SelectionAreaItem& item : area.Items()) {
@@ -101,7 +103,9 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
         }
         buffer.FillRoundedRect(iconX, iconY + 10.0f * scale, iconSize, iconSize - 10.0f * scale, 6.0f * scale,
                                selected ? Color::FromHex("#FFFFFF") : folder);
-        buffer.FillRoundedRect(iconX + 4.0f * scale, iconY + 2.0f * scale, 22.0f * scale, 12.0f * scale, 3.0f * scale, accent);
+        buffer.FillRoundedRect(iconX, iconY + 10.0f * scale, iconSize, 2.0f * scale, 1.0f * scale, selected ? accent : folderEdge);
+        buffer.FillRoundedRect(iconX + 4.0f * scale, iconY + 2.0f * scale, 22.0f * scale, 12.0f * scale, 3.0f * scale,
+                               selected ? accent : folderMark);
         DrawLabel(buffer, fonts, item.GetLabel(), itemX, labelY, itemWidth, labelHeight, 12.0f * scale,
                   selected ? selectedInk : labelInk);
         if (focused && !selected) {

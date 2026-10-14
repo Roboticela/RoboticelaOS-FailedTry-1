@@ -74,7 +74,10 @@ if (-not (Test-Path $desktopImage)) {
 }
 
 $espPath = $esp -replace '\\', '/'
+Write-Host "Starting QEMU with the Windows hypervisor"
 $arguments = @(
+    "-accel", "whpx",
+    "-accel", "tcg",
     "-cpu", "qemu64,svm=off",
     "-machine", "pc",
     "-m", "1024",

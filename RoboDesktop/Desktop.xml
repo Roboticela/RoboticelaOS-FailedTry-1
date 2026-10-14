@@ -12,15 +12,6 @@
       <TopBarMenuItem label="Window"/>
       <TopBarMenuItem label="Help"/>
     </TopBarMenu>
-    <SelectionArea>
-      <SelectionAreaItem label="Documents" x="36" y="28"/>
-      <SelectionAreaItem label="Downloads" x="156" y="28"/>
-      <SelectionAreaItem label="Pictures" x="276" y="28"/>
-      <SelectionAreaItem label="Music" x="396" y="28"/>
-      <SelectionAreaItem label="Movies" x="36" y="148"/>
-      <SelectionAreaItem label="Projects" x="156" y="148"/>
-      <SelectionAreaItem label="Notes" x="276" y="148"/>
-      <SelectionAreaItem label="Archive" x="396" y="148"/>
-    </SelectionArea>
+    <SelectionArea/>
   </Desktop>
 </Robo>
