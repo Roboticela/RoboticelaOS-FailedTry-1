@@ -182,6 +182,33 @@ float FontEngine::GetLineGap(float fontSize, FontFaceId faceId) const {
     return stbtt_ScaleForPixelHeight(&face.info, fontSize) * lineGap;
 }
 
+void StrengthenStems(std::vector<std::uint8_t>& coverage, int width, int height) {
+    if (width < 2 || height < 3) {
+        return;
+    }
+    for (int col = 0; col < width; ++col) {
+        int peak = 0;
+        int peakRow = 0;
+        int run = 0;
+        for (int row = 0; row < height; ++row) {
+            const int value = coverage[static_cast<std::size_t>(row * width + col)];
+            if (value > peak) {
+                peak = value;
+                peakRow = row;
+            }
+            if (value > 40) {
+                ++run;
+            }
+        }
+        if (peak < 80 || peak > 220 || run > height / 2) {
+            continue;
+        }
+        const int lifted = peak + (255 - peak) * 2 / 3;
+        coverage[static_cast<std::size_t>(peakRow * width + col)] =
+            static_cast<std::uint8_t>(lifted > 255 ? 255 : lifted);
+    }
+}
+
 float DarkenCoverage(float coverage) {
     if (coverage <= 0.0f) {
         return 0.0f;
@@ -370,6 +397,9 @@ FontEngine::AtlasGlyph FontEngine::CachedGlyphFor(int faceIndex,
             coverage[static_cast<std::size_t>(row * cached.width + col)] =
                 static_cast<std::uint8_t>(std::min(255.0f, DarkenCoverage(linear) * 255.0f + 0.5f));
         }
+    }
+    if (snappedSize <= 22.0f) {
+        StrengthenStems(coverage, cached.width, cached.height);
     }
 
     int placeX = 0;

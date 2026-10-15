@@ -121,6 +121,11 @@ Copy-Item -Force (Join-Path $assets "Fonts\Inter-Medium.ttf") (Join-Path $esp "I
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-SemiBold.ttf") (Join-Path $esp "INTERS.TTF")
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-Bold.ttf") (Join-Path $esp "INTERB.TTF")
 Copy-Item -Force (Join-Path $assets "Fonts\Inter-Italic.ttf") (Join-Path $esp "INTERI.TTF")
+$logo = Join-Path $Root "Assets\RoboticelaLogo.svg"
+if (Test-Path $logo) {
+    Copy-Item -Force $logo (Join-Path $esp "ROBOLOGO.SVG")
+    Copy-Item -Force $logo (Join-Path $espArm "ROBOLOGO.SVG")
+}
 Copy-Item -Force (Join-Path $esp "INTERR.TTF") (Join-Path $espArm "INTERR.TTF")
 Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")

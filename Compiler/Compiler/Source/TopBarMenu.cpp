@@ -295,4 +295,17 @@ int TopBarMenu::Active() const {
     return active_;
 }
 
+void TopBarMenu::SetMark(Svg mark) {
+    mark_ = std::move(mark);
+    hasMark_ = !mark_.GetShapes().empty();
+}
+
+bool TopBarMenu::HasMark() const {
+    return hasMark_;
+}
+
+Svg& TopBarMenu::Mark() {
+    return mark_;
+}
+
 }  // namespace Robo

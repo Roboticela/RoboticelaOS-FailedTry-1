@@ -235,6 +235,7 @@ int main(int argc, char** argv) {
     RoboAdd(applications, "ARM.bin", false, program(ROBO_PROGRAM_ARM64, armProgram.data(), static_cast<std::uint32_t>(armProgram.size())));
     RoboCopy(desktop, esp, "DESKTOP.BIN", "Desktop.bin");
     RoboCopy(desktop, esp, "BACKGROU.RJP", "Background.rjp");
+    RoboCopy(desktop, esp, "ROBOLOGO.SVG", "RoboticelaLogo.svg");
     RoboCopy(desktop, esp, "BACKGROU.MP4", "Background.mp4");
 
     std::uint64_t used = 1;

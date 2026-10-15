@@ -1,5 +1,6 @@
 #include "WebPlatform.hpp"
 #include "Robo/FontEngine.hpp"
+#include "Robo/RenderQuality.hpp"
 #include "Robo/RoboScene.hpp"
 
 #include <emscripten.h>
@@ -435,6 +436,7 @@ bool SetBackground(const std::string& path) {
 
 EMSCRIPTEN_BINDINGS(RoboModule) {
     emscripten::function("Render", &Render);
+    emscripten::function("RenderQuality", &Robo::RenderQuality);
     emscripten::function("PointerMove", &PointerMove);
     emscripten::function("PointerDown", &PointerDown);
     emscripten::function("PointerContext", &PointerContext);

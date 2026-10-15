@@ -230,6 +230,7 @@ private:
     bool ChromeFits(std::size_t bytes, std::size_t maskBytes) const;
     void CaptureChrome();
     void ApplyChrome(FrameBuffer& frame);
+    void EnsureMenuMark();
     void ConfigurePageBars();
     void PullPageScroll();
     void PullSidebarScroll(const Scrollbar* bar);
@@ -283,10 +284,12 @@ private:
     bool frameReady_ = false;
     bool videoOnly_ = false;
     bool chromeReady_ = false;
+    bool menuMarkTried_ = false;
     std::vector<std::uint8_t> chromeBase_;
     std::vector<std::uint8_t> chromePixels_;
     std::vector<std::uint8_t> chromeMask_;
     bool damageOpen_ = false;
+    float contextGuardMs_ = 0.0f;
     float dirtyLeft_ = 0.0f;
     float dirtyTop_ = 0.0f;
     float dirtyRight_ = 0.0f;

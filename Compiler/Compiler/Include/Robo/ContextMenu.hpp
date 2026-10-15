@@ -100,7 +100,7 @@ public:
     std::vector<ContextMenuItem>& Items();
     const std::vector<ContextMenuItem>& Items() const;
 
-    void Open(float x, float y);
+    bool Open(float x, float y);
     void Close();
     bool IsVisible() const;
     float OpenAmount() const;

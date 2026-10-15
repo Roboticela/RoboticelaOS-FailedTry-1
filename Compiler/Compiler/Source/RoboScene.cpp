@@ -1962,8 +1962,16 @@ bool RoboScene::PointerContext(float x, float y) {
         }
     }
     ContextMenu& menu = desktop_.GetContextMenu();
+    contextGuardMs_ = 180.0f;
+    if (SelectionArea* area = GesturingSelection()) {
+        DirtySelection(*area);
+        area->Cancel();
+        DirtySelection(*area);
+    }
+    if (!menu.Open(x, y)) {
+        return true;
+    }
     DirtyContextMenu();
-    menu.Open(x, y);
     MarkFullDirty();
     return true;
 }
@@ -2203,6 +2211,22 @@ Color LerpPageColor(const Color& light, const Color& dark, float mix) {
 
 }  // namespace
 
+void RoboScene::EnsureMenuMark() {
+    if (menuMarkTried_ || platform_ == nullptr || !desktop_.HasTopBarMenu()) {
+        return;
+    }
+    menuMarkTried_ = true;
+    const std::vector<std::uint8_t> bytes = platform_->LoadAsset("Assets/RoboticelaLogo.svg");
+    if (bytes.empty()) {
+        return;
+    }
+    Svg mark;
+    if (!LoadSvgDocument(bytes.data(), bytes.size(), mark)) {
+        return;
+    }
+    desktop_.GetTopBarMenu().SetMark(std::move(mark));
+}
+
 void RoboScene::SetPaintPump(void (*pump)(void*), void* cookie) {
     paintPump_ = pump;
     paintPumpCookie_ = cookie;
@@ -2217,6 +2241,18 @@ bool RoboScene::PresentVideoFrame(IPlatform& platform) {
     }
     BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), paintedWidth_, paintedHeight_, 0, 0, paintedWidth_, paintedHeight_);
     ApplyChrome(frame_);
+    EnsureMenuMark();
+    if (fonts_ != nullptr && desktop_.IsEnabled() && desktop_.HasTopBarMenu()) {
+        const float barScale = paintedScale_ > 0.0f ? paintedScale_ : std::max(0.5f, platform.GetPixelScale());
+        desktop_.GetTopBarMenu().ApplyTheme(theme_ == Theme::Dark);
+        const DesktopChrome barChrome = DesktopPainter::Layout(static_cast<float>(paintedWidth_),
+                                                                static_cast<float>(paintedHeight_), barScale, true,
+                                                                desktop_.HasAppShell(), !desktop_.Dock().empty());
+        const float barPixels = std::max(1.0f, std::round(barChrome.menuHeight));
+        frame_.PushClipRect(0.0f, 0.0f, static_cast<float>(paintedWidth_), barPixels);
+        DesktopPainter::Paint(frame_, *fonts_, desktop_, barChrome, barScale, hoveredDock_);
+        frame_.PopClip();
+    }
     if (fonts_ != nullptr && desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         const bool contextDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
@@ -2226,7 +2262,8 @@ bool RoboScene::PresentVideoFrame(IPlatform& platform) {
         if (desktop_.DockBarHeight() > 0.0f) {
             dockInset = std::max(0.0f, static_cast<float>(paintedHeight_) - desktop_.DockBarY());
         }
-        ContextMenuPainter::Paint(frame_, *fonts_, contextMenu, std::max(0.5f, platform.GetPixelScale()),
+        const float menuScale = paintedScale_ > 0.0f ? paintedScale_ : std::max(0.5f, platform.GetPixelScale());
+        ContextMenuPainter::Paint(frame_, *fonts_, contextMenu, menuScale,
                                   static_cast<float>(paintedWidth_), static_cast<float>(paintedHeight_), menuTop, dockInset);
     }
     frame_.SetPresentRect(0, 0, paintedWidth_, paintedHeight_);
@@ -2322,6 +2359,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     const FoundationScope foundationScope(ActiveFoundation(), theme_, themeMix_);
     platform_ = &platform;
     fonts_ = &fonts;
+    EnsureMenuMark();
     Color lightPage = background;
     Color darkPage = Color::FromHex("#000000");
     ActiveFoundation().LookupColor("bg.primary", Theme::Light, lightPage);
@@ -2695,6 +2733,9 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                                   radius, handle, 1.0f);
         }
     }
+    if (!partial && desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
+        CaptureChrome();
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         const bool contextDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
@@ -2711,9 +2752,6 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     }
     if (partial) {
         frame.PopClip();
-    }
-    if (!partial && desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
-        CaptureChrome();
     }
     if (!partial || damageWidth <= 0 || damageHeight <= 0) {
         damageX = 0;
@@ -4393,10 +4431,12 @@ bool RoboScene::PointerMove(float x, float y) {
             TopBarMenu& menu = desktop_.GetTopBarMenu();
             const bool insideMenu = menu.BarHeight() > 0.0f && y >= menu.BarY() && y < menu.BarY() + menu.BarHeight();
             const int menuHover = insideMenu ? menu.Hit(x, y) : -1;
+            bool barChanged = false;
             if (menuHover != hoveredMenu_) {
                 hoveredMenu_ = menuHover;
                 menu.SetHover(menuHover);
                 DirtyMenuBar();
+                barChanged = true;
             }
             if (insideMenu) {
                 if (hoveredDock_ != -1) {
@@ -4404,9 +4444,10 @@ bool RoboScene::PointerMove(float x, float y) {
                     if (desktop_.DockBarHeight() > 0.0f) {
                         MarkDirty(desktop_.DockBarX(), desktop_.DockBarY(), desktop_.DockBarWidth(), desktop_.DockBarHeight());
                     }
+                    barChanged = true;
                 }
-                SetHoveredButton(nullptr);
-                return true;
+                barChanged = SetHoveredButton(nullptr) || barChanged;
+                return barChanged;
             }
         }
         const int hover = desktop_.HitDock(x, y);
@@ -4558,6 +4599,12 @@ bool RoboScene::LongPressSelect(float x, float y) {
 }
 
 bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
+    if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
+        ContextMenu& contextMenu = desktop_.GetContextMenu();
+        if (contextMenu.Panel().width < 1.0f || contextGuardMs_ > 0.0f) {
+            return true;
+        }
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         if (contextMenu.Contains(x, y)) {
@@ -4926,6 +4973,12 @@ bool RoboScene::PointerLeave() {
 }
 
 bool RoboScene::Tick(double deltaMs) {
+    if (contextGuardMs_ > 0.0f) {
+        contextGuardMs_ -= static_cast<float>(deltaMs);
+        if (contextGuardMs_ < 0.0f) {
+            contextGuardMs_ = 0.0f;
+        }
+    }
     bool changed = false;
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         if (desktop_.GetContextMenu().Tick(static_cast<float>(deltaMs))) {

@@ -285,11 +285,18 @@ const std::vector<ContextMenuItem>& ContextMenu::Items() const {
     return items_;
 }
 
-void ContextMenu::Open(float x, float y) {
+bool ContextMenu::Open(float x, float y) {
+    if (visible_ && !closing_) {
+        const float dx = x - anchorX_;
+        const float dy = y - anchorY_;
+        if (dx * dx + dy * dy < 4.0f) {
+            return false;
+        }
+    }
     visible_ = true;
-    opening_ = true;
+    opening_ = false;
     closing_ = false;
-    amount_ = 0.0f;
+    amount_ = 1.0f;
     anchorX_ = x;
     anchorY_ = y;
     submenu_ = -1;
@@ -302,6 +309,7 @@ void ContextMenu::Open(float x, float y) {
     hoverMs_ = 0.0f;
     action_.clear();
     submenuPanel_ = {};
+    return true;
 }
 
 void ContextMenu::Close() {

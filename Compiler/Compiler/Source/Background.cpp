@@ -636,9 +636,18 @@ void AddPath(Svg& graphic, const std::string& data, const Color& fill) {
 
 std::string Attribute(const std::string& tag, const char* name) {
     const std::string key = std::string(name) + "=\"";
-    const std::size_t found = tag.find(key);
-    if (found == std::string::npos) {
-        return {};
+    std::size_t found = 0;
+    while (found < tag.size()) {
+        found = tag.find(key, found);
+        if (found == std::string::npos) {
+            return {};
+        }
+        const bool boundary = found == 0 || tag[found - 1] == ' ' || tag[found - 1] == '\t' || tag[found - 1] == '\n' ||
+                              tag[found - 1] == '\r';
+        if (boundary) {
+            break;
+        }
+        found += 1;
     }
     const std::size_t start = found + key.size();
     const std::size_t end = tag.find('"', start);
@@ -646,6 +655,85 @@ std::string Attribute(const std::string& tag, const char* name) {
         return {};
     }
     return tag.substr(start, end - start);
+}
+
+struct GradientColor {
+    std::string id;
+    Color color;
+};
+
+Color AverageStops(const std::string& block) {
+    int red = 0;
+    int green = 0;
+    int blue = 0;
+    int count = 0;
+    std::size_t at = 0;
+    while (at < block.size()) {
+        const std::size_t stop = block.find("stop-color=\"", at);
+        if (stop == std::string::npos) {
+            break;
+        }
+        const std::size_t start = stop + 12;
+        const std::size_t end = block.find('"', start);
+        if (end == std::string::npos) {
+            break;
+        }
+        const Color color = Color::FromHex(block.substr(start, end - start));
+        red += color.red;
+        green += color.green;
+        blue += color.blue;
+        count += 1;
+        at = end + 1;
+    }
+    if (count <= 0) {
+        return Color::FromHex("#000000");
+    }
+    return Color::FromRgba(static_cast<std::uint8_t>(red / count), static_cast<std::uint8_t>(green / count),
+                           static_cast<std::uint8_t>(blue / count));
+}
+
+void CollectGradients(const std::string& text, std::vector<GradientColor>& out) {
+    std::size_t at = 0;
+    while (at < text.size()) {
+        const std::size_t found = text.find("<linearGradient", at);
+        if (found == std::string::npos) {
+            break;
+        }
+        const std::size_t tagEnd = text.find('>', found);
+        const std::size_t close = text.find("</linearGradient>", found);
+        if (tagEnd == std::string::npos || close == std::string::npos) {
+            break;
+        }
+        const std::string id = Attribute(text.substr(found, tagEnd - found), "id");
+        if (!id.empty()) {
+            GradientColor entry;
+            entry.id = id;
+            entry.color = AverageStops(text.substr(found, close - found));
+            out.push_back(std::move(entry));
+        }
+        at = close + 17;
+    }
+}
+
+bool ResolvePaint(const std::string& fillText, const std::vector<GradientColor>& gradients, Color& color) {
+    if (fillText == "none") {
+        return false;
+    }
+    if (fillText.size() >= 6 && fillText.compare(0, 5, "url(#") == 0) {
+        std::string id = fillText.substr(5);
+        if (!id.empty() && id.back() == ')') {
+            id.pop_back();
+        }
+        for (const GradientColor& entry : gradients) {
+            if (entry.id == id) {
+                color = entry.color;
+                return true;
+            }
+        }
+        return false;
+    }
+    color = fillText.empty() ? Color::FromHex("#000000") : Color::FromHex(fillText);
+    return true;
 }
 
 bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
@@ -681,6 +769,8 @@ bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
         style.viewHeight = 24.0f;
     }
     graphic.SetStyle(style);
+    std::vector<GradientColor> gradients;
+    CollectGradients(text, gradients);
     std::size_t cursor = 0;
     while (cursor < lower.size()) {
         const std::size_t path = lower.find("<path", cursor);
@@ -708,7 +798,11 @@ bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
         }
         const std::string tag = text.substr(next, tagEnd - next);
         const std::string fillText = Attribute(tag, "fill");
-        const Color fill = fillText.empty() || fillText == "none" ? Color::FromHex("#000000") : Color::FromHex(fillText);
+        Color fill;
+        if (!ResolvePaint(fillText, gradients, fill)) {
+            cursor = tagEnd + 1;
+            continue;
+        }
         if (which == 1) {
             AddPath(graphic, Attribute(tag, "d"), fill);
         } else if (which == 2) {
@@ -755,6 +849,10 @@ bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
 }
 
 }  // namespace
+
+bool LoadSvgDocument(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
+    return DecodeSvg(bytes, size, graphic);
+}
 
 void Background::SetColor(const Color& color, const std::string& token) {
     color_ = color;

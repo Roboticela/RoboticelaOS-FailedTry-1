@@ -98,4 +98,7 @@ private:
     SvgBounds bounds_;
 };
 
+// Reads an SVG document into filled shapes. A gradient fill uses the average of its stops.
+bool LoadSvgDocument(const std::uint8_t* bytes, std::size_t size, Svg& graphic);
+
 }  // namespace Robo

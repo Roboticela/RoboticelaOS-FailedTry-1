@@ -6,6 +6,7 @@
 #include "RoboticelaOSPlatform.hpp"
 #include "Robo/Color.hpp"
 #include "Robo/FontEngine.hpp"
+#include "Robo/RenderQuality.hpp"
 #include "Robo/RoboScene.hpp"
 
 #include <stdint.h>
@@ -206,9 +207,10 @@ bool RoboShellStart(RoboDesktop* desktop) {
     } else if (frameHeight >= 1400) {
         pixelScale = 1.5f;
     } else if (frameWidth > 0 && frameHeight > 0) {
-        pixelScale = 2.0f;
-        surfaceWidth = frameWidth * 2;
-        surfaceHeight = frameHeight * 2;
+        const float quality = Robo::RenderQuality();
+        pixelScale = quality;
+        surfaceWidth = Robo::PaintSize(frameWidth, quality);
+        surfaceHeight = Robo::PaintSize(frameHeight, quality);
     }
     gSceneScale = frameWidth > 0 ? static_cast<float>(surfaceWidth) / static_cast<float>(frameWidth) : 1.0f;
     gPlatform->SetPixelScale(pixelScale);

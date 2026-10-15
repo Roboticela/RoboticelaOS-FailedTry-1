@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Svg.hpp"
+
 #include <string>
 #include <vector>
 
@@ -93,6 +95,10 @@ public:
     bool ClearSelection();
     int Active() const;
 
+    void SetMark(Svg mark);
+    bool HasMark() const;
+    Svg& Mark();
+
 private:
     int SlotCount() const;
 
@@ -114,6 +120,8 @@ private:
     float barY_ = 0.0f;
     float barWidth_ = 0.0f;
     float barHeight_ = 0.0f;
+    Svg mark_;
+    bool hasMark_ = false;
 };
 
 }  // namespace Robo

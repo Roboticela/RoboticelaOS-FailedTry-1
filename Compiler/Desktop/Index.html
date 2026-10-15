@@ -18,7 +18,7 @@
     CreateRoboModule({
       locateFile: (name) => assetBase + name
     }).then((app) => {
-      const pixelScale = () => Math.max(window.devicePixelRatio || 1, 2);
+      const pixelScale = () => Math.max(window.devicePixelRatio || 1, app.RenderQuality());
       const point = (event) => {
         const rect = canvas.getBoundingClientRect();
         const scale = pixelScale();

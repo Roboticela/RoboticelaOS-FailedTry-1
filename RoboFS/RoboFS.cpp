@@ -435,6 +435,8 @@ struct RoboAlias {
 const RoboAlias gAliases[] = {
     {"ROBOAPP.BIN", "Applications/RoboApp.bin"},
     {"DESKTOP.BIN", "Desktop/Desktop.bin"},
+    {"ROBOLOGO.SVG", "Desktop/RoboticelaLogo.svg"},
+    {"RoboticelaLogo.svg", "Desktop/RoboticelaLogo.svg"},
     {"BACKGROU.RJP", "Desktop/Background.rjp"},
     {"Background.rjp", "Desktop/Background.rjp"},
     {"BACKGROU.MP4", "Desktop/Background.mp4"},

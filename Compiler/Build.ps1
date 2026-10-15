@@ -248,6 +248,10 @@ function Invoke-WebBuild {
         if (Test-Path $packed) {
             $preloadArgs += @("--preload-file", "${packed}@/Assets/Background.rjp")
         }
+        $logo = Join-Path $Root "Assets\RoboticelaLogo.svg"
+        if (Test-Path $logo) {
+            $preloadArgs += @("--preload-file", "${logo}@/Assets/RoboticelaLogo.svg")
+        }
     }
 
     $emccArgs = @(

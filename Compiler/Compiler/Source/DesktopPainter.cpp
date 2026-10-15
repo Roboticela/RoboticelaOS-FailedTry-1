@@ -337,10 +337,14 @@ void DrawChevron(FrameBuffer& buffer, float originX, float originY, float size, 
 
 MenuBounds Slot(float x, float y, float width, float height) {
     MenuBounds bounds;
-    bounds.x = x;
-    bounds.y = y;
-    bounds.width = width;
-    bounds.height = height;
+    const float left = std::round(x);
+    const float top = std::round(y);
+    const float right = std::round(x + width);
+    const float bottom = std::round(y + height);
+    bounds.x = left;
+    bounds.y = top;
+    bounds.width = std::max(0.0f, right - left);
+    bounds.height = std::max(0.0f, bottom - top);
     return bounds;
 }
 
@@ -543,7 +547,17 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 paintButton(bounds.x, bounds.width, index + 2, item.IsDisabled());
             }
 
-            PaintGlyph(buffer, AppleMark(), appleX, appleY, itemInk(0, false), scale);
+            if (menu.HasMark()) {
+                Svg& mark = menu.Mark();
+                SvgStyle markStyle = mark.GetStyle();
+                markStyle.width = APPLE_W;
+                markStyle.height = APPLE_H;
+                markStyle.opacity = 1.0f;
+                mark.SetStyle(markStyle);
+                SvgPainter::Paint(buffer, mark, appleX, appleY, appleW, scale);
+            } else {
+                PaintGlyph(buffer, AppleMark(), appleX, appleY, itemInk(0, false), scale);
+            }
             DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
                      FontFaceId::Medium, itemInk(1, false), false, false);
             for (int index = 0; index < static_cast<int>(labels.size()); ++index) {

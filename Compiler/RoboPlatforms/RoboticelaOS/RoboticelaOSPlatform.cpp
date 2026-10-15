@@ -1,6 +1,7 @@
 #include "RoboticelaOSPlatform.hpp"
 
 #include <algorithm>
+#include <cmath>
 #if defined(ROBO_USER)
 #include "RoboCall.hpp"
 #endif
@@ -122,12 +123,14 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
     if (scanout_ == nullptr) {
         return;
     }
-    const bool retina = scanoutWidth_ > 0 && scanoutHeight_ > 0 && width_ == scanoutWidth_ * 2 && height_ == scanoutHeight_ * 2;
-    if (retina) {
-        int screenX0 = damageX / 2;
-        int screenY0 = damageY / 2;
-        int screenX1 = (damageX + damageWidth + 1) / 2;
-        int screenY1 = (damageY + damageHeight + 1) / 2;
+    const bool scaled = scanoutWidth_ > 0 && scanoutHeight_ > 0 && (width_ > scanoutWidth_ || height_ > scanoutHeight_);
+    if (scaled) {
+        const float scaleX = static_cast<float>(width_) / static_cast<float>(scanoutWidth_);
+        const float scaleY = static_cast<float>(height_) / static_cast<float>(scanoutHeight_);
+        int screenX0 = static_cast<int>(std::floor(static_cast<float>(damageX) / scaleX));
+        int screenY0 = static_cast<int>(std::floor(static_cast<float>(damageY) / scaleY));
+        int screenX1 = static_cast<int>(std::ceil(static_cast<float>(damageX + damageWidth) / scaleX));
+        int screenY1 = static_cast<int>(std::ceil(static_cast<float>(damageY + damageHeight) / scaleY));
         if (screenX0 < 0) {
             screenX0 = 0;
         }
@@ -158,7 +161,8 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
 #endif
         for (int row = 0; row < screenHeight; ++row) {
             const int screenY = screenY0 + row;
-            const int sceneY = screenY * 2;
+            const float sourceY0 = static_cast<float>(screenY) * scaleY;
+            const float sourceY1 = sourceY0 + scaleY;
             std::uint8_t* to = scanout_ + static_cast<std::size_t>(screenY) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(screenX0) * 4u;
             auto* packed = reinterpret_cast<std::uint32_t*>(to);
 #ifdef ROBO_KERNEL
@@ -166,34 +170,41 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
 #endif
             for (int column = 0; column < screenWidth; ++column) {
                 const int screenX = screenX0 + column;
-                const int sceneX = screenX * 2;
-                unsigned int red = 0;
-                unsigned int green = 0;
-                unsigned int blue = 0;
-                int samples = 0;
-                for (int sampleY = 0; sampleY < 2; ++sampleY) {
-                    const int sourceY = sceneY + sampleY;
-                    if (sourceY < 0 || sourceY >= height_) {
+                const float sourceX0 = static_cast<float>(screenX) * scaleX;
+                const float sourceX1 = sourceX0 + scaleX;
+                float red = 0.0f;
+                float green = 0.0f;
+                float blue = 0.0f;
+                float weight = 0.0f;
+                const int yStart = std::max(0, static_cast<int>(std::floor(sourceY0)));
+                const int yEnd = std::min(height_, static_cast<int>(std::ceil(sourceY1)));
+                const int xStart = std::max(0, static_cast<int>(std::floor(sourceX0)));
+                const int xEnd = std::min(width_, static_cast<int>(std::ceil(sourceX1)));
+                for (int sourceY = yStart; sourceY < yEnd; ++sourceY) {
+                    const float coverY = std::min(sourceY1, static_cast<float>(sourceY + 1)) - std::max(sourceY0, static_cast<float>(sourceY));
+                    if (coverY <= 0.0f) {
                         continue;
                     }
-                    for (int sampleX = 0; sampleX < 2; ++sampleX) {
-                        const int sourceX = sceneX + sampleX;
-                        if (sourceX < 0 || sourceX >= width_) {
+                    for (int sourceX = xStart; sourceX < xEnd; ++sourceX) {
+                        const float coverX = std::min(sourceX1, static_cast<float>(sourceX + 1)) - std::max(sourceX0, static_cast<float>(sourceX));
+                        if (coverX <= 0.0f) {
                             continue;
                         }
+                        const float sample = coverX * coverY;
                         const std::uint8_t* from = source + (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(sourceX)) * 4u;
-                        red += from[0];
-                        green += from[1];
-                        blue += from[2];
-                        samples += 1;
+                        red += static_cast<float>(from[0]) * sample;
+                        green += static_cast<float>(from[1]) * sample;
+                        blue += static_cast<float>(from[2]) * sample;
+                        weight += sample;
                     }
                 }
-                if (samples == 0) {
+                if (weight <= 0.0f) {
                     continue;
                 }
-                uint32_t scene = Pack(static_cast<std::uint8_t>(red / samples),
-                                      static_cast<std::uint8_t>(green / samples),
-                                      static_cast<std::uint8_t>(blue / samples));
+                const float inv = 1.0f / weight;
+                uint32_t scene = Pack(static_cast<std::uint8_t>(std::min(255.0f, red * inv + 0.5f)),
+                                      static_cast<std::uint8_t>(std::min(255.0f, green * inv + 0.5f)),
+                                      static_cast<std::uint8_t>(std::min(255.0f, blue * inv + 0.5f)));
 #ifdef ROBO_KERNEL
                 uint32_t cursorRgb = 0;
                 if (cursorRow && RoboDesktopCursorSample(screenX - cursorX, screenY - cursorY, &cursorRgb)) {
