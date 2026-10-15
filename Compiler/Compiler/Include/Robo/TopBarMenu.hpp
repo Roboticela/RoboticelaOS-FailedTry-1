@@ -102,7 +102,7 @@ public:
 private:
     int SlotCount() const;
 
-    std::string app_ = "Finder";
+    std::string app_ = "RoboticelaOS";
     std::string clock_;
     bool dark_ = false;
     bool appearanceLocked_ = false;

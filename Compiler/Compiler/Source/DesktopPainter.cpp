@@ -462,7 +462,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
         const float appleSlotW = appleSlotRight - appleSlotX;
         menu.SetAppleBounds(Slot(appleSlotX, 0.0f, appleSlotW, buttonHeight));
 
-        const float appWidth = fonts.MeasureWidth(menu.GetApp(), fontSize, FontFaceId::Medium, 0.0f);
+        const float appWidth = fonts.MeasureWidth(menu.GetApp(), fontSize, FontFaceId::Bold, 0.0f);
         float appSlotX = appX - itemPad;
         const float appleLimit = appleSlotRight + 2.0f * scale;
         if (appSlotX < appleLimit) {
@@ -559,7 +559,7 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 PaintGlyph(buffer, AppleMark(), appleX, appleY, itemInk(0, false), scale);
             }
             DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
-                     FontFaceId::Medium, itemInk(1, false), false, false);
+                     FontFaceId::Bold, itemInk(1, false), false, false);
             for (int index = 0; index < static_cast<int>(labels.size()); ++index) {
                 const TopBarMenuItem& item = labels[static_cast<std::size_t>(index)];
                 const MenuBounds& bounds = item.GetBounds();

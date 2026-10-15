@@ -4,7 +4,7 @@
 
   <Desktop>
     <Background color="{color.bg.primary}" src="Assets/Background.mp4"/>
-    <TopBarMenu app="Finder" clock="Tue 9:41 AM" appearance="light">
+    <TopBarMenu app="RoboticelaOS" clock="Tue 9:41 AM" appearance="light">
       <TopBarMenuItem label="File"/>
       <TopBarMenuItem label="Edit"/>
       <TopBarMenuItem label="View"/>

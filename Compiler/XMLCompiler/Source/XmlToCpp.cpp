@@ -2387,7 +2387,7 @@ void XmlToCpp::EmitDesktop(std::ostringstream& code, const XmlNode& node, int in
 void XmlToCpp::EmitTopBarMenu(std::ostringstream& code, const XmlNode& node, int indent) const {
     code << Indent(indent) << "{\n";
     code << Indent(indent + 1) << "Robo::TopBarMenu topBarMenu;\n";
-    std::string app = "Finder";
+    std::string app = "RoboticelaOS";
     if (node.attributes.count("app") != 0) {
         app = node.attributes.at("app");
     } else if (node.attributes.count("title") != 0) {
