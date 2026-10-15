@@ -170,6 +170,19 @@ float FontEngine::GetDescent(float fontSize, FontFaceId faceId) const {
     return stbtt_ScaleForPixelHeight(&face.info, fontSize) * static_cast<float>(-descent);
 }
 
+float FontEngine::PixelSizeForCss(float cssPixels, FontFaceId faceId) const {
+    const FaceData& face = *faces_[FaceIndex(faceId)];
+    if (!face.ready || cssPixels <= 0.0f) {
+        return cssPixels;
+    }
+    const float emScale = stbtt_ScaleForMappingEmToPixels(&face.info, 1.0f);
+    const float heightScale = stbtt_ScaleForPixelHeight(&face.info, 1.0f);
+    if (emScale <= 0.0f || heightScale <= 0.0f) {
+        return cssPixels;
+    }
+    return cssPixels * emScale / heightScale;
+}
+
 float FontEngine::GetLineGap(float fontSize, FontFaceId faceId) const {
     const FaceData& face = *faces_[FaceIndex(faceId)];
     if (!face.ready) {

@@ -47,6 +47,8 @@ public:
     float GetAscent(float fontSize, FontFaceId faceId) const;
     float GetDescent(float fontSize, FontFaceId faceId) const;
     float GetLineGap(float fontSize, FontFaceId faceId) const;
+    // Turns a CSS font-size into the pixel height this engine rasterizes.
+    float PixelSizeForCss(float cssPixels, FontFaceId faceId) const;
 
     void DrawString(FrameBuffer& buffer,
                     float x,

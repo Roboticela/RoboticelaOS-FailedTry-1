@@ -261,9 +261,10 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
                                    selected ? accent : folderMark);
         }
         const FontFaceId labelFace = fonts.ResolveFace(labelStyle.fontWeight, FontStyleKind::Normal);
-        const float labelSize = std::max(1.0f, labelStyle.fontSize) * scale;
+        const float cssSize = std::max(1.0f, labelStyle.fontSize) * scale;
+        const float labelSize = std::max(1.0f, fonts.PixelSizeForCss(cssSize, labelFace));
         const float letterSpacing = labelStyle.letterSpacing * scale;
-        const float lineStep = labelSize * std::max(1.0f, labelStyle.lineHeight);
+        const float lineStep = cssSize * std::max(1.0f, labelStyle.lineHeight);
         const float labelWidth = std::max(1.0f, std::min(itemWidth, labelStyle.maxWidth * scale));
         const float labelX = itemX + (itemWidth - labelWidth) * 0.5f;
         std::vector<LabelLine> lines;
