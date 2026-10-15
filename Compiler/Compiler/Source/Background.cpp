@@ -494,16 +494,31 @@ float NumberAt(const std::string& text, std::size_t& cursor) {
     while (cursor < text.size() && (text[cursor] == ' ' || text[cursor] == ',' || text[cursor] == '\n' || text[cursor] == '\r' || text[cursor] == '\t')) {
         cursor += 1;
     }
-    std::size_t end = cursor;
-    if (end < text.size() && (text[end] == '+' || text[end] == '-')) {
-        end += 1;
+    const std::size_t start = cursor;
+    if (cursor < text.size() && (text[cursor] == '+' || text[cursor] == '-')) {
+        cursor += 1;
     }
-    while (end < text.size() && ((text[end] >= '0' && text[end] <= '9') || text[end] == '.')) {
-        end += 1;
+    bool dot = false;
+    bool digit = false;
+    while (cursor < text.size()) {
+        const char ch = text[cursor];
+        if (ch >= '0' && ch <= '9') {
+            digit = true;
+            cursor += 1;
+            continue;
+        }
+        if (ch == '.' && !dot) {
+            dot = true;
+            cursor += 1;
+            continue;
+        }
+        break;
     }
-    const float value = static_cast<float>(std::atof(text.substr(cursor, end - cursor).c_str()));
-    cursor = end;
-    return value;
+    if (!digit) {
+        cursor = start;
+        return 0.0f;
+    }
+    return static_cast<float>(std::atof(text.substr(start, cursor - start).c_str()));
 }
 
 void AddCubic(SvgShape& shape, float c1x, float c1y, float c2x, float c2y, float x, float y) {
