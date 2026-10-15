@@ -1941,7 +1941,7 @@ void RoboScene::RunContextAction(const std::string& action) {
         }
         SelectionAreaItem folder;
         folder.SetLabel(count == 0 ? "untitled folder" : "untitled folder " + std::to_string(count + 1));
-        folder.SetPosition(24.0f + static_cast<float>(count % 6) * 120.0f, 24.0f + static_cast<float>(count / 6) * 112.0f);
+        folder.SetPosition(24.0f + static_cast<float>(count % 6) * 120.0f, 24.0f + static_cast<float>(count / 6) * 124.0f);
         folder.SetSelected(true);
         item.selectionArea.AddItem(std::move(folder));
         item.selectionArea.SetKeyboardFocus(true);
@@ -2227,6 +2227,22 @@ void RoboScene::EnsureMenuMark() {
     desktop_.GetTopBarMenu().SetMark(std::move(mark));
 }
 
+void RoboScene::EnsureFolderIcon() {
+    if (folderIconTried_ || platform_ == nullptr) {
+        return;
+    }
+    folderIconTried_ = true;
+    const std::vector<std::uint8_t> bytes = platform_->LoadAsset("Assets/EmptyFolder.svg");
+    if (bytes.empty()) {
+        return;
+    }
+    Svg icon;
+    if (!LoadSvgDocument(bytes.data(), bytes.size(), icon)) {
+        return;
+    }
+    folderIcon_ = std::move(icon);
+}
+
 void RoboScene::SetPaintPump(void (*pump)(void*), void* cookie) {
     paintPump_ = pump;
     paintPumpCookie_ = cookie;
@@ -2242,6 +2258,7 @@ bool RoboScene::PresentVideoFrame(IPlatform& platform) {
     BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), paintedWidth_, paintedHeight_, 0, 0, paintedWidth_, paintedHeight_);
     ApplyChrome(frame_);
     EnsureMenuMark();
+    EnsureFolderIcon();
     if (fonts_ != nullptr && desktop_.IsEnabled() && desktop_.HasTopBarMenu()) {
         const float barScale = paintedScale_ > 0.0f ? paintedScale_ : std::max(0.5f, platform.GetPixelScale());
         desktop_.GetTopBarMenu().ApplyTheme(theme_ == Theme::Dark);
@@ -2360,6 +2377,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     platform_ = &platform;
     fonts_ = &fonts;
     EnsureMenuMark();
+    EnsureFolderIcon();
     Color lightPage = background;
     Color darkPage = Color::FromHex("#000000");
     ActiveFoundation().LookupColor("bg.primary", Theme::Light, lightPage);
@@ -2622,7 +2640,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 }
                 const bool selectionDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
                 SelectionAreaPainter::Paint(frame, fonts, item.selectionArea, areaX, areaY, areaW, areaH, paintScale,
-                                            selectionDark);
+                                            selectionDark, folderIcon_.GetShapes().empty() ? nullptr : &folderIcon_);
                 if (!desktop_.IsEnabled()) {
                     cursorY += areaH;
                     contentRight = std::max(contentRight, areaX + areaW + scrollX_);

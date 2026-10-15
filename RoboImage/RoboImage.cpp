@@ -236,6 +236,7 @@ int main(int argc, char** argv) {
     RoboCopy(desktop, esp, "DESKTOP.BIN", "Desktop.bin");
     RoboCopy(desktop, esp, "BACKGROU.RJP", "Background.rjp");
     RoboCopy(desktop, esp, "ROBOLOGO.SVG", "RoboticelaLogo.svg");
+    RoboCopy(desktop, esp, "EMPTYFOL.SVG", "EmptyFolder.svg");
     RoboCopy(desktop, esp, "BACKGROU.MP4", "Background.mp4");
 
     std::uint64_t used = 1;

@@ -33,6 +33,7 @@ $files = @(
     "INTERB.TTF",
     "INTERI.TTF",
     "ROBOLOGO.SVG",
+    "EMPTYFOL.SVG",
     "BACKGROU.RJP",
     "BACKGROU.MP4"
 )

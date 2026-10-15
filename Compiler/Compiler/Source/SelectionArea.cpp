@@ -8,7 +8,7 @@ namespace Robo {
 namespace {
 
 constexpr float ITEM_WIDTH = 104.0f;
-constexpr float ITEM_HEIGHT = 96.0f;
+constexpr float ITEM_HEIGHT = 108.0f;
 
 float Distance(float ax, float ay, float bx, float by) {
     const float dx = bx - ax;
@@ -109,6 +109,19 @@ const SelectionBounds& SelectionAreaItem::GetBounds() const {
     return bounds_;
 }
 
+void SelectionAreaItem::SetLabelStyle(const SelectionLabelStyle& style) {
+    labelStyle_ = style;
+    hasLabelStyle_ = true;
+}
+
+bool SelectionAreaItem::HasLabelStyle() const {
+    return hasLabelStyle_;
+}
+
+const SelectionLabelStyle& SelectionAreaItem::GetLabelStyle() const {
+    return labelStyle_;
+}
+
 void SelectionArea::SetInclusion(SelectionInclusion inclusion) {
     inclusion_ = inclusion;
 }
@@ -162,6 +175,14 @@ const SelectionBounds& SelectionArea::GetBounds() const {
 
 void SelectionArea::SetPixelScale(float pixelScale) {
     pixelScale_ = pixelScale > 0.0f ? pixelScale : 1.0f;
+}
+
+void SelectionArea::SetLabelStyle(const SelectionLabelStyle& style) {
+    labelStyle_ = style;
+}
+
+const SelectionLabelStyle& SelectionArea::GetLabelStyle() const {
+    return labelStyle_;
 }
 
 SelectionGesture SelectionArea::GetGesture() const {

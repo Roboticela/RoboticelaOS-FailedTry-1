@@ -1,9 +1,33 @@
 #pragma once
 
+#include "Color.hpp"
+#include "FontStyle.hpp"
+#include "TextAlign.hpp"
+
 #include <string>
 #include <vector>
 
 namespace Robo {
+
+// How a marquee item paints the name under its icon.
+struct SelectionLabelStyle {
+    float fontSize = 12.0f;
+    FontWeight fontWeight = FontWeight::Regular;
+    Color color = Color::FromHex("#FFFFFF");
+    TextAlign align = TextAlign::Center;
+    float lineHeight = 1.25f;
+    float letterSpacing = 0.0f;
+    bool wrap = true;
+    float maxWidth = 100.0f;
+    int maxLines = 2;
+    float shadowX = 0.0f;
+    float shadowY = 1.0f;
+    float shadowBlur = 2.0f;
+    Color shadowColor = Color::FromHex("#000000D9");
+    float iconGap = 5.0f;
+    float selectionRadius = 4.0f;
+    Color selectionColor = Color::FromHex("#007AFF");
+};
 
 enum class SelectionInclusion {
     Intersect,
@@ -61,15 +85,21 @@ public:
     void SetBounds(const SelectionBounds& bounds);
     const SelectionBounds& GetBounds() const;
 
+    void SetLabelStyle(const SelectionLabelStyle& style);
+    bool HasLabelStyle() const;
+    const SelectionLabelStyle& GetLabelStyle() const;
+
 private:
     std::string label_;
     float x_ = 0.0f;
     float y_ = 0.0f;
     float width_ = 104.0f;
-    float height_ = 96.0f;
+    float height_ = 108.0f;
     bool selected_ = false;
     bool focused_ = false;
     bool locked_ = false;
+    bool hasLabelStyle_ = false;
+    SelectionLabelStyle labelStyle_{};
     SelectionBounds bounds_{};
 };
 
@@ -90,6 +120,9 @@ public:
     void SetBounds(const SelectionBounds& bounds);
     const SelectionBounds& GetBounds() const;
     void SetPixelScale(float pixelScale);
+
+    void SetLabelStyle(const SelectionLabelStyle& style);
+    const SelectionLabelStyle& GetLabelStyle() const;
 
     SelectionGesture GetGesture() const;
     bool HasMarquee() const;
@@ -134,6 +167,7 @@ private:
     bool keyboardFocus_ = false;
     SelectionBounds bounds_{};
     float pixelScale_ = 1.0f;
+    SelectionLabelStyle labelStyle_{};
 
     SelectionGesture gesture_ = SelectionGesture::Idle;
     SelectionCombine dragCombine_ = SelectionCombine::Replace;

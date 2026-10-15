@@ -3,13 +3,13 @@
 namespace Robo {
 
 FontWeight ParseFontWeight(const std::string& value) {
-    if (value == "medium") {
+    if (value == "medium" || value == "500") {
         return FontWeight::Medium;
     }
-    if (value == "semibold" || value == "semiBold") {
+    if (value == "semibold" || value == "semiBold" || value == "600") {
         return FontWeight::SemiBold;
     }
-    if (value == "bold") {
+    if (value == "bold" || value == "700") {
         return FontWeight::Bold;
     }
     return FontWeight::Regular;

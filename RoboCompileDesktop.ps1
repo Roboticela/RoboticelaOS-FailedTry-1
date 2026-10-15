@@ -126,6 +126,11 @@ if (Test-Path $logo) {
     Copy-Item -Force $logo (Join-Path $esp "ROBOLOGO.SVG")
     Copy-Item -Force $logo (Join-Path $espArm "ROBOLOGO.SVG")
 }
+$folderIcon = Join-Path $Root "Assets\EmptyFolder.svg"
+if (Test-Path $folderIcon) {
+    Copy-Item -Force $folderIcon (Join-Path $esp "EMPTYFOL.SVG")
+    Copy-Item -Force $folderIcon (Join-Path $espArm "EMPTYFOL.SVG")
+}
 Copy-Item -Force (Join-Path $esp "INTERR.TTF") (Join-Path $espArm "INTERR.TTF")
 Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")

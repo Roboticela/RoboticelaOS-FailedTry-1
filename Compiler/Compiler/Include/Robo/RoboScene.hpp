@@ -231,6 +231,7 @@ private:
     void CaptureChrome();
     void ApplyChrome(FrameBuffer& frame);
     void EnsureMenuMark();
+    void EnsureFolderIcon();
     void ConfigurePageBars();
     void PullPageScroll();
     void PullSidebarScroll(const Scrollbar* bar);
@@ -285,6 +286,8 @@ private:
     bool videoOnly_ = false;
     bool chromeReady_ = false;
     bool menuMarkTried_ = false;
+    bool folderIconTried_ = false;
+    Svg folderIcon_;
     std::vector<std::uint8_t> chromeBase_;
     std::vector<std::uint8_t> chromePixels_;
     std::vector<std::uint8_t> chromeMask_;

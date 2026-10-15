@@ -525,11 +525,12 @@ void AddCubic(SvgShape& shape, float c1x, float c1y, float c2x, float c2y, float
     shape.commands.push_back(SvgCommand::Cubic(c1x, c1y, c2x, c2y, x, y));
 }
 
-void AddPath(Svg& graphic, const std::string& data, const Color& fill) {
+void AddPath(Svg& graphic, const std::string& data, const Color& fill, float opacity = 1.0f) {
     SvgShape shape;
     shape.fill = fill;
     shape.hasFill = true;
     shape.hasStroke = false;
+    shape.opacity = opacity;
     float x = 0.0f;
     float y = 0.0f;
     float startX = 0.0f;
@@ -734,6 +735,10 @@ bool ResolvePaint(const std::string& fillText, const std::vector<GradientColor>&
     if (fillText == "none") {
         return false;
     }
+    if (fillText == "white" || fillText == "White") {
+        color = Color::FromHex("#FFFFFF");
+        return true;
+    }
     if (fillText.size() >= 6 && fillText.compare(0, 5, "url(#") == 0) {
         std::string id = fillText.substr(5);
         if (!id.empty() && id.back() == ')') {
@@ -812,14 +817,71 @@ bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
             break;
         }
         const std::string tag = text.substr(next, tagEnd - next);
+        auto lastBefore = [&](const char* token) {
+            const std::size_t count = strlen(token);
+            if (count == 0 || lower.size() < count) {
+                return std::string::npos;
+            }
+            std::size_t index = lower.size() - count;
+            if (next < index) {
+                index = next;
+            }
+            while (true) {
+                if (memcmp(lower.data() + index, token, count) == 0) {
+                    return index;
+                }
+                if (index == 0) {
+                    break;
+                }
+                index -= 1;
+            }
+            return std::string::npos;
+        };
+        auto inside = [&](const char* openTag, const char* closeTag) {
+            const std::size_t opened = lastBefore(openTag);
+            if (opened == std::string::npos) {
+                return false;
+            }
+            const std::size_t closed = lastBefore(closeTag);
+            return closed == std::string::npos || closed < opened;
+        };
+        if (inside("<mask", "</mask>") || inside("<defs", "</defs>")) {
+            cursor = tagEnd + 1;
+            continue;
+        }
         const std::string fillText = Attribute(tag, "fill");
+        if (fillText.empty()) {
+            const std::string styleText = Attribute(tag, "style");
+            const bool blend = styleText.find("mix-blend-mode") != std::string::npos;
+            const bool stroked = !Attribute(tag, "stroke").empty();
+            if (blend || stroked) {
+                cursor = tagEnd + 1;
+                continue;
+            }
+        }
         Color fill;
         if (!ResolvePaint(fillText, gradients, fill)) {
             cursor = tagEnd + 1;
             continue;
         }
+        float opacity = 1.0f;
+        const std::string fade = Attribute(tag, "fill-opacity");
+        if (!fade.empty()) {
+            std::size_t fadeCursor = 0;
+            opacity *= NumberAt(fade, fadeCursor);
+        }
+        const std::string whole = Attribute(tag, "opacity");
+        if (!whole.empty()) {
+            std::size_t wholeCursor = 0;
+            opacity *= NumberAt(whole, wholeCursor);
+        }
+        if (opacity < 0.0f) {
+            opacity = 0.0f;
+        } else if (opacity > 1.0f) {
+            opacity = 1.0f;
+        }
         if (which == 1) {
-            AddPath(graphic, Attribute(tag, "d"), fill);
+            AddPath(graphic, Attribute(tag, "d"), fill, opacity);
         } else if (which == 2) {
             std::size_t unused = 0;
             const std::string xText = Attribute(tag, "x");
@@ -834,9 +896,44 @@ bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
             const float w = NumberAt(wText, unused);
             unused = 0;
             const float h = NumberAt(hText, unused);
-            std::string data = "M " + std::to_string(x) + " " + std::to_string(y) + " H " + std::to_string(x + w) + " V " +
-                               std::to_string(y + h) + " H " + std::to_string(x) + " Z";
-            AddPath(graphic, data, fill);
+            unused = 0;
+            float rx = NumberAt(Attribute(tag, "rx"), unused);
+            unused = 0;
+            float ry = NumberAt(Attribute(tag, "ry"), unused);
+            if (rx <= 0.0f) {
+                rx = ry;
+            }
+            if (ry <= 0.0f) {
+                ry = rx;
+            }
+            if (rx > w * 0.5f) {
+                rx = w * 0.5f;
+            }
+            if (ry > h * 0.5f) {
+                ry = h * 0.5f;
+            }
+            std::string data;
+            if (rx > 0.5f && ry > 0.5f) {
+                const float k = 0.5522848f;
+                auto n = [](float value) { return std::to_string(value); };
+                data = "M " + n(x + rx) + " " + n(y);
+                data += " H " + n(x + w - rx);
+                data += " C " + n(x + w - rx + k * rx) + " " + n(y) + " " + n(x + w) + " " + n(y + ry - k * ry) + " " +
+                        n(x + w) + " " + n(y + ry);
+                data += " V " + n(y + h - ry);
+                data += " C " + n(x + w) + " " + n(y + h - ry + k * ry) + " " + n(x + w - rx + k * rx) + " " + n(y + h) + " " +
+                        n(x + w - rx) + " " + n(y + h);
+                data += " H " + n(x + rx);
+                data += " C " + n(x + rx - k * rx) + " " + n(y + h) + " " + n(x) + " " + n(y + h - ry + k * ry) + " " + n(x) +
+                        " " + n(y + h - ry);
+                data += " V " + n(y + ry);
+                data += " C " + n(x) + " " + n(y + ry - k * ry) + " " + n(x + rx - k * rx) + " " + n(y) + " " + n(x + rx) + " " +
+                        n(y) + " Z";
+            } else {
+                data = "M " + std::to_string(x) + " " + std::to_string(y) + " H " + std::to_string(x + w) + " V " +
+                       std::to_string(y + h) + " H " + std::to_string(x) + " Z";
+            }
+            AddPath(graphic, data, fill, opacity);
         } else if (which == 3 || which == 4) {
             std::size_t unused = 0;
             const float cx = NumberAt(Attribute(tag, "cx"), unused);
@@ -856,7 +953,7 @@ bool DecodeSvg(const std::uint8_t* bytes, std::size_t size, Svg& graphic) {
                     std::to_string(cy - ry) + " " + std::to_string(cx) + " " + std::to_string(cy - ry);
             data += " C " + std::to_string(cx + rx * k) + " " + std::to_string(cy - ry) + " " + std::to_string(cx + rx) + " " +
                     std::to_string(cy - ry * k) + " " + std::to_string(cx + rx) + " " + std::to_string(cy) + " Z";
-            AddPath(graphic, data, fill);
+            AddPath(graphic, data, fill, opacity);
         }
         cursor = tagEnd + 1;
     }

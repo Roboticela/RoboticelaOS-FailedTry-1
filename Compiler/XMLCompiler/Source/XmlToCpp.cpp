@@ -2245,6 +2245,86 @@ void XmlToCpp::EmitDockItem(std::ostringstream& code,
     }
 }
 
+void XmlToCpp::EmitSelectionLabelStyle(std::ostringstream& code,
+                                         const XmlNode& node,
+                                         int indent,
+                                         const std::string& variable,
+                                         const std::string& seed) const {
+    const bool labeled = node.attributes.count("fontSize") != 0 || node.attributes.count("fontWeight") != 0 ||
+                         node.attributes.count("color") != 0 || node.attributes.count("align") != 0 ||
+                         node.attributes.count("lineHeight") != 0 || node.attributes.count("letterSpacing") != 0 ||
+                         node.attributes.count("wrap") != 0 || node.attributes.count("maxWidth") != 0 ||
+                         node.attributes.count("maxLines") != 0 || node.attributes.count("shadowX") != 0 ||
+                         node.attributes.count("shadowY") != 0 || node.attributes.count("shadowBlur") != 0 ||
+                         node.attributes.count("shadowColor") != 0 || node.attributes.count("iconGap") != 0 ||
+                         node.attributes.count("selectionRadius") != 0 || node.attributes.count("selectionColor") != 0;
+    if (!labeled) {
+        return;
+    }
+    code << Indent(indent) << "{\n";
+    const std::string source = seed.empty() ? variable : seed;
+    code << Indent(indent + 1) << "Robo::SelectionLabelStyle labelStyle = " << source << ".GetLabelStyle();\n";
+    if (node.attributes.count("fontSize") != 0) {
+        code << Indent(indent + 1) << "labelStyle.fontSize = " << FloatLiteral(node.attributes.at("fontSize")) << ";\n";
+    }
+    if (node.attributes.count("fontWeight") != 0) {
+        code << Indent(indent + 1) << "labelStyle.fontWeight = Robo::ParseFontWeight(\""
+             << EscapeCpp(node.attributes.at("fontWeight")) << "\");\n";
+    }
+    if (node.attributes.count("color") != 0) {
+        code << Indent(indent + 1) << "labelStyle.color = Robo::Color::FromHex(\"" << EscapeCpp(node.attributes.at("color"))
+             << "\");\n";
+    }
+    if (node.attributes.count("align") != 0) {
+        code << Indent(indent + 1) << "labelStyle.align = Robo::ParseTextAlign(\"" << EscapeCpp(node.attributes.at("align"))
+             << "\");\n";
+    }
+    if (node.attributes.count("lineHeight") != 0) {
+        code << Indent(indent + 1) << "labelStyle.lineHeight = " << FloatLiteral(node.attributes.at("lineHeight")) << ";\n";
+    }
+    if (node.attributes.count("letterSpacing") != 0) {
+        code << Indent(indent + 1) << "labelStyle.letterSpacing = " << FloatLiteral(node.attributes.at("letterSpacing"))
+             << ";\n";
+    }
+    if (node.attributes.count("wrap") != 0) {
+        const std::string wrap = node.attributes.at("wrap");
+        const bool enabled = !(wrap == "false" || wrap == "0" || wrap == "no");
+        code << Indent(indent + 1) << "labelStyle.wrap = " << (enabled ? "true" : "false") << ";\n";
+    }
+    if (node.attributes.count("maxWidth") != 0) {
+        code << Indent(indent + 1) << "labelStyle.maxWidth = " << FloatLiteral(node.attributes.at("maxWidth")) << ";\n";
+    }
+    if (node.attributes.count("maxLines") != 0) {
+        code << Indent(indent + 1) << "labelStyle.maxLines = " << node.attributes.at("maxLines") << ";\n";
+    }
+    if (node.attributes.count("shadowX") != 0) {
+        code << Indent(indent + 1) << "labelStyle.shadowX = " << FloatLiteral(node.attributes.at("shadowX")) << ";\n";
+    }
+    if (node.attributes.count("shadowY") != 0) {
+        code << Indent(indent + 1) << "labelStyle.shadowY = " << FloatLiteral(node.attributes.at("shadowY")) << ";\n";
+    }
+    if (node.attributes.count("shadowBlur") != 0) {
+        code << Indent(indent + 1) << "labelStyle.shadowBlur = " << FloatLiteral(node.attributes.at("shadowBlur")) << ";\n";
+    }
+    if (node.attributes.count("shadowColor") != 0) {
+        code << Indent(indent + 1) << "labelStyle.shadowColor = Robo::Color::FromHex(\""
+             << EscapeCpp(node.attributes.at("shadowColor")) << "\");\n";
+    }
+    if (node.attributes.count("iconGap") != 0) {
+        code << Indent(indent + 1) << "labelStyle.iconGap = " << FloatLiteral(node.attributes.at("iconGap")) << ";\n";
+    }
+    if (node.attributes.count("selectionRadius") != 0) {
+        code << Indent(indent + 1) << "labelStyle.selectionRadius = " << FloatLiteral(node.attributes.at("selectionRadius"))
+             << ";\n";
+    }
+    if (node.attributes.count("selectionColor") != 0) {
+        code << Indent(indent + 1) << "labelStyle.selectionColor = Robo::Color::FromHex(\""
+             << EscapeCpp(node.attributes.at("selectionColor")) << "\");\n";
+    }
+    code << Indent(indent + 1) << variable << ".SetLabelStyle(labelStyle);\n";
+    code << Indent(indent) << "}\n";
+}
+
 void XmlToCpp::EmitSelectionArea(std::ostringstream& code, const XmlNode& node, int indent) const {
     code << Indent(indent) << "{\n";
     code << Indent(indent + 1) << "Robo::SelectionArea selectionArea;\n";
@@ -2270,6 +2350,7 @@ void XmlToCpp::EmitSelectionArea(std::ostringstream& code, const XmlNode& node, 
         code << Indent(indent + 1) << "selectionArea.SetThreshold(" << FloatLiteral(node.attributes.at("threshold"))
              << ");\n";
     }
+    EmitSelectionLabelStyle(code, node, indent + 1, "selectionArea");
     int itemIndex = 0;
     for (const XmlNode& item : node.children) {
         if (!IsSelectionItemName(item.name)) {
@@ -2296,7 +2377,7 @@ void XmlToCpp::EmitSelectionArea(std::ostringstream& code, const XmlNode& node, 
             const std::string width =
                 item.attributes.count("width") != 0 ? FloatLiteral(item.attributes.at("width")) : "104.0f";
             const std::string height =
-                item.attributes.count("height") != 0 ? FloatLiteral(item.attributes.at("height")) : "96.0f";
+                item.attributes.count("height") != 0 ? FloatLiteral(item.attributes.at("height")) : "108.0f";
             code << Indent(indent + 1) << itemName << ".SetSize(" << width << ", " << height << ");\n";
         }
         auto flag = [&](const char* name) {
@@ -2308,6 +2389,7 @@ void XmlToCpp::EmitSelectionArea(std::ostringstream& code, const XmlNode& node, 
         if (flag("locked") || flag("disabled")) {
             code << Indent(indent + 1) << itemName << ".SetLocked(true);\n";
         }
+        EmitSelectionLabelStyle(code, item, indent + 1, itemName, "selectionArea");
         code << Indent(indent + 1) << "selectionArea.AddItem(std::move(" << itemName << "));\n";
     }
     code << Indent(indent + 1) << "scene.AddSelectionArea(std::move(selectionArea));\n";

@@ -3,6 +3,7 @@
 #include "FontEngine.hpp"
 #include "FrameBuffer.hpp"
 #include "SelectionArea.hpp"
+#include "Svg.hpp"
 
 namespace Robo {
 
@@ -16,7 +17,8 @@ public:
                       float width,
                       float height,
                       float pixelScale,
-                      bool dark);
+                      bool dark,
+                      Svg* folderIcon);
 };
 
 }  // namespace Robo

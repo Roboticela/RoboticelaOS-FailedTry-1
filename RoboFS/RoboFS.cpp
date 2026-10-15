@@ -437,6 +437,8 @@ const RoboAlias gAliases[] = {
     {"DESKTOP.BIN", "Desktop/Desktop.bin"},
     {"ROBOLOGO.SVG", "Desktop/RoboticelaLogo.svg"},
     {"RoboticelaLogo.svg", "Desktop/RoboticelaLogo.svg"},
+    {"EMPTYFOL.SVG", "Desktop/EmptyFolder.svg"},
+    {"EmptyFolder.svg", "Desktop/EmptyFolder.svg"},
     {"BACKGROU.RJP", "Desktop/Background.rjp"},
     {"Background.rjp", "Desktop/Background.rjp"},
     {"BACKGROU.MP4", "Desktop/Background.mp4"},

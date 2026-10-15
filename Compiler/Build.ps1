@@ -252,6 +252,10 @@ function Invoke-WebBuild {
         if (Test-Path $logo) {
             $preloadArgs += @("--preload-file", "${logo}@/Assets/RoboticelaLogo.svg")
         }
+        $folderIcon = Join-Path (Split-Path $Root -Parent) "Assets\EmptyFolder.svg"
+        if (Test-Path $folderIcon) {
+            $preloadArgs += @("--preload-file", "${folderIcon}@/Assets/EmptyFolder.svg")
+        }
     }
 
     $emccArgs = @(
