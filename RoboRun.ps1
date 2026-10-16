@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
+. (Join-Path $Root "RoboEspAssets.ps1")
 
 $esp = Join-Path $Root "Build\Esp"
 $bootloader = Join-Path $esp "EFI\BOOT\BOOTX64.EFI"
@@ -76,16 +77,18 @@ if (-not (Test-Path $desktopImage)) {
         exit $LASTEXITCODE
     }
 }
+Assert-RoboEspAssets -EspRoot $esp -Required $RoboEspRequired
 
+$smp = [Math]::Min(4, [Math]::Max(1, [Environment]::ProcessorCount))
 $espPath = $esp -replace '\\', '/'
-Write-Host "Starting QEMU with the Windows hypervisor"
+Write-Host "Starting QEMU with the Windows hypervisor (smp $smp)"
 $arguments = @(
     "-accel", "whpx",
     "-accel", "tcg",
     "-cpu", "qemu64,svm=off",
     "-machine", "pc",
-    "-m", "1024",
-    "-smp", "1",
+    "-m", "2048",
+    "-smp", "$smp",
     "-net", "none",
     "-vga", "none",
     "-device", "virtio-vga",

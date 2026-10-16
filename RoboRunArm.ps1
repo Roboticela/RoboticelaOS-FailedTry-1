@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
+. (Join-Path $Root "RoboEspAssets.ps1")
 
 $esp = Join-Path $Root "Build\EspArm"
 $bootloader = Join-Path $esp "EFI\BOOT\BOOTAA64.EFI"
@@ -43,16 +44,27 @@ if (-not (Test-Path $vars) -or (Get-Item $vars).Length -ne 64MB) {
     [IO.File]::WriteAllBytes($vars, $empty)
 }
 
+$desktopImage = Join-Path $esp "DESKTOP.BIN"
+if (-not (Test-Path $desktopImage)) {
+    & powershell -NoProfile -File (Join-Path $Root "RoboCompileDesktop.ps1")
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
+Assert-RoboEspAssets -EspRoot $esp -Required $RoboEspArmRequired
+
+$smp = [Math]::Min(4, [Math]::Max(1, [Environment]::ProcessorCount))
 $firmwarePath = $firmware -replace '\\', '/'
 $varsPath = $vars -replace '\\', '/'
 $espPath = $esp -replace '\\', '/'
 $disk = Join-Path $Root "Build\RoboDisk.img"
 $diskPath = $disk -replace '\\', '/'
+Write-Host "Starting ARM64 QEMU (smp $smp)"
 $arguments = @(
     "-machine", "virt,gic-version=2",
     "-cpu", "cortex-a57",
-    "-m", "512",
-    "-smp", "1",
+    "-m", "1024",
+    "-smp", "$smp",
     "-net", "none",
     "-device", "ramfb",
     "-drive", "if=pflash,format=raw,readonly=on,file=$firmwarePath",

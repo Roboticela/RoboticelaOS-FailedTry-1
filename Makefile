@@ -15,11 +15,11 @@ LLD_LINK ?= lld-link
 
 KERNEL_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
 	-fno-asynchronous-unwind-tables -fno-unwind-tables -mno-red-zone -mno-sse -mno-mmx \
-	-mgeneral-regs-only -fno-pic -fno-pie -fno-builtin -Wall -Wextra -Wno-unused-parameter \
+	-mgeneral-regs-only -fno-pic -fno-pie -fno-builtin -O2 -Wall -Wextra -Wno-unused-parameter \
 	-IRoboInclude -IRoboGPU -IRoboDesktop -IRoboInput -IRoboArch/X64
 
 BOOT_CFLAGS := -std=c11 -ffreestanding -fno-stack-protector -fshort-wchar -mno-red-zone \
-	-mgeneral-regs-only -fno-builtin -Wall -Wextra -Wno-unused-parameter \
+	-mgeneral-regs-only -fno-builtin -O2 -Wall -Wextra -Wno-unused-parameter \
 	-IRoboBootloader -IRoboInclude
 
 KERNEL_SRCS := RoboKernel/RoboKernel.cpp RoboKernel/RoboSupport.cpp RoboGPU/RoboGPU.cpp \
@@ -53,7 +53,7 @@ ESP_ARM := $(BUILD)/EspArm
 BOOT_ARM := $(ESP_ARM)/EFI/BOOT
 ARM_TARGET := --target=aarch64-unknown-none-elf
 ARM_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
-	-fno-asynchronous-unwind-tables -fno-unwind-tables -fno-pic -fno-pie -fno-builtin \
+	-fno-asynchronous-unwind-tables -fno-unwind-tables -fno-pic -fno-pie -fno-builtin -O2 \
 	-Wall -Wextra -Wno-unused-parameter \
 	-IRoboInclude -IRoboGPU -IRoboDesktop -IRoboInput -IRoboArch/X64
 ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.o \
@@ -61,7 +61,8 @@ ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.
 	$(ARM_OBJ)/RoboArch.o $(ARM_OBJ)/RoboVector.o $(ARM_OBJ)/RoboMemory.o \
 	$(ARM_OBJ)/RoboCpu.o $(ARM_OBJ)/RoboTimer.o $(ARM_OBJ)/RoboAta.o $(ARM_OBJ)/RoboPci.o \
 	$(ARM_OBJ)/RoboDisk.o $(ARM_OBJ)/RoboVirtioBlk.o $(ARM_OBJ)/RoboAhci.o $(ARM_OBJ)/RoboNvme.o $(ARM_OBJ)/RoboPermit.o $(ARM_OBJ)/RoboProcess.o $(ARM_OBJ)/RoboCall.o $(ARM_OBJ)/RoboFrame.o \
-	$(ARM_OBJ)/RoboSchedule.o $(ARM_OBJ)/RoboInputDevice.o $(ARM_OBJ)/RoboGPUVendor.o $(ARM_OBJ)/RoboShellStub.o
+	$(ARM_OBJ)/RoboSchedule.o $(ARM_OBJ)/RoboInputDevice.o $(ARM_OBJ)/RoboGPUVendor.o $(ARM_OBJ)/RoboShellStub.o \
+	$(ARM_OBJ)/RoboHeap.o
 
 .PHONY: all clean
 
@@ -173,7 +174,9 @@ $(BUILD)/App/ARM.bin: RoboApp/RoboAppMain.cpp RoboApp/RoboApp.ld RoboInclude/Rob
 	$(LLD) -m aarch64elf -nostdlib -static -T RoboApp/RoboApp.ld -o $(BUILD)/App/RoboAppARM.elf $(BUILD)/App/RoboAppARM.o
 	llvm-objcopy -O binary $(BUILD)/App/RoboAppARM.elf $(BUILD)/App/ARM.bin
 
-$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin $(BUILD)/App/X64.bin $(BUILD)/App/ARM.bin
+$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin $(BUILD)/App/X64.bin $(BUILD)/App/ARM.bin \
+	$(ESP)/INTERR.TTF $(ESP)/INTERM.TTF $(ESP)/INTERS.TTF $(ESP)/INTERB.TTF $(ESP)/INTERI.TTF \
+	$(ESP)/DESKTOP.BIN $(ESP)/BACKGROU.RJP $(ESP)/ROBOLOGO.SVG $(ESP)/EMPTYFOL.SVG
 	$(BUILD)/RoboImage.exe $(BUILD)/RoboDisk.img $(ESP)
 
 $(SHELL_DIR)/%.o: Compiler/Compiler/Source/%.cpp
@@ -317,6 +320,9 @@ $(ARM_OBJ)/RoboShellStub.o: RoboArch/ARM64/RoboShellStub.cpp RoboInclude/RoboShe
 
 $(ARM_OBJ)/RoboGPUVendor.o: RoboArch/ARM64/RoboGPUVendor.cpp RoboInclude/RoboGPUVendor.hpp
 	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -c RoboArch/ARM64/RoboGPUVendor.cpp -o $(ARM_OBJ)/RoboGPUVendor.o
+
+$(ARM_OBJ)/RoboHeap.o: RoboLib/RoboHeap.cpp
+	$(CLANG) $(ARM_TARGET) $(ARM_CFLAGS) -IRoboLib/Include -c RoboLib/RoboHeap.cpp -o $(ARM_OBJ)/RoboHeap.o
 
 clean:
 	powershell -NoProfile -Command "if (Test-Path '$(BUILD)') { Remove-Item -Recurse -Force '$(BUILD)' }"

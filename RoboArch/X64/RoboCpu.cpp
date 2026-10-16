@@ -26,7 +26,8 @@ uint32_t RoboApicRead(uint32_t offset) {
 }
 
 void RoboCpuPause(void) {
-    for (uint32_t count = 0; count < 2000000u; ++count) {
+    // Short INIT/SIPI gap; multi-million spins here stuck the painter after first Present.
+    for (uint32_t count = 0; count < 20000u; ++count) {
         __asm__ volatile("pause");
     }
 }
@@ -254,6 +255,10 @@ void RoboCpuJoin(void) {
         if (apicId == bsp) {
             continue;
         }
+        // Stop once enough APs joined; do not burn the BSP on empty APIC IDs.
+        if (gRoboCpuReady >= ROBO_CPU_LIMIT) {
+            return;
+        }
         uint64_t stackTop = 0;
         if (gRoboCpuReady >= 1u && gRoboCpuReady <= 3u) {
             stackTop = reinterpret_cast<uint64_t>(&gVideoStack[gRoboCpuReady - 1u]) + sizeof(gVideoStack[0]) - 8ull;
@@ -273,11 +278,15 @@ void RoboCpuJoin(void) {
         RoboApicIpi(apicId, 0x00004608u);
         RoboCpuPause();
         RoboApicIpi(apicId, 0x00004608u);
-        for (uint32_t spin = 0; spin < 20000000u; ++spin) {
+        for (uint32_t spin = 0; spin < 50000u; ++spin) {
             if (gRoboCpuReady != before) {
                 break;
             }
             __asm__ volatile("pause");
+        }
+        // Missing AP: leave the rest for a later join; keep the painter moving.
+        if (gRoboCpuReady == before) {
+            return;
         }
     }
 }

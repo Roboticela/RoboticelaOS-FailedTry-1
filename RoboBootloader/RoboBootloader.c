@@ -224,6 +224,51 @@ static void RoboLoadDevKit(EfiBootServices* boot, EfiFileProtocol* root, uint16_
     info->fileCount += 1u;
 }
 
+static int RoboAddressInMappedRam(uint64_t address, uint64_t bytes) {
+    if (address < 0x100000ull || address >= ROBO_RAM_MAP_MAX_BYTES) {
+        return 0;
+    }
+    if (address + bytes < address || address + bytes > ROBO_RAM_MAP_MAX_BYTES) {
+        return 0;
+    }
+    return 1;
+}
+
+/* Kernel identity-maps installed RAM up to ROBO_RAM_MAP_MAX_BYTES. */
+static int RoboAllocateMappedRam(EfiBootServices* boot, uint64_t bytes, uint64_t* addressOut, uint64_t* pagesOut, int* usedPoolOut, void** poolOut) {
+    uint64_t pages = (bytes + 0xFFFu) >> 12;
+    uint64_t address = ROBO_RAM_MAP_MAX_BYTES - 1ull;
+    *addressOut = 0;
+    *pagesOut = 0;
+    *usedPoolOut = 0;
+    *poolOut = 0;
+    if (boot->allocatePages(ROBO_EFI_ALLOCATE_MAX, ROBO_EFI_LOADER_DATA, pages, &address) == ROBO_EFI_SUCCESS
+        && RoboAddressInMappedRam(address, bytes)) {
+        *addressOut = address;
+        *pagesOut = pages;
+        return 1;
+    }
+    address = 0;
+    if (boot->allocatePages(ROBO_EFI_ALLOCATE_ANY, ROBO_EFI_LOADER_DATA, pages, &address) == ROBO_EFI_SUCCESS
+        && RoboAddressInMappedRam(address, bytes)) {
+        *addressOut = address;
+        *pagesOut = pages;
+        return 1;
+    }
+    void* pool = 0;
+    if (boot->allocatePool(ROBO_EFI_LOADER_DATA, bytes, &pool) == ROBO_EFI_SUCCESS && pool != 0) {
+        address = (uint64_t)(uintptr_t)pool;
+        if (RoboAddressInMappedRam(address, bytes)) {
+            *addressOut = address;
+            *usedPoolOut = 1;
+            *poolOut = pool;
+            return 1;
+        }
+        boot->freePool(pool);
+    }
+    return 0;
+}
+
 static void RoboLoadBootFile(EfiBootServices* boot, EfiFileProtocol* root, uint16_t* path, const char* name, RoboBootInfo* info) {
     if (info->fileCount >= ROBO_BOOT_FILE_MAX) {
         return;
@@ -247,26 +292,7 @@ static void RoboLoadBootFile(EfiBootServices* boot, EfiFileProtocol* root, uint1
     uint64_t pages = 0;
     int usedPool = 0;
     void* pool = 0;
-    if (boot->allocatePool(ROBO_EFI_LOADER_DATA, fileSize, &pool) == ROBO_EFI_SUCCESS && pool != 0) {
-        address = (uint64_t)(uintptr_t)pool;
-        usedPool = 1;
-    } else {
-        pages = (fileSize + 0xFFFu) >> 12;
-        address = 0xFFFFFFFFull;
-        if (boot->allocatePages(ROBO_EFI_ALLOCATE_MAX, ROBO_EFI_LOADER_DATA, pages, &address) != ROBO_EFI_SUCCESS) {
-            address = 0;
-            if (boot->allocatePages(ROBO_EFI_ALLOCATE_ANY, ROBO_EFI_LOADER_DATA, pages, &address) != ROBO_EFI_SUCCESS) {
-                file->close(file);
-                return;
-            }
-        }
-    }
-    if (address < 0x100000ull || address >= 0x100000000ull || address + fileSize > 0x100000000ull) {
-        if (usedPool) {
-            boot->freePool(pool);
-        } else if (address != 0) {
-            boot->freePages(address, pages);
-        }
+    if (!RoboAllocateMappedRam(boot, fileSize, &address, &pages, &usedPool, &pool)) {
         file->close(file);
         return;
     }
@@ -485,6 +511,14 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     RoboLoadBootFile(boot, root, emptyPath, "EMPTYFOL.SVG", &info);
     RoboLoadDevKit(boot, root, devKitPath, "DEVKIT.ELF", &info);
     root->close(root);
+    {
+        static uint16_t heldMsg[] = u"Held files: 0\r\n";
+        heldMsg[12] = (uint16_t)(u'0' + (info.fileCount % 10u));
+        if (info.fileCount >= 10u) {
+            heldMsg[11] = (uint16_t)(u'0' + ((info.fileCount / 10u) % 10u));
+        }
+        RoboPrint(system, heldMsg);
+    }
     RoboCaptureMemory(boot, &info);
     if (!RoboExitBoot(boot, imageHandle)) {
         RoboFail(system, noExit);

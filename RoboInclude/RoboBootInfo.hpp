@@ -11,6 +11,9 @@
 #define ROBO_KERNEL_BYTES (128ull * 1024ull * 1024ull)
 #define ROBO_DEVKIT_LOAD_ADDRESS 0x10000000ull
 #define ROBO_DEVKIT_BYTES (32ull * 1024ull * 1024ull)
+/* Identity map scales with installed RAM: at least 1 GiB, up to 64 GiB. */
+#define ROBO_RAM_MIN_BYTES (1ull * 1024ull * 1024ull * 1024ull)
+#define ROBO_RAM_MAP_MAX_BYTES (64ull * 1024ull * 1024ull * 1024ull)
 #define ROBO_MEMORY_RANGE_MAX 256u
 #define ROBO_BOOT_FILE_MAX 16u
 #define ROBO_BOOT_FILE_NAME 16u

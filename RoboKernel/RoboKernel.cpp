@@ -14,6 +14,7 @@
 #include "RoboFrame.hpp"
 #include "RoboFS.hpp"
 #include "RoboDesktopImage.hpp"
+#include "RoboDebug.hpp"
 #include "RoboShell.hpp"
 
 extern "C" void RoboKernelContinue(RoboBootInfo* info);
@@ -141,6 +142,15 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     RoboCopyBootInfo(info);
     uint64_t stackTop = reinterpret_cast<uint64_t>(gKernelStack + ROBO_KERNEL_STACK_BYTES);
     stackTop &= ~static_cast<uint64_t>(15u);
+#if defined(__aarch64__) || defined(__arm64__)
+    __asm__ volatile(
+        "mov sp, %0\n"
+        "mov x0, %1\n"
+        "bl RoboKernelContinue\n"
+        :
+        : "r"(stackTop), "r"(&gBootInfo)
+        : "memory", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x30");
+#else
     __asm__ volatile(
         "mov %0, %%rsp\n"
         "xor %%rbp, %%rbp\n"
@@ -149,6 +159,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
         :
         : "r"(stackTop), "r"(&gBootInfo)
         : "memory", "rdi");
+#endif
     RoboHalt();
 }
 
@@ -164,7 +175,9 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
 
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
+    RoboDebugLine("desktop");
     if (RoboHeapBase() == nullptr) {
+        RoboDebugLine("heap-fail");
         RoboGPUFill(&gpu, 0xB00020u);
         RoboHalt();
     }
@@ -173,12 +186,19 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
     RoboArchInterruptsStart();
     RoboPS2MouseArm();
     RoboPS2KeyboardStart();
-    RoboUsbStart();
     RoboScheduleStart();
-    RoboFsMountDisk();
+    // First Present before USB/disk probes so gray+center cursor cannot stick on device spins.
     gShellLive = RoboShellStart(&desktop);
+    RoboDebugLine(gShellLive ? "shell-ok" : "shell-fail");
     gShellLoaded = gShellLive || RoboShellLoad(&desktop);
     RoboFrameStart(&desktop);
+    RoboDebugLine("frame");
+    RoboCpuJoin();
+    RoboDebugLine("smp");
+    RoboUsbStart();
+    RoboDebugLine("usb");
+    RoboFsMountDisk();
+    RoboDebugLine("disk");
     RoboAppLoad();
     RoboWindow appWindow{};
     appWindow.pixels = gAppPixels;
@@ -189,6 +209,7 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
     }
     uint64_t nextWidgetTick = ROBO_APP_WIDGET_TICKS;
     bool widgetOn = false;
+    RoboDebugLine("loop");
 
     for (;;) {
         RoboArchCli();

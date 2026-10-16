@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
+. (Join-Path $Root "RoboEspAssets.ps1")
 
 if ($Drive -notmatch '^[A-Za-z]:?$') {
     Write-Error "Pass a drive letter, for example -Drive E"
@@ -26,25 +27,7 @@ if (-not (Test-Path $esp)) {
     Write-Error "Build\Esp is missing. Run .\RoboBuild.ps1 first."
 }
 
-# Required first so a large optional file cannot block fonts and wallpaper.
-$required = @(
-    "EFI\BOOT\BOOTX64.EFI",
-    "RoboKernel.elf",
-    "INTERR.TTF",
-    "INTERM.TTF",
-    "INTERS.TTF",
-    "INTERB.TTF",
-    "INTERI.TTF",
-    "ROBOLOGO.SVG",
-    "EMPTYFOL.SVG",
-    "BACKGROU.RJP",
-    "DESKTOP.BIN",
-    "RoboApp.bin"
-)
-$optional = @(
-    "DevKit.elf",
-    "BACKGROU.MP4"
-)
+Assert-RoboEspAssets -EspRoot $esp -Required $RoboEspRequired
 
 function Copy-RoboEspFile([string]$Relative, [bool]$Required) {
     $source = Join-Path $esp $Relative
@@ -72,23 +55,42 @@ function Copy-RoboEspFile([string]$Relative, [bool]$Required) {
     }
 }
 
-foreach ($relative in $required) {
+foreach ($relative in $RoboEspRequired) {
     Copy-RoboEspFile $relative $true
 }
-foreach ($relative in $optional) {
+foreach ($relative in $RoboEspOptional) {
     Copy-RoboEspFile $relative $false
+}
+
+$disk = Join-Path $Root "Build\RoboDisk.img"
+if (Test-Path -LiteralPath $disk) {
+    $diskTarget = Join-Path $destination "RoboDisk.img"
+    $diskItem = Get-Item -LiteralPath $disk
+    Write-Host ("copy  RoboDisk.img ({0:N0} bytes) — RoboFS volume for apps" -f $diskItem.Length)
+    Copy-Item -LiteralPath $disk -Destination $diskTarget -Force
+} else {
+    Write-Host "note  Build\RoboDisk.img missing; USB is ESP-only (QEMU can still attach the disk image when present)."
+}
+
+Write-Host ""
+Write-Host "Verifying files on ${letter}:"
+foreach ($relative in ($RoboEspRequired + $RoboEspOptional)) {
+    $target = Join-Path $destination $relative
+    if (Test-Path -LiteralPath $target) {
+        $item = Get-Item -LiteralPath $target
+        Write-Host ("  ok    {0} ({1:N0} bytes)" -f $relative, $item.Length)
+    } elseif ($RoboEspRequired -contains $relative) {
+        Write-Error "Missing required file on drive after copy: $relative"
+    } else {
+        Write-Host "  skip  $relative"
+    }
 }
 
 try {
     Write-VolumeCache -DriveLetter $letter -ErrorAction Stop
+    Write-Host "Write cache flushed."
 } catch {
-    try {
-        $volume = Get-Volume -DriveLetter $letter -ErrorAction Stop
-        if ($null -ne $volume) {
-            Write-Host "Flush the USB safely before unplugging (write cache may still be pending)."
-        }
-    } catch {
-    }
+    Write-Host "Flush the USB with 'Safely Remove Hardware' before unplugging."
 }
 
 Write-Host ""

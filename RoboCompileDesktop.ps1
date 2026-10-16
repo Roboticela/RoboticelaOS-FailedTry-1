@@ -121,6 +121,7 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+. (Join-Path $Root "RoboEspAssets.ps1")
 $esp = Join-Path $Root "Build\Esp"
 $espArm = Join-Path $Root "Build\EspArm"
 New-Item -ItemType Directory -Force -Path $esp, $espArm | Out-Null
@@ -158,6 +159,16 @@ if (Test-Path $video) {
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
+}
+
+# Stage list must stay aligned with RoboEspAssets.ps1 (fonts, logos, DESKTOP.BIN, BACKGROU.RJP).
+$stagedRequired = @(
+    "INTERR.TTF", "INTERM.TTF", "INTERS.TTF", "INTERB.TTF", "INTERI.TTF",
+    "ROBOLOGO.SVG", "EMPTYFOL.SVG", "DESKTOP.BIN"
+)
+Assert-RoboEspAssets -EspRoot $esp -Required $stagedRequired
+if (Test-Path (Join-Path $esp "BACKGROU.RJP")) {
+    Assert-RoboEspAssets -EspRoot $esp -Required @("BACKGROU.RJP")
 }
 
 Write-Host "Built $generated"

@@ -696,7 +696,7 @@ void RoboUsbDrain(void) {
 }
 
 bool RoboUsbWaitCommand(void) {
-    for (uint32_t spin = 0; spin < 500000u; ++spin) {
+    for (uint32_t spin = 0; spin < 50000u; ++spin) {
         RoboUsbDrain();
         if (gCommandDone != 0) {
             return gCommandCode == 1u;
@@ -735,7 +735,7 @@ bool RoboUsbControl(RoboUsbDevice* device, uint8_t requestType, uint8_t request,
     gWaitCode = 0;
     __asm__ volatile("" : : : "memory");
     RoboMmioWrite32(gDoorbell + static_cast<uint64_t>(device->slot) * 4u, 1u);
-    for (uint32_t spin = 0; spin < 500000u; ++spin) {
+    for (uint32_t spin = 0; spin < 50000u; ++spin) {
         RoboUsbDrain();
         if (gWaitDone != 0) {
             gWaitTrb = 0;
@@ -976,7 +976,7 @@ void RoboUsbResetPort(uint32_t port) {
     }
     RoboMmioWrite32(reg, (1u << 9) | (1u << 4));
     bool resetDone = false;
-    for (uint32_t spin = 0; spin < 200000u; ++spin) {
+    for (uint32_t spin = 0; spin < 20000u; ++spin) {
         portsc = RoboMmioRead32(reg);
         if ((portsc & (1u << 4)) == 0) {
             resetDone = true;
@@ -1042,7 +1042,7 @@ void RoboUsbLegacy(uint64_t bar, uint32_t hcc) {
         uint8_t next = static_cast<uint8_t>(value >> 8);
         if (id == 1u) {
             RoboMmioWrite32(cap, value | (1u << 24));
-            for (uint32_t spin = 0; spin < 100000u; ++spin) {
+            for (uint32_t spin = 0; spin < 10000u; ++spin) {
                 if ((RoboMmioRead32(cap) & (1u << 16)) == 0) {
                     break;
                 }
@@ -1060,7 +1060,7 @@ bool RoboUsbReset(void) {
     if ((command & 1u) != 0) {
         RoboMmioWrite32(gOperation, command & ~1u);
         bool halted = false;
-        for (uint32_t spin = 0; spin < 200000u; ++spin) {
+        for (uint32_t spin = 0; spin < 20000u; ++spin) {
             if ((RoboMmioRead32(gOperation + 4u) & 1u) != 0) {
                 halted = true;
                 break;
@@ -1072,7 +1072,7 @@ bool RoboUsbReset(void) {
     }
     RoboMmioWrite32(gOperation, RoboMmioRead32(gOperation) | 2u);
     bool resetDone = false;
-    for (uint32_t spin = 0; spin < 200000u; ++spin) {
+    for (uint32_t spin = 0; spin < 20000u; ++spin) {
         if ((RoboMmioRead32(gOperation) & 2u) == 0) {
             resetDone = true;
             break;
@@ -1081,7 +1081,7 @@ bool RoboUsbReset(void) {
     if (!resetDone) {
         return false;
     }
-    for (uint32_t spin = 0; spin < 200000u; ++spin) {
+    for (uint32_t spin = 0; spin < 20000u; ++spin) {
         uint32_t status = RoboMmioRead32(gOperation + 4u);
         if ((status & (1u << 12)) != 0) {
             return false;
@@ -1197,7 +1197,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     RoboMmioWrite32(gRuntime + 0x20u, 2u);
     RoboMmioWrite32(gOperation, RoboMmioRead32(gOperation) | 1u | 4u);
     bool running = false;
-    for (uint32_t spin = 0; spin < 200000u; ++spin) {
+    for (uint32_t spin = 0; spin < 20000u; ++spin) {
         if ((RoboMmioRead32(gOperation + 4u) & 1u) == 0) {
             running = true;
             break;

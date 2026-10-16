@@ -13,6 +13,35 @@ Use C and C++ for building only and use fewer ASM and also, use python in only c
 
 The web and RoboticelaOS implementation must be same and it must be visually also same. Whatever is on Web that must be on RoboticelaOS and vice versa.
 
+# Engineering rules (do not regress)
+
+## Performance
+- Freestanding kernel and bootloader ship at `-O2` (same class as the shell). Do not leave the ship path on an unoptimized default.
+- No O(RAM) walks and no multi-million busy-wait loops on the boot path. Device waits must be bounded. A missing device must fail fast and still boot.
+- After the first full paint, only damage rectangles repaint. Idle must not redraw. Paint must not call a general allocator.
+- Prefer real handwritten C and C++ hot paths. Do not ship placeholder stubs that fake macOS or Windows smoothness while blocking boot.
+
+## Visual quality
+- `ROBO_RENDER_QUALITY` stays **1.3** unless the user explicitly changes that constant. Never lower the scale to hide boot or performance bugs.
+- Web and RoboticelaOS stay visually identical. Glyph and atlas rules from Stages 15–16 remain.
+
+## Real hardware, not demos
+- Use firmware-reported RAM, cores, and GOP. Do not hardcode tiny RAM, heaps, or SMP only for QEMU in production paths.
+- Identity map and heap carve scale with installed RAM (minimum 1 GiB, map at least up to 64 GiB). Carve must stay span-based; never scan all RAM one 4 KiB page at a time.
+- Extra cores may join only after the first interactive Present. Never block the painter BSP on AP spin during boot.
+- A missing USB device, disk, or GPU vendor path must still reach an interactive desktop.
+
+## Boot must reach the shell
+- After `RoboDesktopBoot`, the next mandatory milestone is `RoboShellStart` first Present.
+- Optional work (USB probe, disk mount, DevKit) must not run unbounded before that Present, or must be deferred until after it.
+- Gray `#202838` with a centered cursor and no further paint is a **P0 boot hang**, not an acceptable fallback.
+
+## Build and media parity
+- Two media roles: **ESP** (`Build\Esp`, `Build\EspArm`) holds UEFI boot and bootloader-held assets; **RoboDisk.img** holds RoboFS apps and writable files. QEMU and flash/install must stay aligned on both roles.
+- One shared asset list (`RoboEspAssets.ps1`) drives CompileDesktop staging, Flash required/optional copies, and Run asserts. Changing a boot asset updates that list and the bootloader load paths, RoboImage copies, and RoboFS aliases in the same change.
+- Flash must not silently omit fonts, `BACKGROU.RJP`, the kernel, or the bootloader that QEMU needs for a matching desktop.
+- Until Stage 28 install layout lands, treat “QEMU ESP folder + RoboDisk.img” and “USB ESP (+ disk when present)” as a known parity requirement whenever either script changes.
+
 # Stages
 
 ## Stage 0 — Blank desktop

@@ -992,10 +992,10 @@ void RoboFsUseBootFiles(const RoboBootInfo* info) {
     }
     for (uint32_t index = 0; index < count; ++index) {
         const RoboBootFile* file = &info->files[index];
-        if (file->address < 0x100000ull || file->size == 0 || file->address >= 0x100000000ull) {
+        if (file->address < 0x100000ull || file->size == 0 || file->address >= ROBO_RAM_MAP_MAX_BYTES) {
             continue;
         }
-        if (file->size > 24u * 1024u * 1024u || file->address + file->size > 0x100000000ull) {
+        if (file->size > 24u * 1024u * 1024u || file->address + file->size > ROBO_RAM_MAP_MAX_BYTES) {
             continue;
         }
         bool named = false;

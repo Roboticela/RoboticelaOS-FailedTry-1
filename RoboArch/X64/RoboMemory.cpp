@@ -12,17 +12,22 @@ constexpr uint64_t ROBO_PAGE_PCD = 1ull << 4;
 constexpr uint64_t ROBO_PAGE_SIZE = 1ull << 7;
 constexpr uint64_t ROBO_PAGE_BYTES = 4096ull;
 constexpr uint64_t ROBO_TWO_MB = 2ull * 1024ull * 1024ull;
-constexpr uint64_t ROBO_MAP_BYTES = 4ull * 1024ull * 1024ull * 1024ull;
-constexpr uint32_t ROBO_FREE_LIMIT = 4096u;
+constexpr uint64_t ROBO_ONE_GB = 1024ull * 1024ull * 1024ull;
+constexpr uint32_t ROBO_PD_MAX = static_cast<uint32_t>(ROBO_RAM_MAP_MAX_BYTES / ROBO_ONE_GB);
+constexpr uint32_t ROBO_FREE_LIMIT = 8192u;
+constexpr uint64_t ROBO_HEAP_MIN_BYTES = 48ull * 1024ull * 1024ull;
+constexpr uint64_t ROBO_HEAP_TARGET_BYTES = 96ull * 1024ull * 1024ull;
+constexpr uint64_t ROBO_HEAP_MAX_BYTES = 256ull * 1024ull * 1024ull;
 
-alignas(4096) uint8_t gTablePages[7 * 4096];
+alignas(4096) uint8_t gTablePages[(2u + ROBO_PD_MAX) * 4096u];
 uint64_t gFreePages[ROBO_FREE_LIMIT];
 uint32_t gFreeCount = 0;
 uint64_t gKernelCr3 = 0;
+uint64_t gMapBytes = ROBO_RAM_MIN_BYTES;
+uint32_t gMapGigabytes = 1u;
 bool gPatReady = false;
 RoboArena gFrameArena{};
 RoboArena gLongArena{};
-constexpr uint64_t ROBO_HEAP_CARVE_BYTES = 96ull * 1024ull * 1024ull;
 uint8_t* gHeapCarve = nullptr;
 uint64_t gHeapCarveBytes = 0;
 uint64_t gHeapCarveEnd = 0;
@@ -31,48 +36,168 @@ uint64_t* RoboTable(uint32_t index) {
     return reinterpret_cast<uint64_t*>(gTablePages + index * ROBO_PAGE_BYTES);
 }
 
-bool RoboExcluded(uint64_t address, uint64_t stack, const RoboBootInfo* info) {
-    if (address < 0x100000ull) {
-        return true;
+uint64_t RoboRoundUpGigabyte(uint64_t bytes) {
+    if (bytes < ROBO_RAM_MIN_BYTES) {
+        return ROBO_RAM_MIN_BYTES;
     }
-    if (address >= ROBO_KERNEL_LOAD_ADDRESS && address < ROBO_KERNEL_LOAD_ADDRESS + ROBO_KERNEL_BYTES) {
-        return true;
+    const uint64_t rounded = (bytes + ROBO_ONE_GB - 1ull) & ~(ROBO_ONE_GB - 1ull);
+    if (rounded > ROBO_RAM_MAP_MAX_BYTES || rounded < bytes) {
+        return ROBO_RAM_MAP_MAX_BYTES;
     }
-    if (address >= ROBO_DEVKIT_LOAD_ADDRESS && address < ROBO_DEVKIT_LOAD_ADDRESS + ROBO_DEVKIT_BYTES) {
-        return true;
-    }
-    if (gHeapCarve != nullptr && address >= reinterpret_cast<uint64_t>(gHeapCarve) && address < gHeapCarveEnd) {
-        return true;
-    }
-    for (uint32_t file = 0; file < info->fileCount && file < ROBO_BOOT_FILE_MAX; ++file) {
-        const RoboBootFile* held = &info->files[file];
-        if (held->size == 0 || held->address == 0) {
-            continue;
+    return rounded;
+}
+
+uint64_t RoboComputeMapBytes(const RoboBootInfo* info) {
+    uint64_t end = ROBO_RAM_MIN_BYTES;
+    auto raise = [&](uint64_t value) {
+        if (value > end) {
+            end = value;
         }
-        uint64_t end = held->address + held->size;
-        if (address >= held->address && address < end) {
-            return true;
+    };
+    raise(ROBO_KERNEL_LOAD_ADDRESS + ROBO_KERNEL_BYTES);
+    raise(ROBO_DEVKIT_LOAD_ADDRESS + ROBO_DEVKIT_BYTES);
+    if (info != nullptr) {
+        if (info->frameBufferBase != 0 && info->height != 0 && info->stride != 0) {
+            raise(info->frameBufferBase + static_cast<uint64_t>(info->height) * info->stride);
+        }
+        for (uint32_t index = 0; index < info->memoryRangeCount && index < ROBO_MEMORY_RANGE_MAX; ++index) {
+            const RoboMemoryRange* range = &info->memoryRanges[index];
+            raise(range->base + range->pageCount * ROBO_PAGE_BYTES);
+        }
+        for (uint32_t file = 0; file < info->fileCount && file < ROBO_BOOT_FILE_MAX; ++file) {
+            const RoboBootFile* held = &info->files[file];
+            if (held->size != 0 && held->address != 0) {
+                raise(held->address + held->size);
+            }
+        }
+    }
+    return RoboRoundUpGigabyte(end);
+}
+
+struct RoboSpan {
+    uint64_t base;
+    uint64_t end;
+};
+
+constexpr uint32_t ROBO_FORBID_MAX = 32u;
+
+void RoboAddForbidden(RoboSpan* spans, uint32_t* count, uint64_t base, uint64_t end) {
+    if (base >= end || *count >= ROBO_FORBID_MAX) {
+        return;
+    }
+    if (end > gMapBytes) {
+        end = gMapBytes;
+    }
+    if (base >= end) {
+        return;
+    }
+    spans[*count].base = base;
+    spans[*count].end = end;
+    *count += 1u;
+}
+
+uint32_t RoboBuildForbidden(const RoboBootInfo* info, uint64_t stack, RoboSpan* spans) {
+    uint32_t count = 0;
+    RoboAddForbidden(spans, &count, ROBO_KERNEL_LOAD_ADDRESS, ROBO_KERNEL_LOAD_ADDRESS + ROBO_KERNEL_BYTES);
+    RoboAddForbidden(spans, &count, ROBO_DEVKIT_LOAD_ADDRESS, ROBO_DEVKIT_LOAD_ADDRESS + ROBO_DEVKIT_BYTES);
+    if (gHeapCarve != nullptr) {
+        RoboAddForbidden(spans, &count, reinterpret_cast<uint64_t>(gHeapCarve), gHeapCarveEnd);
+    }
+    if (info != nullptr) {
+        for (uint32_t file = 0; file < info->fileCount && file < ROBO_BOOT_FILE_MAX; ++file) {
+            const RoboBootFile* held = &info->files[file];
+            if (held->size == 0 || held->address == 0) {
+                continue;
+            }
+            RoboAddForbidden(spans, &count, held->address, held->address + held->size);
+        }
+        if (info->frameBufferBase != 0 && info->height != 0 && info->stride != 0) {
+            uint64_t frameBase = info->frameBufferBase & ~(ROBO_PAGE_BYTES - 1ull);
+            uint64_t frameEnd = info->frameBufferBase + static_cast<uint64_t>(info->height) * info->stride;
+            RoboAddForbidden(spans, &count, frameBase, frameEnd);
         }
     }
     uint64_t stackBase = stack & ~(ROBO_TWO_MB - 1ull);
-    if (address >= stackBase && address < stackBase + ROBO_TWO_MB) {
-        return true;
-    }
-    uint64_t frameEnd = info->frameBufferBase + static_cast<uint64_t>(info->height) * info->stride;
-    uint64_t frameBase = info->frameBufferBase & ~(ROBO_PAGE_BYTES - 1ull);
-    return address >= frameBase && address < frameEnd;
+    RoboAddForbidden(spans, &count, stackBase, stackBase + ROBO_TWO_MB);
+    return count;
 }
 
-void RoboMapFourGigabytes(const RoboBootInfo* info) {
+uint64_t RoboNextForbidden(const RoboSpan* spans, uint32_t count, uint64_t cursor, uint64_t limit, uint64_t* forbidEnd) {
+    uint64_t next = limit;
+    *forbidEnd = limit;
+    for (uint32_t index = 0; index < count; ++index) {
+        if (spans[index].end <= cursor || spans[index].base >= limit) {
+            continue;
+        }
+        if (spans[index].base <= cursor) {
+            if (spans[index].end < *forbidEnd) {
+                *forbidEnd = spans[index].end;
+            }
+            next = cursor;
+        } else if (spans[index].base < next) {
+            next = spans[index].base;
+            *forbidEnd = spans[index].end;
+        }
+    }
+    return next;
+}
+
+template <typename RoboVisit>
+void RoboVisitFreeSpans(const RoboBootInfo* info, uint64_t stack, RoboVisit visit) {
+    RoboSpan forbidden[ROBO_FORBID_MAX];
+    const uint32_t forbidCount = RoboBuildForbidden(info, stack, forbidden);
+    for (uint32_t rangeIndex = 0; rangeIndex < info->memoryRangeCount; ++rangeIndex) {
+        const RoboMemoryRange* range = &info->memoryRanges[rangeIndex];
+        if ((range->type != 3u && range->type != 4u && range->type != 7u) || range->base >= gMapBytes) {
+            continue;
+        }
+        uint64_t cursor = range->base;
+        if (cursor < 0x100000ull) {
+            cursor = 0x100000ull;
+        }
+        uint64_t rangeEnd = range->base + range->pageCount * ROBO_PAGE_BYTES;
+        if (rangeEnd > gMapBytes) {
+            rangeEnd = gMapBytes;
+        }
+        while (cursor < rangeEnd) {
+            uint64_t forbidEnd = rangeEnd;
+            const uint64_t next = RoboNextForbidden(forbidden, forbidCount, cursor, rangeEnd, &forbidEnd);
+            if (next > cursor) {
+                visit(cursor, next);
+            }
+            if (next >= rangeEnd) {
+                break;
+            }
+            uint64_t advance = forbidEnd;
+            if (advance <= cursor) {
+                advance = cursor + ROBO_PAGE_BYTES;
+            }
+            cursor = advance;
+        }
+    }
+}
+
+void RoboMapPhysical(const RoboBootInfo* info) {
+    gMapBytes = RoboComputeMapBytes(info);
+    gMapGigabytes = static_cast<uint32_t>(gMapBytes / ROBO_ONE_GB);
+    if (gMapGigabytes == 0u) {
+        gMapGigabytes = 1u;
+        gMapBytes = ROBO_ONE_GB;
+    }
+    if (gMapGigabytes > ROBO_PD_MAX) {
+        gMapGigabytes = ROBO_PD_MAX;
+        gMapBytes = static_cast<uint64_t>(gMapGigabytes) * ROBO_ONE_GB;
+    }
+
     uint64_t* pml4 = RoboTable(0);
     uint64_t* pdpt = RoboTable(1);
-    for (uint32_t index = 0; index < 512; ++index) {
+    for (uint32_t index = 0; index < 512u; ++index) {
         pml4[index] = 0;
         pdpt[index] = 0;
     }
-    for (uint32_t directory = 0; directory < 4; ++directory) {
-        uint64_t* pd = RoboTable(2 + directory);
-        for (uint32_t entry = 0; entry < 512; ++entry) {
+    for (uint32_t directory = 0; directory < gMapGigabytes; ++directory) {
+        uint64_t* pd = RoboTable(2u + directory);
+        for (uint32_t entry = 0; entry < 512u; ++entry) {
             uint64_t address = (static_cast<uint64_t>(directory) * 512ull + entry) * ROBO_TWO_MB;
             uint64_t flags = ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE | ROBO_PAGE_SIZE;
             pd[entry] = address | flags;
@@ -84,68 +209,63 @@ void RoboMapFourGigabytes(const RoboBootInfo* info) {
     __asm__ volatile("mov %0, %%cr3" : : "r"(gKernelCr3) : "memory");
 }
 
+uint64_t RoboPickHeapBytes(uint64_t usableBytes) {
+    if (usableBytes < ROBO_HEAP_MIN_BYTES) {
+        return 0;
+    }
+    uint64_t want = ROBO_HEAP_TARGET_BYTES;
+    if (usableBytes >= ROBO_HEAP_MAX_BYTES * 4ull) {
+        want = ROBO_HEAP_MAX_BYTES;
+    } else if (usableBytes < ROBO_HEAP_TARGET_BYTES) {
+        want = usableBytes & ~(ROBO_PAGE_BYTES - 1ull);
+        if (want < ROBO_HEAP_MIN_BYTES) {
+            return 0;
+        }
+    }
+    if (want > usableBytes) {
+        want = usableBytes & ~(ROBO_PAGE_BYTES - 1ull);
+    }
+    if (want > ROBO_HEAP_MAX_BYTES) {
+        want = ROBO_HEAP_MAX_BYTES;
+    }
+    return want;
+}
+
 void RoboCarveHeap(const RoboBootInfo* info, uint64_t stack) {
     gHeapCarve = nullptr;
     gHeapCarveBytes = 0;
     gHeapCarveEnd = 0;
     uint64_t bestBase = 0;
-    uint64_t bestPages = 0;
-    for (uint32_t rangeIndex = 0; rangeIndex < info->memoryRangeCount; ++rangeIndex) {
-        const RoboMemoryRange* range = &info->memoryRanges[rangeIndex];
-        if ((range->type != 3u && range->type != 4u && range->type != 7u) || range->base >= ROBO_MAP_BYTES) {
-            continue;
+    uint64_t bestBytes = 0;
+    RoboVisitFreeSpans(info, stack, [&](uint64_t base, uint64_t end) {
+        if (end <= base) {
+            return;
         }
-        uint64_t pages = range->pageCount;
-        if (range->base + pages * ROBO_PAGE_BYTES > ROBO_MAP_BYTES) {
-            pages = (ROBO_MAP_BYTES - range->base) / ROBO_PAGE_BYTES;
+        const uint64_t bytes = end - base;
+        if (bytes > bestBytes) {
+            bestBase = base;
+            bestBytes = bytes;
         }
-        uint64_t usable = 0;
-        uint64_t start = 0;
-        for (uint64_t page = 0; page < pages; ++page) {
-            uint64_t address = range->base + page * ROBO_PAGE_BYTES;
-            if (RoboExcluded(address, stack, info)) {
-                usable = 0;
-                start = 0;
-                continue;
-            }
-            if (usable == 0) {
-                start = address;
-            }
-            usable += 1;
-            if (usable * ROBO_PAGE_BYTES >= ROBO_HEAP_CARVE_BYTES && usable > bestPages) {
-                bestBase = start;
-                bestPages = usable;
-            }
-        }
-    }
-    if (bestPages * ROBO_PAGE_BYTES < ROBO_HEAP_CARVE_BYTES) {
+    });
+    const uint64_t heapBytes = RoboPickHeapBytes(bestBytes);
+    if (heapBytes == 0) {
         return;
     }
     gHeapCarve = reinterpret_cast<uint8_t*>(bestBase);
-    gHeapCarveBytes = ROBO_HEAP_CARVE_BYTES;
-    gHeapCarveEnd = bestBase + ROBO_HEAP_CARVE_BYTES;
+    gHeapCarveBytes = heapBytes;
+    gHeapCarveEnd = bestBase + heapBytes;
     RoboHeapInstall(gHeapCarve, gHeapCarveBytes);
 }
 
 void RoboCollectPages(const RoboBootInfo* info, uint64_t stack) {
-    for (uint32_t rangeIndex = 0; rangeIndex < info->memoryRangeCount && gFreeCount < ROBO_FREE_LIMIT; ++rangeIndex) {
-        const RoboMemoryRange* range = &info->memoryRanges[rangeIndex];
-        if (range->base >= ROBO_MAP_BYTES) {
-            continue;
-        }
-        uint64_t pages = range->pageCount;
-        if (range->base + pages * ROBO_PAGE_BYTES > ROBO_MAP_BYTES) {
-            pages = (ROBO_MAP_BYTES - range->base) / ROBO_PAGE_BYTES;
-        }
-        for (uint64_t page = 0; page < pages && gFreeCount < ROBO_FREE_LIMIT; ++page) {
-            uint64_t address = range->base + page * ROBO_PAGE_BYTES;
-            if (RoboExcluded(address, stack, info)) {
-                continue;
-            }
+    RoboVisitFreeSpans(info, stack, [&](uint64_t base, uint64_t end) {
+        uint64_t address = (base + ROBO_PAGE_BYTES - 1ull) & ~(ROBO_PAGE_BYTES - 1ull);
+        while (address + ROBO_PAGE_BYTES <= end && gFreeCount < ROBO_FREE_LIMIT) {
             gFreePages[gFreeCount] = address;
             gFreeCount += 1;
+            address += ROBO_PAGE_BYTES;
         }
-    }
+    });
 }
 
 RoboArena RoboMakeArena(void) {
@@ -176,7 +296,7 @@ uint64_t RoboPageAlloc(void) {
 }
 
 void RoboMemoryStart(const RoboBootInfo* info) {
-    RoboMapFourGigabytes(info);
+    RoboMapPhysical(info);
     uint64_t stack = 0;
     __asm__ volatile("mov %%rsp, %0" : "=r"(stack));
     RoboCarveHeap(info, stack);
@@ -195,6 +315,10 @@ uint64_t RoboHeapBytes(void) {
 
 uint64_t RoboMemoryKernelCr3(void) {
     return gKernelCr3;
+}
+
+uint64_t RoboMemoryMapBytes(void) {
+    return gMapBytes;
 }
 
 void RoboPatWriteCombine(void) {
@@ -217,13 +341,13 @@ void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes) {
     RoboPatWriteCombine();
     uint64_t end = address + bytes;
     if (end < address) {
-        end = ROBO_MAP_BYTES;
+        end = gMapBytes;
     }
     uint64_t page = address & ~(ROBO_TWO_MB - 1ull);
-    while (page < end && page < ROBO_MAP_BYTES) {
-        uint32_t directory = static_cast<uint32_t>(page / (512ull * ROBO_TWO_MB));
+    while (page < end && page < gMapBytes) {
+        uint32_t directory = static_cast<uint32_t>(page / ROBO_ONE_GB);
         uint32_t entry = static_cast<uint32_t>((page / ROBO_TWO_MB) & 511ull);
-        if (directory < 4u) {
+        if (directory < gMapGigabytes) {
             uint64_t* directoryEntries = RoboTable(2u + directory);
             uint64_t flags = directoryEntries[entry];
             flags &= ~(ROBO_PAGE_PWT);
@@ -245,14 +369,32 @@ void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes) {
     }
     uint64_t end = address + bytes;
     if (end < address) {
-        end = ROBO_MAP_BYTES;
+        return;
     }
+    uint64_t* pdpt = RoboTable(1u);
     uint64_t page = address & ~(ROBO_TWO_MB - 1ull);
-    while (page < end && page < ROBO_MAP_BYTES) {
-        uint32_t directory = static_cast<uint32_t>(page / (512ull * ROBO_TWO_MB));
+    // Map MMIO (APIC, GPU BARs) even when above the RAM identity window.
+    while (page < end && page < ROBO_RAM_MAP_MAX_BYTES) {
+        uint32_t directory = static_cast<uint32_t>(page / ROBO_ONE_GB);
         uint32_t entry = static_cast<uint32_t>((page / ROBO_TWO_MB) & 511ull);
-        if (directory < 4u) {
-            uint64_t* directoryEntries = RoboTable(2u + directory);
+        if (directory >= ROBO_PD_MAX) {
+            break;
+        }
+        if ((pdpt[directory] & ROBO_PAGE_PRESENT) == 0) {
+            uint64_t* pd = RoboTable(2u + directory);
+            for (uint32_t index = 0; index < 512u; ++index) {
+                pd[index] = 0;
+            }
+            pdpt[directory] = reinterpret_cast<uint64_t>(pd) | ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE;
+            if (directory >= gMapGigabytes) {
+                gMapGigabytes = directory + 1u;
+            }
+        }
+        uint64_t* directoryEntries = RoboTable(2u + directory);
+        uint64_t flags = ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE | ROBO_PAGE_SIZE | ROBO_PAGE_PCD | ROBO_PAGE_PWT;
+        if ((directoryEntries[entry] & ROBO_PAGE_PRESENT) == 0) {
+            directoryEntries[entry] = page | flags;
+        } else {
             directoryEntries[entry] |= ROBO_PAGE_PCD | ROBO_PAGE_PWT;
         }
         page += ROBO_TWO_MB;
