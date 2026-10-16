@@ -195,8 +195,10 @@ public:
     bool empty() const { return size_ == 0; }
 
     void clear() {
-        for (size_t index = 0; index < size_; ++index) {
-            data_[index].~T();
+        if (!__is_trivially_destructible(T)) {
+            for (size_t index = 0; index < size_; ++index) {
+                data_[index].~T();
+            }
         }
         size_ = 0;
     }
@@ -210,9 +212,15 @@ public:
             nextCapacity *= 2;
         }
         T* next = static_cast<T*>(malloc(sizeof(T) * nextCapacity));
-        for (size_t index = 0; index < size_; ++index) {
-            new (next + index) T(move(data_[index]));
-            data_[index].~T();
+        if (__is_trivially_copyable(T)) {
+            if (size_ > 0 && data_ != nullptr) {
+                memcpy(next, data_, size_ * sizeof(T));
+            }
+        } else {
+            for (size_t index = 0; index < size_; ++index) {
+                new (next + index) T(move(data_[index]));
+                data_[index].~T();
+            }
         }
         free(data_);
         data_ = next;
@@ -249,15 +257,26 @@ public:
 
     void resize(size_t count) {
         if (count < size_) {
+            if (__is_trivially_destructible(T)) {
+                size_ = count;
+                return;
+            }
             while (size_ > count) {
                 pop_back();
             }
             return;
         }
         reserve(count);
-        while (size_ < count) {
-            new (data_ + size_) T();
-            size_ += 1;
+        if (count > size_) {
+            if (__is_trivially_constructible(T)) {
+                memset(reinterpret_cast<uint8_t*>(data_ + size_), 0, (count - size_) * sizeof(T));
+                size_ = count;
+                return;
+            }
+            while (size_ < count) {
+                new (data_ + size_) T();
+                size_ += 1;
+            }
         }
     }
 
@@ -267,8 +286,16 @@ public:
             return;
         }
         reserve(count);
-        while (size_ < count) {
-            push_back(value);
+        if (count > size_) {
+            if (__is_trivially_copyable(T) && sizeof(T) == 1) {
+                memset(reinterpret_cast<uint8_t*>(data_ + size_), static_cast<int>(reinterpret_cast<const uint8_t&>(value)),
+                       count - size_);
+                size_ = count;
+                return;
+            }
+            while (size_ < count) {
+                push_back(value);
+            }
         }
     }
 

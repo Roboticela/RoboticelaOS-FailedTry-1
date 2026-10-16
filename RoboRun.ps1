@@ -56,7 +56,11 @@ function Copy-Firmware([string]$Source, [string]$DestinationName) {
     $directory = Join-Path $Root "Build\OVMF"
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
     $destination = Join-Path $directory $DestinationName
-    Copy-Item -Force $Source $destination
+    $sourceFull = [System.IO.Path]::GetFullPath($Source)
+    $destinationFull = [System.IO.Path]::GetFullPath($destination)
+    if ($sourceFull -ne $destinationFull) {
+        Copy-Item -Force $Source $destination
+    }
     return ($destination -replace '\\', '/')
 }
 
@@ -81,7 +85,7 @@ $arguments = @(
     "-cpu", "qemu64,svm=off",
     "-machine", "pc",
     "-m", "1024",
-    "-smp", "4",
+    "-smp", "1",
     "-net", "none",
     "-vga", "none",
     "-device", "virtio-vga",

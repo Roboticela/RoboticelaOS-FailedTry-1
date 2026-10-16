@@ -10,7 +10,7 @@ constexpr uint64_t ROBO_TWO_MB = 2ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_MAP_BYTES = 4ull * 1024ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_RAM_BASE = 0x40000000ull;
 constexpr uint64_t ROBO_ARM_KERNEL = 0x42000000ull;
-constexpr uint64_t ROBO_ARM_KERNEL_BYTES = 16ull * 1024ull * 1024ull;
+constexpr uint64_t ROBO_ARM_KERNEL_BYTES = 128ull * 1024ull * 1024ull;
 constexpr uint32_t ROBO_FREE_LIMIT = 4096u;
 constexpr uint64_t ROBO_DESC_TABLE = 3ull;
 constexpr uint64_t ROBO_DESC_PAGE = 3ull;
@@ -31,6 +31,10 @@ uint32_t gFreeCount = 0;
 uint64_t gKernelTtbr = 0;
 RoboArena gFrameArena{};
 RoboArena gLongArena{};
+constexpr uint64_t ROBO_HEAP_CARVE_BYTES = 96ull * 1024ull * 1024ull;
+uint8_t* gHeapCarve = nullptr;
+uint64_t gHeapCarveBytes = 0;
+uint64_t gHeapCarveEnd = 0;
 
 extern "C" char RoboVectorTable[];
 extern "C" void RoboMemoryEntered(const RoboBootInfo* info);
@@ -99,6 +103,19 @@ bool RoboExcluded(uint64_t address, uint64_t stack, const RoboBootInfo* info) {
     if (address >= ROBO_ARM_KERNEL && address < ROBO_ARM_KERNEL + ROBO_ARM_KERNEL_BYTES) {
         return true;
     }
+    if (gHeapCarve != nullptr && address >= reinterpret_cast<uint64_t>(gHeapCarve) && address < gHeapCarveEnd) {
+        return true;
+    }
+    for (uint32_t file = 0; file < info->fileCount && file < ROBO_BOOT_FILE_MAX; ++file) {
+        const RoboBootFile* held = &info->files[file];
+        if (held->size == 0 || held->address == 0) {
+            continue;
+        }
+        uint64_t end = held->address + held->size;
+        if (address >= held->address && address < end) {
+            return true;
+        }
+    }
     uint64_t stackBase = stack & ~(ROBO_TWO_MB - 1ull);
     if (address >= stackBase && address < stackBase + ROBO_TWO_MB) {
         return true;
@@ -106,6 +123,49 @@ bool RoboExcluded(uint64_t address, uint64_t stack, const RoboBootInfo* info) {
     uint64_t frameEnd = info->frameBufferBase + static_cast<uint64_t>(info->height) * info->stride;
     uint64_t frameBase = info->frameBufferBase & ~(ROBO_PAGE_BYTES - 1ull);
     return address >= frameBase && address < frameEnd;
+}
+
+void RoboCarveHeap(const RoboBootInfo* info, uint64_t stack) {
+    gHeapCarve = nullptr;
+    gHeapCarveBytes = 0;
+    gHeapCarveEnd = 0;
+    uint64_t bestBase = 0;
+    uint64_t bestPages = 0;
+    for (uint32_t rangeIndex = 0; rangeIndex < info->memoryRangeCount; ++rangeIndex) {
+        const RoboMemoryRange* range = &info->memoryRanges[rangeIndex];
+        if ((range->type != 3u && range->type != 4u && range->type != 7u) || range->base >= ROBO_MAP_BYTES) {
+            continue;
+        }
+        uint64_t pages = range->pageCount;
+        if (range->base + pages * ROBO_PAGE_BYTES > ROBO_MAP_BYTES) {
+            pages = (ROBO_MAP_BYTES - range->base) / ROBO_PAGE_BYTES;
+        }
+        uint64_t usable = 0;
+        uint64_t start = 0;
+        for (uint64_t page = 0; page < pages; ++page) {
+            uint64_t address = range->base + page * ROBO_PAGE_BYTES;
+            if (RoboExcluded(address, stack, info)) {
+                usable = 0;
+                start = 0;
+                continue;
+            }
+            if (usable == 0) {
+                start = address;
+            }
+            usable += 1;
+            if (usable * ROBO_PAGE_BYTES >= ROBO_HEAP_CARVE_BYTES && usable > bestPages) {
+                bestBase = start;
+                bestPages = usable;
+            }
+        }
+    }
+    if (bestPages * ROBO_PAGE_BYTES < ROBO_HEAP_CARVE_BYTES) {
+        return;
+    }
+    gHeapCarve = reinterpret_cast<uint8_t*>(bestBase);
+    gHeapCarveBytes = ROBO_HEAP_CARVE_BYTES;
+    gHeapCarveEnd = bestBase + ROBO_HEAP_CARVE_BYTES;
+    RoboHeapInstall(gHeapCarve, gHeapCarveBytes);
 }
 
 void RoboCollectPages(const RoboBootInfo* info, uint64_t stack) {
@@ -180,9 +240,18 @@ __attribute__((naked)) void RoboDropEl2(const RoboBootInfo*) {
 extern "C" void RoboMemoryEntered(const RoboBootInfo* info) {
     uint64_t stack = 0;
     __asm__ volatile("mov %0, sp" : "=r"(stack));
+    RoboCarveHeap(info, stack);
     RoboCollectPages(info, stack);
     gFrameArena = RoboMakeArena();
     gLongArena = RoboMakeArena();
+}
+
+void* RoboHeapBase(void) {
+    return gHeapCarve;
+}
+
+uint64_t RoboHeapBytes(void) {
+    return gHeapCarveBytes;
 }
 
 uint64_t RoboPageAlloc(void) {

@@ -11,6 +11,8 @@ Also, add for Build.
 
 Use C and C++ for building only and use fewer ASM and also, use python in only cases like downloading Unicode data and so on.
 
+The web and RoboticelaOS implementation must be same and it must be visually also same. Whatever is on Web that must be on RoboticelaOS and vice versa.
+
 # Stages
 
 ## Stage 0 — Blank desktop

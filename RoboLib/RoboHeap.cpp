@@ -3,9 +3,11 @@
 
 #include "RoboArch.hpp"
 
-namespace {
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
+#include "RoboMemory.hpp"
+#endif
 
-constexpr size_t ROBO_HEAP_BYTES = 48u * 1024u * 1024u;
+namespace {
 
 struct RoboBlock {
     size_t size;
@@ -14,21 +16,50 @@ struct RoboBlock {
     size_t pad;
 };
 
-alignas(16) uint8_t gHeap[ROBO_HEAP_BYTES];
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
+uint8_t* gHeap = nullptr;
+size_t gHeapBytes = 0;
+#else
+constexpr size_t ROBO_HEAP_BYTES = 48u * 1024u * 1024u;
+alignas(16) uint8_t gHeapStorage[ROBO_HEAP_BYTES];
+uint8_t* gHeap = gHeapStorage;
+size_t gHeapBytes = ROBO_HEAP_BYTES;
+#endif
 RoboBlock* gFree = nullptr;
+bool gHeapReady = false;
 
-void RoboHeapStart(void) {
-    if (gFree != nullptr) {
+}  // namespace
+
+extern "C" void RoboHeapInstall(void* base, uint64_t bytes) {
+    if (base == nullptr || bytes < sizeof(RoboBlock) + 64u) {
         return;
     }
+    gHeap = static_cast<uint8_t*>(base);
+    gHeapBytes = static_cast<size_t>(bytes);
+    gFree = nullptr;
+    gHeapReady = false;
+}
+
+void RoboHeapStart(void) {
+    if (gHeapReady) {
+        return;
+    }
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
+    if (gHeap == nullptr) {
+        gHeap = static_cast<uint8_t*>(RoboHeapBase());
+        gHeapBytes = static_cast<size_t>(RoboHeapBytes());
+    }
+#endif
+    if (gHeap == nullptr || gHeapBytes < sizeof(RoboBlock) + 64u) {
+        RoboHalt();
+    }
     gFree = reinterpret_cast<RoboBlock*>(gHeap);
-    gFree->size = ROBO_HEAP_BYTES - sizeof(RoboBlock);
+    gFree->size = gHeapBytes - sizeof(RoboBlock);
     gFree->free = 1;
     gFree->next = nullptr;
     gFree->pad = 0;
+    gHeapReady = true;
 }
-
-}  // namespace
 
 extern "C" void* malloc(size_t bytes) {
     RoboHeapStart();

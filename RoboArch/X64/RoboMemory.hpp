@@ -13,6 +13,9 @@ struct RoboArena {
 };
 
 void RoboMemoryStart(const RoboBootInfo* info);
+extern "C" void RoboHeapInstall(void* base, uint64_t bytes);
+extern "C" void* RoboHeapBase(void);
+extern "C" uint64_t RoboHeapBytes(void);
 void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes);
 void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes);
 uint64_t RoboMemoryVideoBuffer(void);

@@ -22,6 +22,10 @@ uint64_t gKernelCr3 = 0;
 bool gPatReady = false;
 RoboArena gFrameArena{};
 RoboArena gLongArena{};
+constexpr uint64_t ROBO_HEAP_CARVE_BYTES = 96ull * 1024ull * 1024ull;
+uint8_t* gHeapCarve = nullptr;
+uint64_t gHeapCarveBytes = 0;
+uint64_t gHeapCarveEnd = 0;
 
 uint64_t* RoboTable(uint32_t index) {
     return reinterpret_cast<uint64_t*>(gTablePages + index * ROBO_PAGE_BYTES);
@@ -31,8 +35,24 @@ bool RoboExcluded(uint64_t address, uint64_t stack, const RoboBootInfo* info) {
     if (address < 0x100000ull) {
         return true;
     }
-    if (address >= ROBO_KERNEL_LOAD_ADDRESS && address < ROBO_KERNEL_LOAD_ADDRESS + ROBO_TWO_MB) {
+    if (address >= ROBO_KERNEL_LOAD_ADDRESS && address < ROBO_KERNEL_LOAD_ADDRESS + ROBO_KERNEL_BYTES) {
         return true;
+    }
+    if (address >= ROBO_DEVKIT_LOAD_ADDRESS && address < ROBO_DEVKIT_LOAD_ADDRESS + ROBO_DEVKIT_BYTES) {
+        return true;
+    }
+    if (gHeapCarve != nullptr && address >= reinterpret_cast<uint64_t>(gHeapCarve) && address < gHeapCarveEnd) {
+        return true;
+    }
+    for (uint32_t file = 0; file < info->fileCount && file < ROBO_BOOT_FILE_MAX; ++file) {
+        const RoboBootFile* held = &info->files[file];
+        if (held->size == 0 || held->address == 0) {
+            continue;
+        }
+        uint64_t end = held->address + held->size;
+        if (address >= held->address && address < end) {
+            return true;
+        }
     }
     uint64_t stackBase = stack & ~(ROBO_TWO_MB - 1ull);
     if (address >= stackBase && address < stackBase + ROBO_TWO_MB) {
@@ -62,6 +82,49 @@ void RoboMapFourGigabytes(const RoboBootInfo* info) {
     pml4[0] = reinterpret_cast<uint64_t>(pdpt) | ROBO_PAGE_PRESENT | ROBO_PAGE_WRITE;
     gKernelCr3 = reinterpret_cast<uint64_t>(pml4);
     __asm__ volatile("mov %0, %%cr3" : : "r"(gKernelCr3) : "memory");
+}
+
+void RoboCarveHeap(const RoboBootInfo* info, uint64_t stack) {
+    gHeapCarve = nullptr;
+    gHeapCarveBytes = 0;
+    gHeapCarveEnd = 0;
+    uint64_t bestBase = 0;
+    uint64_t bestPages = 0;
+    for (uint32_t rangeIndex = 0; rangeIndex < info->memoryRangeCount; ++rangeIndex) {
+        const RoboMemoryRange* range = &info->memoryRanges[rangeIndex];
+        if ((range->type != 3u && range->type != 4u && range->type != 7u) || range->base >= ROBO_MAP_BYTES) {
+            continue;
+        }
+        uint64_t pages = range->pageCount;
+        if (range->base + pages * ROBO_PAGE_BYTES > ROBO_MAP_BYTES) {
+            pages = (ROBO_MAP_BYTES - range->base) / ROBO_PAGE_BYTES;
+        }
+        uint64_t usable = 0;
+        uint64_t start = 0;
+        for (uint64_t page = 0; page < pages; ++page) {
+            uint64_t address = range->base + page * ROBO_PAGE_BYTES;
+            if (RoboExcluded(address, stack, info)) {
+                usable = 0;
+                start = 0;
+                continue;
+            }
+            if (usable == 0) {
+                start = address;
+            }
+            usable += 1;
+            if (usable * ROBO_PAGE_BYTES >= ROBO_HEAP_CARVE_BYTES && usable > bestPages) {
+                bestBase = start;
+                bestPages = usable;
+            }
+        }
+    }
+    if (bestPages * ROBO_PAGE_BYTES < ROBO_HEAP_CARVE_BYTES) {
+        return;
+    }
+    gHeapCarve = reinterpret_cast<uint8_t*>(bestBase);
+    gHeapCarveBytes = ROBO_HEAP_CARVE_BYTES;
+    gHeapCarveEnd = bestBase + ROBO_HEAP_CARVE_BYTES;
+    RoboHeapInstall(gHeapCarve, gHeapCarveBytes);
 }
 
 void RoboCollectPages(const RoboBootInfo* info, uint64_t stack) {
@@ -116,9 +179,18 @@ void RoboMemoryStart(const RoboBootInfo* info) {
     RoboMapFourGigabytes(info);
     uint64_t stack = 0;
     __asm__ volatile("mov %%rsp, %0" : "=r"(stack));
+    RoboCarveHeap(info, stack);
     RoboCollectPages(info, stack);
     gFrameArena = RoboMakeArena();
     gLongArena = RoboMakeArena();
+}
+
+void* RoboHeapBase(void) {
+    return gHeapCarve;
+}
+
+uint64_t RoboHeapBytes(void) {
+    return gHeapCarveBytes;
 }
 
 uint64_t RoboMemoryKernelCr3(void) {

@@ -16,6 +16,24 @@
 #include "RoboDesktopImage.hpp"
 #include "RoboShell.hpp"
 
+extern "C" void RoboKernelContinue(RoboBootInfo* info);
+
+namespace {
+
+constexpr uint64_t ROBO_KERNEL_STACK_BYTES = 1024ull * 1024ull;
+alignas(16) uint8_t gKernelStack[ROBO_KERNEL_STACK_BYTES];
+RoboBootInfo gBootInfo{};
+
+void RoboCopyBootInfo(const RoboBootInfo* info) {
+    const uint8_t* from = reinterpret_cast<const uint8_t*>(info);
+    uint8_t* to = reinterpret_cast<uint8_t*>(&gBootInfo);
+    for (uint64_t index = 0; index < sizeof(gBootInfo); ++index) {
+        to[index] = from[index];
+    }
+}
+
+}  // namespace
+
 static bool RoboBootInfoValid(const RoboBootInfo* info) {
     if (info == nullptr || info->frameBufferBase == 0) {
         return false;
@@ -90,12 +108,15 @@ bool RoboShellLoad(RoboDesktop* desktop) {
     return true;
 }
 
-void RoboAppLoad(void) {
-    uint8_t file[16];
-    uint32_t fileSize = 0;
+void RoboFsMountDisk(void) {
     if (RoboDiskStart()) {
         RoboFsStart(RoboDiskReadSector);
     }
+}
+
+void RoboAppLoad(void) {
+    uint8_t file[16];
+    uint32_t fileSize = 0;
     if (!RoboFsReadFile("ROBOAPP.BIN", file, sizeof(file), &fileSize) || fileSize < 8u) {
         return;
     }
@@ -117,29 +138,48 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
     if (!RoboBootInfoValid(info)) {
         RoboHalt();
     }
+    RoboCopyBootInfo(info);
+    uint64_t stackTop = reinterpret_cast<uint64_t>(gKernelStack + ROBO_KERNEL_STACK_BYTES);
+    stackTop &= ~static_cast<uint64_t>(15u);
+    __asm__ volatile(
+        "mov %0, %%rsp\n"
+        "xor %%rbp, %%rbp\n"
+        "mov %1, %%rdi\n"
+        "call RoboKernelContinue\n"
+        :
+        : "r"(stackTop), "r"(&gBootInfo)
+        : "memory", "rdi");
+    RoboHalt();
+}
 
+extern "C" void RoboKernelContinue(RoboBootInfo* info) {
+    RoboArchFpuStart();
     RoboFsUseBootFiles(info);
+    RoboDevKitBind(info);
     RoboMemoryStart(info);
     RoboArchCpuStart();
-    RoboArchFpuStart();
 
     RoboGPU gpu;
     RoboGPUBind(&gpu, info);
 
     RoboDesktop desktop;
     RoboDesktopBoot(&desktop, &gpu);
+    if (RoboHeapBase() == nullptr) {
+        RoboGPUFill(&gpu, 0xB00020u);
+        RoboHalt();
+    }
     RoboCallBind(&desktop);
-    RoboAppLoad();
-    RoboCpuJoin();
     RoboPS2MouseStart();
     RoboArchInterruptsStart();
     RoboPS2MouseArm();
     RoboPS2KeyboardStart();
     RoboUsbStart();
     RoboScheduleStart();
+    RoboFsMountDisk();
     gShellLive = RoboShellStart(&desktop);
     gShellLoaded = gShellLive || RoboShellLoad(&desktop);
     RoboFrameStart(&desktop);
+    RoboAppLoad();
     RoboWindow appWindow{};
     appWindow.pixels = gAppPixels;
     if (!gShellLoaded) {

@@ -299,6 +299,40 @@ std::string ReelName(const std::string& name) {
     return name.substr(0, name.size() - 4) + ".rjp";
 }
 
+bool SameAssetName(const std::string& left, const char* right) {
+    std::size_t index = 0;
+    for (; index < left.size() && right[index] != 0; ++index) {
+        char a = left[index];
+        char b = right[index];
+        if (a >= 'A' && a <= 'Z') {
+            a = static_cast<char>(a - 'A' + 'a');
+        }
+        if (b >= 'A' && b <= 'Z') {
+            b = static_cast<char>(b - 'A' + 'a');
+        }
+        if (a != b) {
+            return false;
+        }
+    }
+    return index == left.size() && right[index] == 0;
+}
+
+const char* BootAssetAlias(const std::string& name) {
+    if (SameAssetName(name, "RoboticelaLogo.svg") || SameAssetName(name, "ROBOLOGO.SVG")) {
+        return "ROBOLOGO.SVG";
+    }
+    if (SameAssetName(name, "EmptyFolder.svg") || SameAssetName(name, "EMPTYFOL.SVG")) {
+        return "EMPTYFOL.SVG";
+    }
+    if (SameAssetName(name, "Background.rjp") || SameAssetName(name, "BACKGROU.RJP")) {
+        return "BACKGROU.RJP";
+    }
+    if (SameAssetName(name, "Background.mp4") || SameAssetName(name, "BACKGROU.MP4")) {
+        return "BACKGROU.MP4";
+    }
+    return nullptr;
+}
+
 }  // namespace
 
 std::vector<std::uint8_t> RoboticelaOSPlatform::LoadAsset(const std::string& relativePath) const {
@@ -329,13 +363,32 @@ std::vector<std::uint8_t> RoboticelaOSPlatform::LoadAsset(const std::string& rel
         }
         return bytes;
     };
+    auto readNamed = [&](const std::string& fileName) {
+        std::vector<std::uint8_t> bytes = readFile(fileName);
+        if (!bytes.empty()) {
+            return bytes;
+        }
+        const char* alias = BootAssetAlias(fileName);
+        if (alias != nullptr && !SameAssetName(fileName, alias)) {
+            return readFile(alias);
+        }
+        return bytes;
+    };
     if (EndsWithMp4(name)) {
-        const std::vector<std::uint8_t> reel = readFile(ReelName(name));
+        const std::vector<std::uint8_t> reel = readNamed(ReelName(name));
         if (!reel.empty()) {
             return reel;
         }
+        const std::vector<std::uint8_t> shortReel = readNamed("BACKGROU.RJP");
+        if (!shortReel.empty()) {
+            return shortReel;
+        }
+        const std::vector<std::uint8_t> volumeReel = readFile("Desktop/Background.rjp");
+        if (!volumeReel.empty()) {
+            return volumeReel;
+        }
     }
-    return readFile(name);
+    return readNamed(name);
 #elif defined(ROBO_USER)
     auto readFile = [](const std::string& fileName) {
         std::vector<std::uint8_t> bytes(ROBO_CALL_FILE_MAX);

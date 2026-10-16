@@ -171,6 +171,7 @@ int main(int argc, char** argv) {
     RoboCopy(fonts, esp, "INTERB.TTF", "Inter-Bold.ttf");
     RoboCopy(fonts, esp, "INTERI.TTF", "Inter-Italic.ttf");
     RoboCopy(applications, esp, "RoboApp.bin", "RoboApp.bin");
+    RoboCopy(applications, esp, "DevKit.elf", "DevKit.elf");
     auto readCode = [](const char* path) {
         std::vector<std::uint8_t> bytes;
         std::FILE* file = std::fopen(path, "rb");

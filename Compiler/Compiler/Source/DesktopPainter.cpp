@@ -1,5 +1,6 @@
 #include "Robo/DesktopPainter.hpp"
 
+#include "Robo/BrandLogo.hpp"
 #include "Robo/Foundation.hpp"
 #include "Robo/SvgPainter.hpp"
 
@@ -110,40 +111,6 @@ void AddArc(std::vector<SvgCommand>& commands, float cx, float cy, float radius,
                                    pointX(to),
                                    pointY(to)));
     }
-}
-
-Svg AppleMark() {
-    Svg graphic;
-    SvgStyle style;
-    style.viewWidth = 17.0f;
-    style.viewHeight = 20.0f;
-    style.width = APPLE_W;
-    style.height = APPLE_H;
-    graphic.SetStyle(style);
-    graphic.AddShape(Filled({
-        SvgCommand::Move(13.9f, 10.6f),
-        CubicTo(13.9f, 8.2f, 15.9f, 7.0f, 16.0f, 6.9f),
-        CubicTo(14.9f, 5.2f, 13.1f, 5.0f, 12.5f, 5.0f),
-        CubicTo(11.0f, 4.8f, 9.6f, 5.9f, 8.9f, 5.9f),
-        CubicTo(8.2f, 5.9f, 7.0f, 5.1f, 5.7f, 5.1f),
-        CubicTo(4.1f, 5.1f, 2.6f, 6.1f, 1.7f, 7.5f),
-        CubicTo(0.0f, 10.4f, 1.3f, 14.8f, 2.9f, 17.2f),
-        CubicTo(3.7f, 18.4f, 4.7f, 19.7f, 5.9f, 19.6f),
-        CubicTo(7.1f, 19.5f, 7.6f, 18.8f, 9.0f, 18.8f),
-        CubicTo(10.4f, 18.8f, 10.9f, 19.6f, 12.2f, 19.6f),
-        CubicTo(13.5f, 19.6f, 14.3f, 18.4f, 15.1f, 17.3f),
-        CubicTo(16.0f, 16.0f, 16.4f, 14.7f, 16.4f, 14.6f),
-        CubicTo(16.3f, 14.6f, 13.9f, 13.6f, 13.9f, 10.7f),
-        SvgCommand::Close(),
-        SvgCommand::Move(11.6f, 4.2f),
-        CubicTo(12.3f, 3.4f, 12.7f, 2.3f, 12.6f, 1.1f),
-        CubicTo(11.6f, 1.2f, 10.5f, 1.7f, 9.8f, 2.6f),
-        CubicTo(9.2f, 3.3f, 8.6f, 4.5f, 8.8f, 5.6f),
-        CubicTo(8.9f, 5.6f, 8.9f, 5.6f, 9.0f, 5.6f),
-        CubicTo(10.1f, 5.6f, 11.0f, 5.0f, 11.6f, 4.2f),
-        SvgCommand::Close(),
-    }));
-    return graphic;
 }
 
 Svg SearchMark() {
@@ -556,7 +523,16 @@ void DesktopPainter::Paint(FrameBuffer& buffer,
                 mark.SetStyle(markStyle);
                 SvgPainter::Paint(buffer, mark, appleX, appleY, appleW, scale);
             } else {
-                PaintGlyph(buffer, AppleMark(), appleX, appleY, itemInk(0, false), scale);
+                BrandLogo fallback;
+                fallback.SetSize(APPLE_W);
+                fallback.SetVariant(BrandLogoVariant::Mark);
+                Svg mark = fallback.Mark();
+                SvgStyle markStyle = mark.GetStyle();
+                markStyle.width = APPLE_W;
+                markStyle.height = APPLE_H;
+                markStyle.color = itemInk(0, false);
+                mark.SetStyle(markStyle);
+                SvgPainter::Paint(buffer, mark, appleX, appleY, appleW, scale);
             }
             DrawLine(buffer, fonts, menu.GetApp(), appX, 0.0f, appWidth, barHeight, fontSize,
                      FontFaceId::Bold, itemInk(1, false), false, false);

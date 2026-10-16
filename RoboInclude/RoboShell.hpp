@@ -3,8 +3,13 @@
 #include <stdint.h>
 
 struct RoboDesktop;
+struct RoboBootInfo;
 
 bool RoboShellStart(RoboDesktop* desktop);
+#ifdef __cplusplus
+extern "C"
+#endif
+void RoboDevKitBind(const RoboBootInfo* info);
 void RoboShellPointerMove(int32_t x, int32_t y);
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch);
 void RoboShellPointerContext(int32_t x, int32_t y);

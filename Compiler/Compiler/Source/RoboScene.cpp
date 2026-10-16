@@ -27,7 +27,11 @@
 #include <cstring>
 #include <functional>
 
+#ifdef ROBO_KERNEL
+void RoboDevKitOpenPage(Robo::RoboScene& scene);
+#else
 void BuildDevKitPage(Robo::RoboScene& scene);
+#endif
 
 namespace Robo {
 
@@ -2415,7 +2419,11 @@ void RoboScene::EnsureDevKit() {
         return;
     }
     devKitScene_ = new RoboScene();
+#ifdef ROBO_KERNEL
+    RoboDevKitOpenPage(*devKitScene_);
+#else
     BuildDevKitPage(*devKitScene_);
+#endif
 }
 
 void RoboScene::OpenDevKit() {
@@ -2686,7 +2694,12 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     background_ = LerpPageColor(lightPage, darkPage, themeMix_);
     if (desktop_.IsEnabled() && desktop_.HasBackground()) {
         desktop_.GetBackgroundSource().EnsureLoaded(platform);
-        background_ = ResolveColor(desktop_.GetBackground(), desktop_.GetBackgroundToken());
+        if (!desktop_.GetBackgroundSource().PaintsMedia()) {
+            background_ = ResolveColor(desktop_.GetBackground(), desktop_.GetBackgroundToken());
+            if (background_.red > 240 && background_.green > 240 && background_.blue > 240) {
+                background_ = Color::FromHex("#202838");
+            }
+        }
     }
     if (!pagePaddingSet_) {
         padding_ = padding;

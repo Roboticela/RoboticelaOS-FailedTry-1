@@ -1,4 +1,9 @@
 #include "RoboShell.hpp"
+#include "RoboBootInfo.hpp"
+
+void RoboDevKitBind(const RoboBootInfo* info) {
+    (void)info;
+}
 
 bool RoboShellStart(RoboDesktop* desktop) {
     (void)desktop;

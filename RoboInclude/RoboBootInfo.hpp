@@ -5,10 +5,14 @@
 #define ROBO_PIXEL_BGRX 0u
 #define ROBO_PIXEL_RGBX 1u
 
-/* Keep in sync with RoboKernel/RoboLinker.ld */
+/* Keep in sync with RoboKernel/RoboLinker.ld and RoboKernel/RoboDevKit.ld */
 #define ROBO_KERNEL_LOAD_ADDRESS 0x08000000ull
-#define ROBO_MEMORY_RANGE_MAX 48u
-#define ROBO_BOOT_FILE_MAX 8u
+/* Covers .text/.data/.bss and vendor GPU card buffer. Heap is carved from free RAM. */
+#define ROBO_KERNEL_BYTES (128ull * 1024ull * 1024ull)
+#define ROBO_DEVKIT_LOAD_ADDRESS 0x10000000ull
+#define ROBO_DEVKIT_BYTES (32ull * 1024ull * 1024ull)
+#define ROBO_MEMORY_RANGE_MAX 256u
+#define ROBO_BOOT_FILE_MAX 16u
 #define ROBO_BOOT_FILE_NAME 16u
 
 typedef struct RoboMemoryRange {
