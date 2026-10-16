@@ -47,6 +47,14 @@ const std::string& SelectionAreaItem::GetLabel() const {
     return label_;
 }
 
+void SelectionAreaItem::SetOpen(const std::string& open) {
+    open_ = open;
+}
+
+const std::string& SelectionAreaItem::GetOpen() const {
+    return open_;
+}
+
 void SelectionAreaItem::SetPosition(float x, float y) {
     x_ = x;
     y_ = y;
@@ -234,6 +242,19 @@ int SelectionArea::SelectedCount() const {
     return count;
 }
 
+void SelectionArea::Advance(float deltaMs) {
+    sincePressMs_ += deltaMs;
+    if (sincePressMs_ > 1000.0f) {
+        sincePressMs_ = 1000.0f;
+    }
+}
+
+std::string SelectionArea::ConsumeOpen() {
+    std::string value = opened_;
+    opened_.clear();
+    return value;
+}
+
 bool SelectionArea::Eligible(int index) const {
     return index >= 0 && index < static_cast<int>(items_.size()) && !items_[static_cast<std::size_t>(index)].IsLocked();
 }
@@ -397,6 +418,7 @@ bool SelectionArea::PointerDown(float x, float y, bool fromTouch, int clicks, in
         PointerUp(x, y);
     }
     keyboardFocus_ = true;
+    opened_.clear();
     fromTouch_ = fromTouch;
     anchorX_ = x;
     anchorY_ = y;
@@ -409,15 +431,26 @@ bool SelectionArea::PointerDown(float x, float y, bool fromTouch, int clicks, in
     if (Hit(x, y, hit)) {
         const bool shift = (modifiers & 1) != 0;
         const bool command = (modifiers & 2) != 0 || (modifiers & 4) != 0;
-        if (clicks >= 2) {
+        const float repeatX = x - pressX_;
+        const float repeatY = y - pressY_;
+        const bool repeated = pressIndex_ == hit && sincePressMs_ < 400.0f && repeatX > -24.0f && repeatX < 24.0f &&
+                              repeatY > -24.0f && repeatY < 24.0f;
+        if (clicks >= 2 || repeated) {
             if (!items_[static_cast<std::size_t>(hit)].IsSelected()) {
                 ReplaceWith(hit);
             } else {
                 FocusOnly(hit);
             }
+            opened_ = items_[static_cast<std::size_t>(hit)].GetOpen();
+            pressIndex_ = -1;
+            sincePressMs_ = 1000.0f;
             gesture_ = SelectionGesture::Idle;
             return true;
         }
+        pressIndex_ = hit;
+        pressX_ = x;
+        pressY_ = y;
+        sincePressMs_ = 0.0f;
         if (shift && rangeAnchor_ >= 0) {
             SelectRange(rangeAnchor_, hit);
         } else if (command) {

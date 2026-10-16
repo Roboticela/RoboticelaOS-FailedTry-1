@@ -65,6 +65,9 @@ public:
     void SetLabel(const std::string& label);
     const std::string& GetLabel() const;
 
+    void SetOpen(const std::string& open);
+    const std::string& GetOpen() const;
+
     void SetPosition(float x, float y);
     float GetX() const;
     float GetY() const;
@@ -91,6 +94,7 @@ public:
 
 private:
     std::string label_;
+    std::string open_;
     float x_ = 0.0f;
     float y_ = 0.0f;
     float width_ = 104.0f;
@@ -131,6 +135,8 @@ public:
     bool HasMarquee() const;
     SelectionBounds MarqueeRect() const;
     int SelectedCount() const;
+    void Advance(float deltaMs);
+    std::string ConsumeOpen();
 
     bool PointerDown(float x, float y, bool fromTouch, int clicks, int modifiers);
     bool PointerMove(float x, float y);
@@ -182,6 +188,11 @@ private:
     float moveAnchorY_ = 0.0f;
     int pressedItem_ = -1;
     int hover_ = -1;
+    std::string opened_;
+    float sincePressMs_ = 1000.0f;
+    float pressX_ = 0.0f;
+    float pressY_ = 0.0f;
+    int pressIndex_ = -1;
     int focus_ = -1;
     int rangeAnchor_ = -1;
     bool fromTouch_ = false;

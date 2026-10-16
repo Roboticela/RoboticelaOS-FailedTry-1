@@ -1,6 +1,7 @@
 #include "Robo/RoboScene.hpp"
 #include "Robo/Motion.hpp"
 #include "Robo/TextSelection.hpp"
+#include "Robo/BrandLogo.hpp"
 #include "Robo/BrandLogoPainter.hpp"
 #include "Robo/BackgroundPainter.hpp"
 #include "Robo/ContextMenuPainter.hpp"
@@ -26,9 +27,139 @@
 #include <cstring>
 #include <functional>
 
+void BuildDevKitPage(Robo::RoboScene& scene);
+
 namespace Robo {
 
 namespace {
+
+constexpr float DEV_KIT_WIDTH = 1080.0f;
+constexpr float DEV_KIT_HEIGHT = 700.0f;
+constexpr float DEV_KIT_RADIUS = 12.0f;
+
+bool InsideRoundedWindow(float localX, float localY, float width, float height, float radius) {
+    if (width <= 0.0f || height <= 0.0f) {
+        return false;
+    }
+    if (localX < 0.0f || localY < 0.0f || localX >= width || localY >= height) {
+        return false;
+    }
+    const float limit = std::min(radius, std::min(width, height) * 0.5f);
+    if (limit <= 0.5f) {
+        return true;
+    }
+    if (localX >= limit && localX < width - limit) {
+        return true;
+    }
+    if (localY >= limit && localY < height - limit) {
+        return true;
+    }
+    float centerX = limit;
+    float centerY = limit;
+    if (localX >= width - limit) {
+        centerX = width - limit;
+    }
+    if (localY >= height - limit) {
+        centerY = height - limit;
+    }
+    const float dx = localX - centerX;
+    const float dy = localY - centerY;
+    return dx * dx + dy * dy <= limit * limit;
+}
+
+class HostPlatform final : public IPlatform {
+public:
+    void Bind(IPlatform* assets, FrameBuffer* dest, int destX, int destY, float cornerRadius) {
+        assets_ = assets;
+        dest_ = dest;
+        destX_ = destX;
+        destY_ = destY;
+        cornerRadius_ = cornerRadius;
+    }
+
+    int GetSurfaceWidth() const override {
+        return width_;
+    }
+
+    int GetSurfaceHeight() const override {
+        return height_;
+    }
+
+    float GetPixelScale() const override {
+        return pixelScale_;
+    }
+
+    void SetSurfaceSize(int width, int height) override {
+        width_ = std::max(1, width);
+        height_ = std::max(1, height);
+    }
+
+    void SetPixelScale(float scale) override {
+        pixelScale_ = scale > 0.0f ? scale : 1.0f;
+    }
+
+    void Present(const FrameBuffer& buffer) override {
+        if (dest_ == nullptr || dest_->GetPixels() == nullptr || buffer.GetPixels() == nullptr) {
+            return;
+        }
+        const int copyWidth = std::min(buffer.GetWidth(), dest_->GetWidth() - destX_);
+        const int copyHeight = std::min(buffer.GetHeight(), dest_->GetHeight() - destY_);
+        if (copyWidth <= 0 || copyHeight <= 0 || destX_ < 0 || destY_ < 0) {
+            return;
+        }
+        const std::uint8_t* src = buffer.GetPixels();
+        std::uint8_t* dst = dest_->GetPixels();
+        const int srcStride = buffer.GetWidth() * 4;
+        const int dstStride = dest_->GetWidth() * 4;
+        const float radius = std::min(cornerRadius_, std::min(static_cast<float>(copyWidth), static_cast<float>(copyHeight)) * 0.5f);
+        const float windowW = static_cast<float>(copyWidth);
+        const float windowH = static_cast<float>(copyHeight);
+        for (int row = 0; row < copyHeight; ++row) {
+            const float localY = static_cast<float>(row) + 0.5f;
+            if (radius <= 0.5f || (localY >= radius && localY < windowH - radius)) {
+                memcpy(dst + (destY_ + row) * dstStride + destX_ * 4, src + row * srcStride,
+                       static_cast<std::size_t>(copyWidth) * 4u);
+                continue;
+            }
+            for (int col = 0; col < copyWidth; ++col) {
+                const float localX = static_cast<float>(col) + 0.5f;
+                if (!InsideRoundedWindow(localX, localY, windowW, windowH, radius)) {
+                    continue;
+                }
+                const std::size_t srcIndex = static_cast<std::size_t>(row * srcStride + col * 4);
+                const std::size_t dstIndex =
+                    static_cast<std::size_t>((destY_ + row) * dstStride + (destX_ + col) * 4);
+                dst[dstIndex] = src[srcIndex];
+                dst[dstIndex + 1u] = src[srcIndex + 1u];
+                dst[dstIndex + 2u] = src[srcIndex + 2u];
+                dst[dstIndex + 3u] = src[srcIndex + 3u];
+            }
+        }
+    }
+
+    void CopyText(const std::string& text) override {
+        if (assets_ != nullptr) {
+            assets_->CopyText(text);
+        }
+    }
+
+    std::vector<std::uint8_t> LoadAsset(const std::string& relativePath) const override {
+        if (assets_ == nullptr) {
+            return {};
+        }
+        return assets_->LoadAsset(relativePath);
+    }
+
+private:
+    IPlatform* assets_ = nullptr;
+    FrameBuffer* dest_ = nullptr;
+    int destX_ = 0;
+    int destY_ = 0;
+    int width_ = 1;
+    int height_ = 1;
+    float pixelScale_ = 1.0f;
+    float cornerRadius_ = 0.0f;
+};
 
 void ScaleBounds(ButtonBounds& bounds, float inv) {
     bounds.x *= inv;
@@ -1954,11 +2085,15 @@ void RoboScene::RunContextAction(const std::string& action) {
             continue;
         }
         const int count = static_cast<int>(item.selectionArea.Items().size());
+        int folders = 0;
         for (SelectionAreaItem& existing : item.selectionArea.Items()) {
             existing.SetSelected(false);
+            if (existing.GetOpen().empty()) {
+                folders += 1;
+            }
         }
         SelectionAreaItem folder;
-        folder.SetLabel(count == 0 ? "untitled folder" : "untitled folder " + std::to_string(count + 1));
+        folder.SetLabel(folders == 0 ? "untitled folder" : "untitled folder " + std::to_string(folders + 1));
         folder.SetPosition(24.0f + static_cast<float>(count % 6) * 120.0f, 24.0f + static_cast<float>(count / 6) * 124.0f);
         folder.SetSelected(true);
         item.selectionArea.AddItem(std::move(folder));
@@ -2245,6 +2380,153 @@ void RoboScene::EnsureMenuMark() {
     desktop_.GetTopBarMenu().SetMark(std::move(mark));
 }
 
+float RoboScene::SceneScale() const {
+    if (paintedScale_ > 0.0f) {
+        return paintedScale_;
+    }
+    if (lastPaintScale_ > 0.0f) {
+        return lastPaintScale_;
+    }
+    return 1.0f;
+}
+
+void RoboScene::DevKitFrame(float& x, float& y, float& width, float& height) const {
+    const float scale = SceneScale();
+    x = devKitX_ * scale;
+    y = devKitY_ * scale;
+    width = devKitW_ * scale;
+    height = devKitH_ * scale;
+}
+
+bool RoboScene::PointerOnDevKit(float x, float y) const {
+    if (!devKitOpen_) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    DevKitFrame(left, top, width, height);
+    return InsideRoundedWindow(x - left, y - top, width, height, DEV_KIT_RADIUS * SceneScale());
+}
+
+void RoboScene::EnsureDevKit() {
+    if (devKitScene_ != nullptr) {
+        return;
+    }
+    devKitScene_ = new RoboScene();
+    BuildDevKitPage(*devKitScene_);
+}
+
+void RoboScene::OpenDevKit() {
+    EnsureDevKit();
+    if (devKitScene_ == nullptr) {
+        return;
+    }
+    devKitOpen_ = true;
+    devKitFocus_ = true;
+    const float scale = SceneScale();
+    if (paintedWidth_ > 0 && paintedHeight_ > 0) {
+        const float availW = static_cast<float>(paintedWidth_) / scale;
+        const float availH = static_cast<float>(paintedHeight_) / scale;
+        devKitW_ = std::min(DEV_KIT_WIDTH, std::max(640.0f, availW - 64.0f));
+        devKitH_ = std::min(DEV_KIT_HEIGHT, std::max(420.0f, availH - 64.0f));
+        devKitX_ = std::max(16.0f, (availW - devKitW_) * 0.5f);
+        devKitY_ = std::max(40.0f, (availH - devKitH_) * 0.5f);
+    } else {
+        devKitW_ = DEV_KIT_WIDTH;
+        devKitH_ = DEV_KIT_HEIGHT;
+    }
+    MarkFullDirty();
+}
+
+bool RoboScene::ForwardDevKitMove(float x, float y) {
+    if (!devKitOpen_ || devKitScene_ == nullptr || !devKitFocus_ || !PointerOnDevKit(x, y)) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    DevKitFrame(left, top, width, height);
+    devKitScene_->SetModifiers(modifiers_);
+    if (devKitScene_->PointerMove(x - left, y - top)) {
+        MarkFullDirty();
+        return true;
+    }
+    return false;
+}
+
+bool RoboScene::ForwardDevKitPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks) {
+    if (!devKitOpen_ || devKitScene_ == nullptr || !PointerOnDevKit(x, y)) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    DevKitFrame(left, top, width, height);
+    (void)width;
+    (void)height;
+    devKitScene_->SetModifiers(modifiers_);
+    bool changed = false;
+    if (down) {
+        changed = devKitScene_->PointerDown(x - left, y - top, fromTouch, clicks);
+    }
+    if (up) {
+        changed = devKitScene_->PointerUp(x - left, y - top) || changed;
+    }
+    if (changed) {
+        MarkFullDirty();
+    }
+    return true;
+}
+
+bool RoboScene::ForwardDevKitWheel(float x, float y, float deltaX, float deltaY) {
+    if (!devKitOpen_ || devKitScene_ == nullptr || !PointerOnDevKit(x, y)) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    DevKitFrame(left, top, width, height);
+    (void)width;
+    (void)height;
+    if (devKitScene_->Wheel(x - left, y - top, deltaX, deltaY)) {
+        MarkFullDirty();
+        return true;
+    }
+    return false;
+}
+
+void RoboScene::PaintDevKit() {
+    if (!devKitOpen_ || fonts_ == nullptr || platform_ == nullptr) {
+        return;
+    }
+    EnsureDevKit();
+    if (devKitScene_ == nullptr) {
+        return;
+    }
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    DevKitFrame(x, y, width, height);
+    const float scale = SceneScale();
+    const int surfaceW = std::max(1, static_cast<int>(std::lround(width)));
+    const int surfaceH = std::max(1, static_cast<int>(std::lround(height)));
+    HostPlatform host;
+    host.Bind(platform_, &frame_, static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
+              DEV_KIT_RADIUS * scale);
+    host.SetSurfaceSize(surfaceW, surfaceH);
+    host.SetPixelScale(scale);
+    frame_.PushClipRect(x, y, width, height);
+    const Color page = devKitScene_->GetBackground();
+    devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+    frame_.PopClip();
+}
+
 void RoboScene::EnsureFolderIcon() {
     if (folderIconTried_ || platform_ == nullptr) {
         return;
@@ -2288,6 +2570,7 @@ bool RoboScene::PresentVideoFrame(IPlatform& platform) {
         DesktopPainter::Paint(frame_, *fonts_, desktop_, barChrome, barScale, hoveredDock_);
         frame_.PopClip();
     }
+    PaintDevKit();
     if (fonts_ != nullptr && desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         const bool contextDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
@@ -2772,6 +3055,10 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     if (!partial && desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
         CaptureChrome();
     }
+    if (partial) {
+        frame.PopClip();
+    }
+    PaintDevKit();
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         const bool contextDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
@@ -2785,9 +3072,6 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
             dockInset = std::max(0.0f, static_cast<float>(height) - desktop_.DockBarY());
         }
         ContextMenuPainter::Paint(frame, fonts, contextMenu, paintScale, static_cast<float>(width), static_cast<float>(height), menuTop, dockInset);
-    }
-    if (partial) {
-        frame.PopClip();
     }
     if (!partial || damageWidth <= 0 || damageHeight <= 0) {
         damageX = 0;
@@ -3577,6 +3861,9 @@ Scrollbar* RoboScene::FindScrollbarNear(float x, float y, float tolerance) {
 }
 
 bool RoboScene::Wheel(float x, float y, float deltaX, float deltaY) {
+    if (ForwardDevKitWheel(x, y, deltaX, deltaY)) {
+        return true;
+    }
     if (desktop_.HasContextMenu() && deltaY != 0.0f && desktop_.GetContextMenu().IsVisible() && desktop_.GetContextMenu().Contains(x, y)) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         const float step = deltaY > 0.0f ? 0.08f : -0.08f;
@@ -4168,6 +4455,12 @@ void RoboScene::ToggleSidebar() {
 }
 
 bool RoboScene::KeyDown(const std::string& key, bool shift) {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr) {
+        if (devKitScene_->KeyDown(key, shift)) {
+            MarkFullDirty();
+            return true;
+        }
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         if (contextMenu.KeyDown(key)) {
@@ -4454,6 +4747,9 @@ bool RoboScene::PointerMove(float x, float y) {
             return true;
         }
     }
+    if (ForwardDevKitMove(x, y)) {
+        return true;
+    }
     if (SelectionArea* area = GesturingSelection()) {
         if (area->ClearHover()) {
             MarkFullDirty();
@@ -4662,6 +4958,14 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
     if ((modifiers_ & 2) != 0 && !fromTouch && PointerContext(x, y)) {
         return true;
     }
+    if (devKitOpen_) {
+        if (PointerOnDevKit(x, y)) {
+            devKitFocus_ = true;
+            ForwardDevKitPointer(x, y, true, false, fromTouch, clicks);
+            return true;
+        }
+        devKitFocus_ = false;
+    }
     if (desktop_.IsEnabled()) {
         if (desktop_.HasTopBarMenu()) {
             TopBarMenu& menu = desktop_.GetTopBarMenu();
@@ -4713,6 +5017,10 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
             }
         }
         area->PointerDown(x, y, fromTouch, clicks, modifiers_);
+        const std::string opened = area->ConsumeOpen();
+        if (opened == "DevKit") {
+            OpenDevKit();
+        }
         DirtySelection(*area);
         return true;
     }
@@ -4877,6 +5185,9 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
 
 bool RoboScene::PointerUp(float x, float y) {
     bool changed = false;
+    if (ForwardDevKitPointer(x, y, false, true, false, 1)) {
+        changed = true;
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible() && desktop_.GetContextMenu().Pressed() >= 0) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         contextMenu.PointerUp(x, y);
@@ -5046,7 +5357,14 @@ bool RoboScene::Tick(double deltaMs) {
         }
     };
     VisitSceneScrollbars(items_, visit);
+    if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->Tick(deltaMs)) {
+        MarkFullDirty();
+        changed = true;
+    }
     for (SceneItem& item : items_) {
+        if (item.kind == SceneItemKind::SelectionArea) {
+            item.selectionArea.Advance(static_cast<float>(deltaMs));
+        }
         if (item.kind == SceneItemKind::Sidebar && item.sidebar.TickRail(deltaMs)) {
             contentMoved = true;
             changed = true;
@@ -5178,6 +5496,9 @@ bool RoboScene::Tick(double deltaMs) {
 }
 
 bool RoboScene::NeedsTick() {
+    if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->NeedsTick()) {
+        return true;
+    }
     bool needsTick = false;
     auto visit = [&needsTick](Scrollbar& scrollbar) {
         if (scrollbar.NeedsAnimation()) {
@@ -5224,7 +5545,10 @@ bool RoboScene::NeedsTick() {
 }
 
 bool RoboScene::HasFocusedInput() const {
-    return focusedInput_ != nullptr;
+    if (focusedInput_ != nullptr) {
+        return true;
+    }
+    return devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->HasFocusedInput();
 }
 
 bool RoboScene::SelectableAt(float x, float y) const {
@@ -5280,6 +5604,10 @@ bool RoboScene::SelectAllText() {
 }
 
 bool RoboScene::KeyInsert(const std::string& utf8) {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyInsert(utf8)) {
+        MarkFullDirty();
+        return true;
+    }
     if (!focusedInput_) {
         return false;
     }
@@ -5291,6 +5619,10 @@ bool RoboScene::KeyInsert(const std::string& utf8) {
 }
 
 bool RoboScene::KeyBackspace() {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyBackspace()) {
+        MarkFullDirty();
+        return true;
+    }
     if (!focusedInput_) {
         return false;
     }
@@ -5302,6 +5634,10 @@ bool RoboScene::KeyBackspace() {
 }
 
 bool RoboScene::KeyDelete() {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyDelete()) {
+        MarkFullDirty();
+        return true;
+    }
     if (!focusedInput_) {
         return false;
     }
@@ -5313,6 +5649,10 @@ bool RoboScene::KeyDelete() {
 }
 
 bool RoboScene::KeyLeft() {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyLeft()) {
+        MarkFullDirty();
+        return true;
+    }
     if (!focusedInput_) {
         return false;
     }
@@ -5324,6 +5664,10 @@ bool RoboScene::KeyLeft() {
 }
 
 bool RoboScene::KeyRight() {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyRight()) {
+        MarkFullDirty();
+        return true;
+    }
     if (!focusedInput_) {
         return false;
     }
@@ -5335,6 +5679,10 @@ bool RoboScene::KeyRight() {
 }
 
 bool RoboScene::KeyEscape() {
+    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyEscape()) {
+        MarkFullDirty();
+        return true;
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         desktop_.GetContextMenu().KeyDown("Escape");
         DirtyContextMenu();

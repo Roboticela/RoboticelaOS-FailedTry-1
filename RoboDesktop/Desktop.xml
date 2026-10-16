@@ -39,6 +39,8 @@
       <ContextMenuSeparator/>
       <ContextMenuItem label="Show View Options" shortcut="Command J"/>
     </ContextMenu>
-    <SelectionArea fontSize="12" fontWeight="400" color="#FFFFFF" align="center" lineHeight="1.25" letterSpacing="0" wrap="true" maxWidth="100" maxLines="2" shadowX="0" shadowY="1" shadowBlur="2" shadowColor="#000000D9" iconGap="5" selectionRadius="4" selectionColor="#007AFF"/>
+    <SelectionArea fontSize="12" fontWeight="400" color="#FFFFFF" align="center" lineHeight="1.25" letterSpacing="0" wrap="true" maxWidth="100" maxLines="2" shadowX="0" shadowY="1" shadowBlur="2" shadowColor="#000000D9" iconGap="5" selectionRadius="4" selectionColor="#007AFF">
+      <SelectionAreaItem label="DevKit" x="24" y="24" open="DevKit"/>
+    </SelectionArea>
   </Desktop>
 </Robo>

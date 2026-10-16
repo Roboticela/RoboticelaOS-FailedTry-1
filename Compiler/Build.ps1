@@ -217,6 +217,22 @@ exit /b %ERRORLEVEL%
         throw "XmlCompile failed to compile $pageXml"
     }
     Write-Host "Built: $pageCpp"
+
+    if ($App -eq "Desktop") {
+        $devKitXml = Join-Path $Root "DevKit\DevKit.xml"
+        $devKitCpp = Join-Path $generatedDir "DevKitPage.cpp"
+        if (-not (Test-Path $devKitXml)) {
+            throw "DevKit\DevKit.xml is missing"
+        }
+        & $toolExe $devKitXml $devKitCpp $assetDirectory
+        if ($LASTEXITCODE -ne 0) {
+            throw "XmlCompile failed to compile $devKitXml"
+        }
+        $devKitText = [IO.File]::ReadAllText($devKitCpp)
+        $devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
+        [IO.File]::WriteAllText($devKitCpp, $devKitText)
+        Write-Host "Built: $devKitCpp"
+    }
 }
 
 function Invoke-WebBuild {
@@ -233,7 +249,12 @@ function Invoke-WebBuild {
     Ensure-Directory $outputDir
 
     $sources = (Get-CoreSources) + @(
-        (Join-Path $Root "Build\Generated\$pageCppName"),
+        (Join-Path $Root "Build\Generated\$pageCppName")
+    )
+    if ($App -eq "Desktop") {
+        $sources += (Join-Path $Root "Build\Generated\DevKitPage.cpp")
+    }
+    $sources += @(
         (Join-Path $Root "RoboPlatforms\Web\WebPlatform.cpp"),
         (Join-Path $Root "RoboPlatforms\Web\Main.cpp")
     )

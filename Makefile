@@ -35,7 +35,7 @@ SHELL_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-p
 	-ICompiler/RoboPlatforms/RoboticelaOS -IRoboInclude -IRoboGPU -IRoboDesktop -IRoboInput
 COMPILER_CPPS := $(wildcard Compiler/Compiler/Source/*.cpp)
 SHELL_OBJS := $(patsubst Compiler/Compiler/Source/%.cpp,$(SHELL_DIR)/%.o,$(COMPILER_CPPS)) \
-	$(SHELL_DIR)/DesktopPage.o $(SHELL_DIR)/RoboticelaOSPlatform.o $(SHELL_DIR)/RoboShell.o \
+	$(SHELL_DIR)/DesktopPage.o $(SHELL_DIR)/DevKitPage.o $(SHELL_DIR)/RoboticelaOSPlatform.o $(SHELL_DIR)/RoboShell.o \
 	$(SHELL_DIR)/RoboVideo.o $(SHELL_DIR)/RoboHeap.o $(SHELL_DIR)/RoboStd.o
 BLIT_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
 	-fno-asynchronous-unwind-tables -fno-unwind-tables -mno-red-zone \
@@ -182,6 +182,10 @@ $(SHELL_DIR)/%.o: Compiler/Compiler/Source/%.cpp
 $(SHELL_DIR)/DesktopPage.o: Build/Desktop/DesktopPage.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Build/Desktop/DesktopPage.cpp -o $(SHELL_DIR)/DesktopPage.o
+
+$(SHELL_DIR)/DevKitPage.o: Build/Desktop/DevKitPage.cpp
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Build/Desktop/DevKitPage.cpp -o $(SHELL_DIR)/DevKitPage.o
 
 $(SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"

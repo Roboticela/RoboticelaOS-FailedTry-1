@@ -2368,6 +2368,9 @@ void XmlToCpp::EmitSelectionArea(std::ostringstream& code, const XmlNode& node, 
         const std::string itemName = "selectionAreaItem" + std::to_string(itemIndex++);
         code << Indent(indent + 1) << "Robo::SelectionAreaItem " << itemName << ";\n";
         code << Indent(indent + 1) << itemName << ".SetLabel(\"" << EscapeCpp(label) << "\");\n";
+        if (item.attributes.count("open") != 0) {
+            code << Indent(indent + 1) << itemName << ".SetOpen(\"" << EscapeCpp(item.attributes.at("open")) << "\");\n";
+        }
         if (item.attributes.count("x") != 0 || item.attributes.count("y") != 0) {
             const std::string x = item.attributes.count("x") != 0 ? FloatLiteral(item.attributes.at("x")) : "0.0f";
             const std::string y = item.attributes.count("y") != 0 ? FloatLiteral(item.attributes.at("y")) : "0.0f";

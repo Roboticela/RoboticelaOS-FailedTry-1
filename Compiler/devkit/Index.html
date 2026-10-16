@@ -5,69 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DevKit</title>
   <style>
-    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FFFFFF; }
-    #robo-canvas { position: fixed; inset: 0; width: 100%; height: 100%; outline: none; touch-action: none; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #FFFFFF;
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+    canvas {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+      touch-action: manipulation;
+      image-rendering: auto;
+    }
   </style>
 </head>
 <body>
   <canvas id="robo-canvas" tabindex="0"></canvas>
-  <script src="/Build/Desktop/Robo.js"></script>
-  <script>
-    const assetBase = "/Build/Desktop/";
-    const canvas = document.getElementById("robo-canvas");
-    CreateRoboModule({
-      locateFile: (name) => assetBase + name
-    }).then((app) => {
-      const pixelScale = () => window.devicePixelRatio || 1;
-      const point = (event) => {
-        const rect = canvas.getBoundingClientRect();
-        const scale = pixelScale();
-        return [(event.clientX - rect.left) * scale, (event.clientY - rect.top) * scale];
-      };
-      const paint = () => {
-        const scale = pixelScale();
-        app.Render(Math.max(1, window.innerWidth), Math.max(1, window.innerHeight), scale);
-      };
-      paint();
-      window.addEventListener("resize", paint);
-      let last = performance.now();
-      const frame = (now) => {
-        const delta = now - last;
-        last = now;
-        if (app.Tick(delta)) {
-          paint();
-        }
-        requestAnimationFrame(frame);
-      };
-      requestAnimationFrame(frame);
-      canvas.addEventListener("pointermove", (event) => {
-        const [x, y] = point(event);
-        app.PointerMove(x, y);
-      });
-      canvas.addEventListener("pointerdown", (event) => {
-        canvas.focus();
-        const [x, y] = point(event);
-        app.PointerDown(x, y, event.pointerType === "touch", 1);
-      });
-      window.addEventListener("pointerup", (event) => {
-        const [x, y] = point(event);
-        app.PointerUp(x, y);
-      });
-      canvas.addEventListener("pointerleave", () => app.PointerLeave());
-      canvas.addEventListener("wheel", (event) => {
-        event.preventDefault();
-        const [x, y] = point(event);
-        app.Wheel(x, y, event.deltaX, event.deltaY);
-      }, { passive: false });
-      canvas.addEventListener("keydown", (event) => {
-        if (event.key === "Backspace") app.KeyBackspace();
-        else if (event.key === "Delete") app.KeyDelete();
-        else if (event.key === "Escape") app.KeyEscape();
-        else if (event.key === "ArrowLeft") app.KeyLeft();
-        else if (event.key === "ArrowRight") app.KeyRight();
-        else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) app.KeyInsert(event.key);
-      });
-    });
-  </script>
+  <script src="../Build/DevKit/Robo.js"></script>
+  <script src="../Demo/Demo.js"></script>
 </body>
 </html>

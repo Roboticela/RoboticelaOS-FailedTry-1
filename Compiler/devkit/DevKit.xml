@@ -1,0 +1,1967 @@
+<Robo padding="0">
+  <Foundation name="DevKit" from="RoboFoundation"/>
+  <FoundationUse name="DevKit"/>
+
+  <TitleBar title="DevKit"/>
+  <Sidebar variant="activity">
+    <PaneItem icon="Foundation" label="Robo Foundation">
+      <PaneItem id="syntax" icon="Code" label="Foundation Syntax" selected="true"/>
+      <PaneItem id="color" icon="Color" label="Color"/>
+      <PaneItem id="type" icon="Type" label="Type"/>
+      <PaneItem id="space" icon="Space" label="Space"/>
+      <PaneItem id="radius" icon="Radius" label="Radius"/>
+      <PaneItem id="layout" icon="Layout" label="Layout"/>
+      <PaneItem id="icons" icon="Icons" label="Icons"/>
+      <PaneItem id="flags" icon="Flags" label="Country Flags"/>
+    </PaneItem>
+    <PaneItem icon="Type" label="Typography">
+      <PaneItem id="text" icon="Document" label="Text"/>
+      <PaneItem id="heading" icon="Type" label="Heading"/>
+      <PaneItem id="paragraph" icon="Page" label="Paragraph"/>
+    </PaneItem>
+    <PaneItem icon="Layout" label="Layout">
+      <PaneItem section="true" label="Basic containers"/>
+      <PaneItem icon="Layout" label="Container"/>
+      <PaneItem icon="Box" label="Box"/>
+      <PaneItem icon="Layout" label="Stack"/>
+      <PaneItem icon="Layout" label="Horizontal stack"/>
+      <PaneItem icon="Layout" label="Vertical stack"/>
+      <PaneItem icon="Layout" label="Row"/>
+      <PaneItem icon="Layout" label="Column"/>
+      <PaneItem icon="Layout" label="Inline group"/>
+      <PaneItem icon="Layout" label="Flex container"/>
+      <PaneItem icon="Layout" label="Grid container"/>
+      <PaneItem icon="Layout" label="Subgrid"/>
+      <PaneItem icon="Layout" label="Flow layout"/>
+      <PaneItem icon="Layout" label="Section"/>
+      <PaneItem icon="Layout" label="Content wrapper"/>
+      <PaneItem icon="Layout" label="Page wrapper"/>
+      <PaneItem icon="Layout" label="Full-screen container"/>
+      <PaneItem icon="Layout" label="Scrollable container"/>
+      <PaneItem icon="Layout" label="Aspect-ratio container"/>
+      <PaneItem icon="Layout" label="Centered container"/>
+      <PaneItem icon="Layout" label="Constrained-width container"/>
+      <PaneItem section="true" label="Application shells"/>
+      <PaneItem icon="Layout" label="App shell"/>
+      <PaneItem icon="Layout" label="Desktop app shell"/>
+      <PaneItem icon="Layout" label="Mobile app shell"/>
+      <PaneItem icon="Layout" label="Tablet app shell"/>
+      <PaneItem icon="Layout" label="Web app shell"/>
+      <PaneItem icon="Layout" label="Dashboard shell"/>
+      <PaneItem icon="Layout" label="Admin shell"/>
+      <PaneItem icon="Layout" label="Marketing site shell"/>
+      <PaneItem icon="Layout" label="Workspace shell"/>
+      <PaneItem icon="Lock" label="Authenticated shell"/>
+      <PaneItem icon="Layout" label="Guest shell"/>
+      <PaneItem icon="Sidebar" label="Master-detail shell"/>
+      <PaneItem icon="Sidebar" label="Multi-pane shell"/>
+      <PaneItem icon="Sidebar" label="Split-view shell"/>
+      <PaneItem section="true" label="Panels and regions"/>
+      <PaneItem section="true" label="Layout systems"/>
+      <PaneItem section="true" label="Page regions"/>
+      <PaneItem section="true" label="Responsive and scroll patterns"/>
+      <PaneItem section="true" label="Specialized workspaces"/>
+    </PaneItem>
+    <PaneItem icon="Compass" label="Navigation">
+      <PaneItem section="true" label="Desktop navigation"/>
+      <PaneItem icon="Sidebar" label="App sidebar"/>
+      <PaneItem icon="Sidebar" label="Collapsible sidebar"/>
+      <PaneItem icon="Sidebar" label="Navigation rail"/>
+      <PaneItem icon="Compass" label="Top navigation"/>
+      <PaneItem icon="Menu" label="Mega menu"/>
+      <PaneItem icon="Menu" label="Menu bar"/>
+      <PaneItem icon="Button" label="Toolbar"/>
+      <PaneItem icon="Search" label="Command palette"/>
+      <PaneItem icon="Folder" label="Breadcrumbs"/>
+      <PaneItem icon="Toggle" label="Workspace switcher"/>
+      <PaneItem icon="Toggle" label="Project switcher"/>
+      <PaneItem icon="Folder" label="Tree navigation"/>
+      <PaneItem icon="Desktop" label="Dock"/>
+      <PaneItem icon="Tag" label="Status navigation"/>
+      <PaneItem section="true" label="Mobile navigation"/>
+      <PaneItem icon="Compass" label="Bottom navigation bar"/>
+      <PaneItem icon="Compass" label="Top app bar"/>
+      <PaneItem icon="Compass" label="Bottom app bar"/>
+      <PaneItem icon="Sidebar" label="Navigation drawer"/>
+      <PaneItem icon="Menu" label="Hamburger menu"/>
+      <PaneItem icon="Tabs" label="Tab bar"/>
+      <PaneItem icon="Phone" label="Swipe navigation"/>
+      <PaneItem icon="House" label="Back button"/>
+      <PaneItem icon="Compass" label="Gesture navigation"/>
+      <PaneItem icon="Compass" label="Floating navigation"/>
+      <PaneItem icon="Window" label="Bottom navigation sheet"/>
+      <PaneItem section="true" label="Tablet and adaptive navigation"/>
+      <PaneItem icon="Sidebar" label="Persistent drawer"/>
+      <PaneItem icon="Sidebar" label="Expandable sidebar"/>
+      <PaneItem icon="Sidebar" label="Master-detail navigation"/>
+      <PaneItem icon="Tabs" label="Adaptive tab bar"/>
+      <PaneItem icon="Sidebar" label="Split-view navigation"/>
+      <PaneItem icon="Compass" label="Contextual navigation"/>
+      <PaneItem icon="Sidebar" label="Multi-column navigation"/>
+      <PaneItem section="true" label="Primary navigation"/>
+      <PaneItem icon="Compass" label="Side navigation"/>
+      <PaneItem icon="Compass" label="Bottom navigation"/>
+      <PaneItem icon="Compass" label="Mega navigation"/>
+      <PaneItem section="true" label="Secondary navigation"/>
+      <PaneItem icon="Tabs" label="Tabs"/>
+      <PaneItem icon="Tabs" label="Nested tabs"/>
+      <PaneItem icon="Compass" label="Subnavigation"/>
+      <PaneItem icon="Compass" label="Section navigation"/>
+      <PaneItem icon="Compass" label="Local navigation"/>
+      <PaneItem section="true" label="Hierarchy navigation"/>
+      <PaneItem icon="Folder" label="Tree view"/>
+      <PaneItem icon="Folder" label="Expandable tree"/>
+      <PaneItem icon="Folder" label="File tree"/>
+      <PaneItem icon="Folder" label="Folder navigation"/>
+      <PaneItem icon="Folder" label="Sitemap navigation"/>
+      <PaneItem section="true" label="Menus"/>
+      <PaneItem icon="Menu" label="Dropdown menu"/>
+      <PaneItem icon="Menu" label="Context menu"/>
+      <PaneItem icon="Menu" label="Overflow menu"/>
+      <PaneItem icon="Menu" label="Kebab menu"/>
+      <PaneItem icon="Menu" label="Meatball menu"/>
+      <PaneItem icon="Menu" label="Application menu"/>
+      <PaneItem icon="Menu" label="Submenu"/>
+      <PaneItem section="true" label="Navigation helpers"/>
+      <PaneItem icon="House" label="Forward button"/>
+      <PaneItem icon="House" label="Home button"/>
+      <PaneItem icon="Link" label="Skip navigation link"/>
+      <PaneItem icon="Compass" label="Pagination"/>
+      <PaneItem icon="Compass" label="Step navigation"/>
+      <PaneItem icon="Button" label="Previous/next controls"/>
+      <PaneItem section="true" label="Workspace navigation"/>
+      <PaneItem icon="Toggle" label="Organization switcher"/>
+      <PaneItem icon="Toggle" label="Account switcher"/>
+      <PaneItem icon="Toggle" label="Environment switcher"/>
+      <PaneItem icon="Toggle" label="Window switcher"/>
+      <PaneItem section="true" label="Advanced navigation"/>
+      <PaneItem icon="Search" label="Quick switcher"/>
+      <PaneItem icon="Filter" label="Global search"/>
+      <PaneItem icon="Compass" label="Recent pages"/>
+      <PaneItem icon="Pin" label="Pinned destinations"/>
+      <PaneItem icon="List" label="Navigation history"/>
+      <PaneItem icon="Link" label="Deep-link handler"/>
+      <PaneItem icon="Map" label="Route transition indicator"/>
+      <PaneItem section="true" label="Browser-oriented navigation"/>
+      <PaneItem icon="Link" label="URL-based routing"/>
+      <PaneItem icon="Tabs" label="Route tabs"/>
+      <PaneItem icon="Link" label="Link component"/>
+      <PaneItem icon="Link" label="External link"/>
+      <PaneItem icon="Link" label="Anchor links"/>
+      <PaneItem icon="Compass" label="Hash navigation"/>
+    </PaneItem>
+    <PaneItem icon="Plus" label="Actions">
+      <PaneItem section="true" label="Button variations"/>
+      <PaneItem icon="Button" label="Primary button"/>
+      <PaneItem icon="Button" label="Secondary button"/>
+      <PaneItem icon="Button" label="Tertiary button"/>
+      <PaneItem icon="Button" label="Text button"/>
+      <PaneItem icon="Button" label="Outline button"/>
+      <PaneItem icon="Button" label="Ghost button"/>
+      <PaneItem icon="Link" label="Link button"/>
+      <PaneItem icon="Button" label="Destructive button"/>
+      <PaneItem icon="Button" label="Success button"/>
+      <PaneItem icon="Button" label="Floating action button"/>
+      <PaneItem icon="Button" label="Extended FAB"/>
+      <PaneItem icon="Button" label="Split button"/>
+      <PaneItem icon="Menu" label="Dropdown button"/>
+      <PaneItem icon="Icons" label="Icon button"/>
+      <PaneItem icon="Icons" label="Icon-and-text button"/>
+      <PaneItem icon="Button" label="Loading button"/>
+      <PaneItem icon="Button" label="Submit button"/>
+      <PaneItem icon="Button" label="Reset button"/>
+      <PaneItem icon="Close" label="Cancel button"/>
+      <PaneItem icon="Close" label="Close button"/>
+      <PaneItem icon="Tag" label="Pill button"/>
+      <PaneItem icon="Button" label="Full-width button"/>
+      <PaneItem icon="Button" label="Compact button"/>
+      <PaneItem icon="Button" label="Segmented button"/>
+      <PaneItem section="true" label="Toggle and selection controls"/>
+      <PaneItem icon="Check" label="Checkbox"/>
+      <PaneItem icon="Radio" label="Radio button"/>
+      <PaneItem icon="Toggle" label="Switch"/>
+      <PaneItem icon="Toggle" label="Toggle button"/>
+      <PaneItem icon="Toggle" label="Toggle group"/>
+      <PaneItem icon="Button" label="Segmented control"/>
+      <PaneItem icon="Tag" label="Selectable chip"/>
+      <PaneItem icon="Tag" label="Choice chip"/>
+      <PaneItem icon="Filter" label="Filter chip"/>
+      <PaneItem icon="Tag" label="Action chip"/>
+      <PaneItem icon="Card" label="Selection card"/>
+      <PaneItem icon="Input" label="Multi-select option"/>
+      <PaneItem icon="Input" label="Single-select option"/>
+      <PaneItem icon="Check" label="Select-all control"/>
+      <PaneItem icon="Check" label="Indeterminate checkbox"/>
+      <PaneItem icon="Check" label="Tri-state checkbox"/>
+      <PaneItem section="true" label="Icon and action controls"/>
+      <PaneItem icon="Icons" label="Icon-only action"/>
+      <PaneItem icon="Menu" label="Overflow action"/>
+      <PaneItem icon="Star" label="Favorite button"/>
+      <PaneItem icon="Pin" label="Bookmark button"/>
+      <PaneItem icon="Star" label="Like button"/>
+      <PaneItem icon="Share" label="Share button"/>
+      <PaneItem icon="Copy" label="Copy button"/>
+      <PaneItem icon="Copy" label="Paste button"/>
+      <PaneItem icon="Copy" label="Cut button"/>
+      <PaneItem icon="Trash" label="Delete action"/>
+      <PaneItem icon="Edit" label="Edit action"/>
+      <PaneItem icon="Button" label="Duplicate action"/>
+      <PaneItem icon="Download" label="Download action"/>
+      <PaneItem icon="Upload" label="Upload action"/>
+      <PaneItem icon="Refresh" label="Refresh button"/>
+      <PaneItem icon="Refresh" label="Retry button"/>
+      <PaneItem icon="Refresh" label="Undo button"/>
+      <PaneItem icon="Refresh" label="Redo button"/>
+      <PaneItem icon="Button" label="Expand button"/>
+      <PaneItem icon="Button" label="Collapse button"/>
+      <PaneItem icon="Button" label="Fullscreen button"/>
+      <PaneItem icon="Button" label="Minimize button"/>
+      <PaneItem icon="Button" label="Maximize button"/>
+      <PaneItem icon="Pin" label="Pin button"/>
+      <PaneItem icon="Pin" label="Unpin button"/>
+      <PaneItem icon="Bag" label="Reorder handle"/>
+      <PaneItem icon="Plus" label="Drag handle"/>
+      <PaneItem icon="Plus" label="Resize handle"/>
+      <PaneItem section="true" label="Desktop-specific controls"/>
+      <PaneItem icon="Window" label="Window title bar controls"/>
+      <PaneItem icon="Close" label="Minimize/maximize/close"/>
+      <PaneItem icon="Button" label="Toolbar button"/>
+      <PaneItem icon="Button" label="Command button"/>
+      <PaneItem icon="Menu" label="Split-button menu"/>
+      <PaneItem icon="Button" label="Quick action"/>
+      <PaneItem icon="Key" label="Keyboard shortcut button"/>
+      <PaneItem icon="Desktop" label="Taskbar action"/>
+      <PaneItem icon="Desktop" label="Tray action"/>
+      <PaneItem icon="Desktop" label="Dock action"/>
+      <PaneItem icon="Button" label="Right-click action"/>
+      <PaneItem icon="Button" label="Multi-selection action bar"/>
+      <PaneItem icon="Button" label="Batch operation control"/>
+      <PaneItem section="true" label="Mobile-specific controls"/>
+      <PaneItem icon="Phone" label="Touch action button"/>
+      <PaneItem icon="Button" label="Thumb-reachable action"/>
+      <PaneItem icon="Phone" label="Swipe action"/>
+      <PaneItem icon="Button" label="Long-press action"/>
+      <PaneItem icon="Refresh" label="Pull-to-refresh control"/>
+      <PaneItem icon="Window" label="Bottom-sheet action"/>
+      <PaneItem icon="Phone" label="Edge-swipe back affordance"/>
+      <PaneItem icon="Menu" label="Touch-and-hold menu trigger"/>
+    </PaneItem>
+    <PaneItem icon="Document" label="Forms">
+      <PaneItem section="true" label="Text and numeric input"/>
+      <PaneItem icon="Input" label="Text input"/>
+      <PaneItem icon="Input" label="Text field"/>
+      <PaneItem icon="Input" label="Multiline text area"/>
+      <PaneItem icon="Code" label="Rich text editor"/>
+      <PaneItem icon="Code" label="Markdown editor"/>
+      <PaneItem icon="Filter" label="Search input"/>
+      <PaneItem icon="Filter" label="Search box with suggestions"/>
+      <PaneItem icon="Input" label="Autocomplete input"/>
+      <PaneItem icon="Box" label="Combobox"/>
+      <PaneItem icon="Mail" label="Email input"/>
+      <PaneItem icon="Lock" label="Password input"/>
+      <PaneItem icon="Lock" label="Password confirmation field"/>
+      <PaneItem icon="Account" label="Username input"/>
+      <PaneItem icon="Phone" label="Phone number input"/>
+      <PaneItem icon="Link" label="URL input"/>
+      <PaneItem icon="Input" label="Number input"/>
+      <PaneItem icon="Input" label="Integer input"/>
+      <PaneItem icon="Input" label="Decimal input"/>
+      <PaneItem icon="Input" label="Currency input"/>
+      <PaneItem icon="Tag" label="Percentage input"/>
+      <PaneItem icon="Input" label="Quantity input"/>
+      <PaneItem icon="Input" label="Masked input"/>
+      <PaneItem icon="Lock" label="OTP input"/>
+      <PaneItem icon="Lock" label="PIN input"/>
+      <PaneItem icon="Lock" label="Verification code input"/>
+      <PaneItem icon="Key" label="Token input"/>
+      <PaneItem icon="Tag" label="Tag input"/>
+      <PaneItem icon="Tag" label="Chip input"/>
+      <PaneItem icon="Code" label="Code input"/>
+      <PaneItem icon="Code" label="Code editor"/>
+      <PaneItem icon="Code" label="Formula input"/>
+      <PaneItem icon="Input" label="Command input"/>
+      <PaneItem icon="Input" label="Read-only input"/>
+      <PaneItem icon="Input" label="Disabled input"/>
+      <PaneItem icon="Copy" label="Copyable input"/>
+      <PaneItem section="true" label="Selection inputs"/>
+      <PaneItem icon="Menu" label="Select dropdown"/>
+      <PaneItem icon="Input" label="Native select"/>
+      <PaneItem icon="Input" label="Custom select"/>
+      <PaneItem icon="Menu" label="Single-select dropdown"/>
+      <PaneItem icon="Menu" label="Multi-select dropdown"/>
+      <PaneItem icon="Filter" label="Searchable select"/>
+      <PaneItem icon="Refresh" label="Async select"/>
+      <PaneItem icon="Input" label="Grouped select"/>
+      <PaneItem icon="Input" label="Cascading select"/>
+      <PaneItem icon="Map" label="Country selector"/>
+      <PaneItem icon="Input" label="Language selector"/>
+      <PaneItem icon="Clock" label="Time zone selector"/>
+      <PaneItem icon="Color" label="Color selector"/>
+      <PaneItem icon="Radio" label="Radio group"/>
+      <PaneItem icon="Check" label="Checkbox group"/>
+      <PaneItem icon="Toggle" label="Toggle"/>
+      <PaneItem icon="List" label="Listbox"/>
+      <PaneItem icon="List" label="Option list"/>
+      <PaneItem icon="List" label="Selectable list"/>
+      <PaneItem icon="Folder" label="Tree select"/>
+      <PaneItem icon="Input" label="Hierarchical picker"/>
+      <PaneItem icon="Tag" label="Tag selector"/>
+      <PaneItem icon="Account" label="User selector"/>
+      <PaneItem icon="Account" label="Team selector"/>
+      <PaneItem icon="Account" label="Organization selector"/>
+      <PaneItem icon="Icons" label="Icon picker"/>
+      <PaneItem icon="Input" label="Emoji picker"/>
+      <PaneItem icon="Type" label="Font picker"/>
+      <PaneItem section="true" label="Date and time inputs"/>
+      <PaneItem icon="Clock" label="Date picker"/>
+      <PaneItem icon="Clock" label="Date-range picker"/>
+      <PaneItem icon="Clock" label="Calendar picker"/>
+      <PaneItem icon="Clock" label="Inline calendar"/>
+      <PaneItem icon="Input" label="Month picker"/>
+      <PaneItem icon="Input" label="Year picker"/>
+      <PaneItem icon="Input" label="Month/year picker"/>
+      <PaneItem icon="Input" label="Week picker"/>
+      <PaneItem icon="Clock" label="Time picker"/>
+      <PaneItem icon="Input" label="Time-range picker"/>
+      <PaneItem icon="Clock" label="Date-time picker"/>
+      <PaneItem icon="Clock" label="Date-time range picker"/>
+      <PaneItem icon="Input" label="Birthday picker"/>
+      <PaneItem icon="Clock" label="Recurrence picker"/>
+      <PaneItem icon="Input" label="Scheduling picker"/>
+      <PaneItem icon="Input" label="Availability picker"/>
+      <PaneItem icon="Clock" label="Time-zone-aware date input"/>
+      <PaneItem icon="Clock" label="Duration picker"/>
+      <PaneItem icon="Clock" label="Countdown configuration input"/>
+      <PaneItem icon="List" label="Timeline range selector"/>
+      <PaneItem section="true" label="Numeric and visual inputs"/>
+      <PaneItem icon="Sliders" label="Slider"/>
+      <PaneItem icon="Sliders" label="Range slider"/>
+      <PaneItem icon="Sliders" label="Vertical slider"/>
+      <PaneItem icon="Sliders" label="Stepper"/>
+      <PaneItem icon="Sliders" label="Number stepper"/>
+      <PaneItem icon="Sliders" label="Increment/decrement input"/>
+      <PaneItem icon="Star" label="Rating input"/>
+      <PaneItem icon="Star" label="Star rating"/>
+      <PaneItem icon="Star" label="NPS rating scale"/>
+      <PaneItem icon="Star" label="Likert scale"/>
+      <PaneItem icon="Color" label="Color picker"/>
+      <PaneItem icon="Window" label="Color palette picker"/>
+      <PaneItem icon="Color" label="Gradient picker"/>
+      <PaneItem icon="Sliders" label="Opacity slider"/>
+      <PaneItem icon="Sliders" label="Hue slider"/>
+      <PaneItem icon="Sliders" label="Saturation/value picker"/>
+      <PaneItem icon="Input" label="Point selector"/>
+      <PaneItem icon="Input" label="Coordinate input"/>
+      <PaneItem icon="Map" label="Map location picker"/>
+      <PaneItem icon="Image" label="Crop selector"/>
+      <PaneItem icon="Image" label="Image focal-point selector"/>
+      <PaneItem section="true" label="Upload and specialized inputs"/>
+      <PaneItem icon="Document" label="File input"/>
+      <PaneItem icon="Document" label="Drag-and-drop file zone"/>
+      <PaneItem icon="Upload" label="Multi-file upload"/>
+      <PaneItem icon="Image" label="Image upload"/>
+      <PaneItem icon="Image" label="Avatar upload"/>
+      <PaneItem icon="Upload" label="Document upload"/>
+      <PaneItem icon="Play" label="Audio upload"/>
+      <PaneItem icon="Play" label="Video upload"/>
+      <PaneItem icon="Phone" label="Camera capture input"/>
+      <PaneItem icon="Input" label="Screen recording input"/>
+      <PaneItem icon="Document" label="Signature pad"/>
+      <PaneItem icon="Input" label="Drawing input"/>
+      <PaneItem icon="Input" label="Handwriting input"/>
+      <PaneItem icon="Phone" label="QR/barcode scanner"/>
+      <PaneItem icon="Input" label="Voice input"/>
+      <PaneItem icon="Input" label="Speech-to-text input"/>
+      <PaneItem icon="Chart" label="Biometric authentication prompt"/>
+      <PaneItem icon="Lock" label="Passkey authentication prompt"/>
+      <PaneItem icon="Lock" label="CAPTCHA"/>
+      <PaneItem icon="Check" label="Consent checkbox"/>
+      <PaneItem icon="Document" label="Terms acceptance"/>
+      <PaneItem icon="Map" label="Address autocomplete"/>
+      <PaneItem icon="Map" label="Shipping address form"/>
+      <PaneItem icon="Map" label="Billing address form"/>
+      <PaneItem icon="Bag" label="Payment card form"/>
+      <PaneItem icon="Input" label="Form section"/>
+      <PaneItem icon="Input" label="Repeating field group"/>
+      <PaneItem icon="Input" label="Conditional field group"/>
+      <PaneItem icon="Input" label="Wizard form"/>
+      <PaneItem icon="Input" label="Multi-step form"/>
+      <PaneItem icon="Edit" label="Inline editable field"/>
+      <PaneItem section="true" label="Form support"/>
+      <PaneItem icon="Tag" label="Field label"/>
+      <PaneItem icon="Document" label="Required indicator"/>
+      <PaneItem icon="Document" label="Optional indicator"/>
+      <PaneItem icon="Document" label="Helper text"/>
+      <PaneItem icon="Document" label="Character counter"/>
+      <PaneItem icon="Document" label="Word counter"/>
+      <PaneItem icon="Chat" label="Error message"/>
+      <PaneItem icon="Chat" label="Validation message"/>
+      <PaneItem icon="Chat" label="Success message"/>
+      <PaneItem icon="Chat" label="Warning message"/>
+      <PaneItem icon="Input" label="Field description"/>
+      <PaneItem icon="Input" label="Fieldset"/>
+      <PaneItem icon="Document" label="Legend"/>
+      <PaneItem icon="Radius" label="Form divider"/>
+      <PaneItem icon="Button" label="Form actions"/>
+      <PaneItem icon="Document" label="Save indicator"/>
+      <PaneItem icon="Document" label="Dirty-state indicator"/>
+      <PaneItem icon="Document" label="Unsaved-changes prompt"/>
+      <PaneItem icon="Tag" label="Autosave status"/>
+      <PaneItem icon="Document" label="Validation summary"/>
+      <PaneItem icon="Document" label="Inline validation"/>
+      <PaneItem icon="Alert" label="Server validation error"/>
+      <PaneItem icon="Alert" label="Form-level error banner"/>
+    </PaneItem>
+    <PaneItem icon="Card" label="Data">
+      <PaneItem section="true" label="Tables"/>
+      <PaneItem icon="Table" label="Data table"/>
+      <PaneItem icon="Table" label="Basic table"/>
+      <PaneItem icon="Filter" label="Sortable table"/>
+      <PaneItem icon="Filter" label="Filterable table"/>
+      <PaneItem icon="Table" label="Grouped table"/>
+      <PaneItem icon="Table" label="Expandable rows"/>
+      <PaneItem icon="Table" label="Editable table"/>
+      <PaneItem icon="Folder" label="Tree table"/>
+      <PaneItem icon="Table" label="Virtualized table"/>
+      <PaneItem icon="Table" label="Pivot table"/>
+      <PaneItem icon="Table" label="Comparison table"/>
+      <PaneItem icon="Table" label="Sticky-header table"/>
+      <PaneItem icon="Table" label="Pinned columns"/>
+      <PaneItem icon="Table" label="Column chooser"/>
+      <PaneItem icon="Table" label="Column resizing"/>
+      <PaneItem icon="Layout" label="Row selection"/>
+      <PaneItem icon="Table" label="Bulk-action table"/>
+      <PaneItem icon="Table" label="Table pagination"/>
+      <PaneItem section="true" label="Cards and metrics"/>
+      <PaneItem icon="Card" label="Card"/>
+      <PaneItem icon="Document" label="Profile card"/>
+      <PaneItem icon="Bag" label="Product card"/>
+      <PaneItem icon="Chart" label="Statistic card"/>
+      <PaneItem icon="Chart" label="KPI card"/>
+      <PaneItem icon="Chart" label="Metric card"/>
+      <PaneItem icon="Card" label="Summary card"/>
+      <PaneItem icon="Card" label="Pricing card"/>
+      <PaneItem icon="Card" label="Dashboard widget"/>
+      <PaneItem icon="Card" label="Information card"/>
+      <PaneItem icon="Card" label="Expandable card"/>
+      <PaneItem icon="Card" label="Selectable card"/>
+      <PaneItem icon="Card" label="Action card"/>
+      <PaneItem icon="Card" label="Comparison card"/>
+      <PaneItem icon="Card" label="Task card"/>
+      <PaneItem icon="Alert" label="Notification card"/>
+      <PaneItem section="true" label="Lists"/>
+      <PaneItem icon="List" label="List"/>
+      <PaneItem icon="Bag" label="Ordered list"/>
+      <PaneItem icon="Bag" label="Unordered list"/>
+      <PaneItem icon="List" label="Description list"/>
+      <PaneItem icon="List" label="Virtualized list"/>
+      <PaneItem icon="List" label="Infinite list"/>
+      <PaneItem icon="List" label="Grouped list"/>
+      <PaneItem icon="Bag" label="Reorderable list"/>
+      <PaneItem icon="List" label="Nested list"/>
+      <PaneItem icon="Sidebar" label="Master-detail list"/>
+      <PaneItem icon="List" label="Contact list"/>
+      <PaneItem icon="List" label="Activity list"/>
+      <PaneItem icon="List" label="Checklist"/>
+      <PaneItem icon="Chat" label="Grouped inbox"/>
+      <PaneItem section="true" label="Text and identity"/>
+      <PaneItem icon="Play" label="Caption"/>
+      <PaneItem icon="Type" label="Overline"/>
+      <PaneItem icon="Lock" label="Code block"/>
+      <PaneItem icon="Code" label="Inline code"/>
+      <PaneItem icon="Type" label="Quotation"/>
+      <PaneItem icon="Card" label="Citation"/>
+      <PaneItem icon="Image" label="Avatar"/>
+      <PaneItem icon="Image" label="Avatar group"/>
+      <PaneItem icon="Account" label="User identity"/>
+      <PaneItem icon="Card" label="Contact card"/>
+      <PaneItem icon="Tag" label="Organization badge"/>
+      <PaneItem section="true" label="Labels and status"/>
+      <PaneItem icon="Tag" label="Badge"/>
+      <PaneItem icon="Tag" label="Status badge"/>
+      <PaneItem icon="Tag" label="Tag"/>
+      <PaneItem icon="Tag" label="Chip"/>
+      <PaneItem icon="Tag" label="Pill"/>
+      <PaneItem icon="Tag" label="Label"/>
+      <PaneItem icon="Tag" label="Category label"/>
+      <PaneItem icon="Tag" label="Priority label"/>
+      <PaneItem icon="Tag" label="Count badge"/>
+      <PaneItem icon="Card" label="Unread indicator"/>
+      <PaneItem icon="Card" label="Online indicator"/>
+      <PaneItem icon="Account" label="Presence indicator"/>
+      <PaneItem icon="Lock" label="Verification badge"/>
+      <PaneItem icon="Tag" label="Role badge"/>
+      <PaneItem icon="Card" label="Severity indicator"/>
+      <PaneItem section="true" label="Statistics"/>
+      <PaneItem icon="Chart" label="KPI"/>
+      <PaneItem icon="Chart" label="Statistic"/>
+      <PaneItem icon="Card" label="Counter"/>
+      <PaneItem icon="Card" label="Number ticker"/>
+      <PaneItem icon="Card" label="Delta indicator"/>
+      <PaneItem icon="Chart" label="Trend indicator"/>
+      <PaneItem icon="Chart" label="Comparison metric"/>
+      <PaneItem icon="Tag" label="Percentage change"/>
+      <PaneItem icon="Chart" label="Sparkline"/>
+      <PaneItem icon="Chart" label="Progress statistic"/>
+      <PaneItem icon="Chart" label="Leaderboard"/>
+      <PaneItem section="true" label="Hierarchical structures"/>
+      <PaneItem icon="Folder" label="Tree"/>
+      <PaneItem icon="Menu" label="Nested menu"/>
+      <PaneItem icon="Folder" label="Folder tree"/>
+      <PaneItem icon="Chart" label="Organizational chart"/>
+      <PaneItem icon="Card" label="Hierarchy diagram"/>
+      <PaneItem icon="Folder" label="Dependency tree"/>
+      <PaneItem icon="Card" label="Expandable group"/>
+      <PaneItem icon="Layout" label="Disclosure row"/>
+      <PaneItem section="true" label="Time and activity"/>
+      <PaneItem icon="List" label="Timeline"/>
+      <PaneItem icon="List" label="Activity feed"/>
+      <PaneItem icon="List" label="Audit log"/>
+      <PaneItem icon="List" label="Event list"/>
+      <PaneItem icon="List" label="History list"/>
+      <PaneItem icon="Card" label="Change log"/>
+      <PaneItem icon="List" label="Version history"/>
+      <PaneItem icon="Chat" label="Comment thread"/>
+      <PaneItem icon="Chat" label="Discussion thread"/>
+      <PaneItem icon="Chat" label="Message list"/>
+      <PaneItem section="true" label="People and collaboration"/>
+      <PaneItem icon="Image" label="Avatar stack"/>
+      <PaneItem icon="List" label="Member list"/>
+      <PaneItem icon="Account" label="Presence dot"/>
+      <PaneItem icon="Pin" label="Typing indicator"/>
+      <PaneItem icon="List" label="Participant list"/>
+      <PaneItem icon="List" label="Reviewer list"/>
+      <PaneItem icon="Play" label="Assignee display"/>
+      <PaneItem icon="Card" label="Team card"/>
+      <PaneItem icon="Layout" label="Contact row"/>
+      <PaneItem section="true" label="Content collections"/>
+      <PaneItem icon="Card" label="Article card"/>
+      <PaneItem icon="Card" label="News card"/>
+      <PaneItem icon="Terminal" label="Blog card"/>
+      <PaneItem icon="Bag" label="Product grid"/>
+      <PaneItem icon="Image" label="Gallery grid"/>
+      <PaneItem icon="List" label="Collection list"/>
+      <PaneItem icon="Card" label="Recommendation card"/>
+      <PaneItem icon="List" label="Recent-item list"/>
+      <PaneItem icon="List" label="Related-content list"/>
+      <PaneItem section="true" label="Metadata"/>
+      <PaneItem icon="Key" label="Key-value pair"/>
+      <PaneItem icon="Layout" label="Description panel"/>
+      <PaneItem icon="List" label="Metadata list"/>
+      <PaneItem icon="List" label="Definition list"/>
+      <PaneItem icon="List" label="Property list"/>
+      <PaneItem icon="Card" label="Detail view"/>
+      <PaneItem icon="List" label="Specification list"/>
+      <PaneItem icon="Layout" label="Summary panel"/>
+      <PaneItem section="true" label="Comparison and ranking"/>
+      <PaneItem icon="Card" label="Comparison matrix"/>
+      <PaneItem icon="Table" label="Feature comparison table"/>
+      <PaneItem icon="List" label="Ranked list"/>
+      <PaneItem icon="Chart" label="Scorecard"/>
+      <PaneItem icon="List" label="Pros-and-cons list"/>
+      <PaneItem icon="Code" label="Diff viewer"/>
+      <PaneItem icon="Layout" label="Before-and-after panel"/>
+      <PaneItem section="true" label="Specialized views"/>
+      <PaneItem icon="Card" label="Kanban board"/>
+      <PaneItem icon="Clock" label="Calendar view"/>
+      <PaneItem icon="Chart" label="Gantt chart"/>
+      <PaneItem icon="Clock" label="Schedule view"/>
+      <PaneItem icon="Map" label="Map view"/>
+      <PaneItem icon="Bag" label="Floor plan"/>
+      <PaneItem icon="Chart" label="Network graph"/>
+      <PaneItem icon="Map" label="Mind map"/>
+      <PaneItem icon="Chart" label="Dependency graph"/>
+      <PaneItem icon="Chart" label="Workflow graph"/>
+      <PaneItem icon="Chart" label="Org chart"/>
+      <PaneItem icon="Card" label="Diagram canvas"/>
+    </PaneItem>
+    <PaneItem icon="Chart" label="Charts">
+      <PaneItem section="true" label="Statistical charts"/>
+      <PaneItem icon="Chart" label="Line chart"/>
+      <PaneItem icon="Chart" label="Bar chart"/>
+      <PaneItem icon="Chart" label="Grouped bar chart"/>
+      <PaneItem icon="Chart" label="Stacked bar chart"/>
+      <PaneItem icon="Chart" label="Horizontal bar chart"/>
+      <PaneItem icon="Chart" label="Area chart"/>
+      <PaneItem icon="Chart" label="Stacked area chart"/>
+      <PaneItem icon="Chart" label="Pie chart"/>
+      <PaneItem icon="Chart" label="Donut chart"/>
+      <PaneItem icon="Chart" label="Scatter plot"/>
+      <PaneItem icon="Chart" label="Bubble chart"/>
+      <PaneItem icon="Chart" label="Histogram"/>
+      <PaneItem icon="Chart" label="Box plot"/>
+      <PaneItem icon="Chart" label="Violin plot"/>
+      <PaneItem icon="Chart" label="Density plot"/>
+      <PaneItem icon="Chart" label="Heatmap"/>
+      <PaneItem icon="Folder" label="Treemap"/>
+      <PaneItem icon="Chart" label="Waterfall chart"/>
+      <PaneItem icon="Chart" label="Funnel chart"/>
+      <PaneItem icon="Chart" label="Radar chart"/>
+      <PaneItem icon="Chart" label="Polar chart"/>
+      <PaneItem section="true" label="Time and relationship charts"/>
+      <PaneItem icon="Chart" label="Timeline chart"/>
+      <PaneItem icon="Clock" label="Calendar heatmap"/>
+      <PaneItem icon="Clock" label="Milestone chart"/>
+      <PaneItem icon="Chart" label="Burndown chart"/>
+      <PaneItem icon="Chart" label="Burnup chart"/>
+      <PaneItem icon="Chart" label="Project roadmap"/>
+      <PaneItem icon="Chart" label="Swimlane chart"/>
+      <PaneItem icon="Chart" label="Sankey diagram"/>
+      <PaneItem icon="Chart" label="Chord diagram"/>
+      <PaneItem icon="Chart" label="Funnel visualization"/>
+      <PaneItem section="true" label="Specialized visualizations"/>
+      <PaneItem icon="Chart" label="Candlestick chart"/>
+      <PaneItem icon="Chart" label="OHLC chart"/>
+      <PaneItem icon="Chart" label="Volume chart"/>
+      <PaneItem icon="Chart" label="Geographic map"/>
+      <PaneItem icon="Map" label="Choropleth map"/>
+      <PaneItem icon="Chart" label="Contour plot"/>
+      <PaneItem icon="Chart" label="3D plot"/>
+      <PaneItem icon="Chart" label="Surface plot"/>
+      <PaneItem icon="Chart" label="Geographic point map"/>
+      <PaneItem icon="Map" label="Route map"/>
+      <PaneItem icon="Chart" label="Sankey flow"/>
+      <PaneItem icon="Folder" label="Hierarchical treemap"/>
+      <PaneItem icon="Chart" label="Sunburst chart"/>
+      <PaneItem icon="Chart" label="Gauge chart"/>
+      <PaneItem icon="Chart" label="Bullet chart"/>
+      <PaneItem icon="Chart" label="Progress ring"/>
+      <PaneItem section="true" label="Chart support"/>
+      <PaneItem icon="Chart" label="Chart title and subtitle"/>
+      <PaneItem icon="Tag" label="Axis labels"/>
+      <PaneItem icon="Chart" label="Axis ticks"/>
+      <PaneItem icon="Layout" label="Grid lines"/>
+      <PaneItem icon="Window" label="Tooltip"/>
+      <PaneItem icon="Chart" label="Crosshair"/>
+      <PaneItem icon="Tag" label="Data labels"/>
+      <PaneItem icon="Chart" label="Reference line"/>
+      <PaneItem icon="Sliders" label="Threshold band"/>
+      <PaneItem icon="Input" label="Range selector"/>
+      <PaneItem icon="Button" label="Zoom controls"/>
+      <PaneItem icon="Button" label="Pan controls"/>
+      <PaneItem icon="Toggle" label="Series visibility toggles"/>
+      <PaneItem icon="Chart" label="Chart annotation"/>
+      <PaneItem icon="Button" label="Drill-down control"/>
+      <PaneItem icon="Chart" label="Chart export"/>
+      <PaneItem icon="Chart" label="Fullscreen chart"/>
+      <PaneItem icon="Input" label="Brush selector"/>
+      <PaneItem icon="Input" label="Time-range selector"/>
+      <PaneItem icon="Chart" label="Loading and empty chart states"/>
+    </PaneItem>
+    <PaneItem icon="Window" label="Overlays">
+      <PaneItem icon="Window" label="Modal dialog"/>
+      <PaneItem icon="Window" label="Confirmation dialog"/>
+      <PaneItem icon="Alert" label="Alert dialog"/>
+      <PaneItem icon="Window" label="Full-screen dialog"/>
+      <PaneItem icon="Window" label="Responsive dialog"/>
+      <PaneItem icon="Sidebar" label="Drawer"/>
+      <PaneItem icon="Sidebar" label="Side drawer"/>
+      <PaneItem icon="Window" label="Right-side inspector"/>
+      <PaneItem icon="Window" label="Bottom sheet"/>
+      <PaneItem icon="Window" label="Action sheet"/>
+      <PaneItem icon="Window" label="Popover"/>
+      <PaneItem icon="Card" label="Hover card"/>
+      <PaneItem icon="Filter" label="Search overlay"/>
+      <PaneItem icon="Filter" label="Full-screen search"/>
+      <PaneItem icon="Image" label="Lightbox"/>
+      <PaneItem icon="Image" label="Image viewer"/>
+      <PaneItem icon="Play" label="Video viewer"/>
+      <PaneItem icon="Clock" label="Date picker popup"/>
+      <PaneItem icon="Window" label="Color picker popup"/>
+      <PaneItem icon="Window" label="Emoji picker popup"/>
+      <PaneItem icon="Chat" label="Mention picker"/>
+      <PaneItem icon="Window" label="Autocomplete popup"/>
+      <PaneItem icon="Window" label="Suggestions popup"/>
+      <PaneItem icon="Window" label="Combobox popup"/>
+      <PaneItem icon="Menu" label="Select menu"/>
+      <PaneItem icon="Filter" label="Filter popup"/>
+      <PaneItem icon="Filter" label="Sort popup"/>
+      <PaneItem icon="Window" label="Share dialog"/>
+      <PaneItem icon="Window" label="Export dialog"/>
+      <PaneItem icon="Window" label="Import dialog"/>
+      <PaneItem icon="Window" label="Print dialog"/>
+      <PaneItem icon="Lock" label="Permission dialog"/>
+      <PaneItem icon="Lock" label="Authentication dialog"/>
+      <PaneItem icon="Lock" label="Session-expiry dialog"/>
+      <PaneItem icon="Window" label="Unsaved-changes dialog"/>
+      <PaneItem icon="Clock" label="Update-available dialog"/>
+      <PaneItem icon="Window" label="Onboarding spotlight"/>
+      <PaneItem icon="Window" label="Guided-tour tooltip"/>
+      <PaneItem icon="Window" label="Coach mark"/>
+      <PaneItem icon="Window" label="Contextual help popup"/>
+      <PaneItem icon="Button" label="Floating toolbar"/>
+      <PaneItem icon="Window" label="Floating inspector"/>
+      <PaneItem icon="Menu" label="Floating action menu"/>
+      <PaneItem icon="Play" label="Mini player"/>
+      <PaneItem icon="Play" label="Picture-in-picture window"/>
+      <PaneItem icon="Window" label="Resizable floating window"/>
+      <PaneItem icon="Eye" label="Drag preview"/>
+      <PaneItem icon="Window" label="Selection overlay"/>
+      <PaneItem icon="Layout" label="Focus trap container"/>
+    </PaneItem>
+    <PaneItem icon="Bell" label="Feedback">
+      <PaneItem section="true" label="Messages and notifications"/>
+      <PaneItem icon="Alert" label="Alert"/>
+      <PaneItem icon="Alert" label="Inline alert"/>
+      <PaneItem icon="Alert" label="Banner"/>
+      <PaneItem icon="Alert" label="Announcement banner"/>
+      <PaneItem icon="Alert" label="Toast"/>
+      <PaneItem icon="Alert" label="Snackbar"/>
+      <PaneItem icon="Alert" label="Notification"/>
+      <PaneItem icon="Alert" label="Notification center"/>
+      <PaneItem icon="Alert" label="Notification badge"/>
+      <PaneItem icon="Alert" label="Push notification card"/>
+      <PaneItem icon="Alert" label="In-app notification"/>
+      <PaneItem icon="Alert" label="Error notification"/>
+      <PaneItem icon="Alert" label="Success notification"/>
+      <PaneItem icon="Alert" label="Warning notification"/>
+      <PaneItem icon="Chat" label="Information message"/>
+      <PaneItem icon="Chat" label="System message"/>
+      <PaneItem icon="Chat" label="Connection status message"/>
+      <PaneItem icon="Alert" label="Maintenance banner"/>
+      <PaneItem icon="Alert" label="Permission warning"/>
+      <PaneItem icon="Alert" label="Security warning"/>
+      <PaneItem icon="Alert" label="Session timeout warning"/>
+      <PaneItem section="true" label="Loading and progress"/>
+      <PaneItem icon="Pin" label="Spinner"/>
+      <PaneItem icon="Bell" label="Circular progress indicator"/>
+      <PaneItem icon="Bell" label="Linear progress bar"/>
+      <PaneItem icon="Check" label="Indeterminate progress bar"/>
+      <PaneItem icon="Bell" label="Determinate progress bar"/>
+      <PaneItem icon="Bell" label="Progress steps"/>
+      <PaneItem icon="Bell" label="Step indicator"/>
+      <PaneItem icon="Bell" label="Skeleton loader"/>
+      <PaneItem icon="Card" label="Skeleton card"/>
+      <PaneItem icon="Table" label="Skeleton table"/>
+      <PaneItem icon="Bell" label="Skeleton text"/>
+      <PaneItem icon="Bell" label="Shimmer placeholder"/>
+      <PaneItem icon="Window" label="Loading overlay"/>
+      <PaneItem icon="Bell" label="Inline loading indicator"/>
+      <PaneItem icon="Button" label="Button loading state"/>
+      <PaneItem icon="Upload" label="Upload progress"/>
+      <PaneItem icon="Download" label="Download progress"/>
+      <PaneItem icon="Bell" label="Queue progress"/>
+      <PaneItem icon="Bell" label="Background task indicator"/>
+      <PaneItem icon="Refresh" label="Sync progress"/>
+      <PaneItem icon="Bell" label="Installation progress"/>
+      <PaneItem section="true" label="Empty, error, and recovery"/>
+      <PaneItem icon="Alert" label="Empty state"/>
+      <PaneItem icon="Filter" label="No search results"/>
+      <PaneItem icon="Bell" label="No data state"/>
+      <PaneItem icon="Alert" label="No notifications state"/>
+      <PaneItem icon="Document" label="No files state"/>
+      <PaneItem icon="Bell" label="No connection state"/>
+      <PaneItem icon="Alert" label="Offline state"/>
+      <PaneItem icon="Alert" label="Network error state"/>
+      <PaneItem icon="Alert" label="Server error state"/>
+      <PaneItem icon="Alert" label="Permission denied state"/>
+      <PaneItem icon="Access" label="Access restricted state"/>
+      <PaneItem icon="Alert" label="Not found page"/>
+      <PaneItem icon="Alert" label="404 page"/>
+      <PaneItem icon="Alert" label="403 page"/>
+      <PaneItem icon="Alert" label="500 page"/>
+      <PaneItem icon="Alert" label="Maintenance page"/>
+      <PaneItem icon="Lock" label="Session expired state"/>
+      <PaneItem icon="Bell" label="Rate-limited state"/>
+      <PaneItem icon="Refresh" label="Retry state"/>
+      <PaneItem icon="Bell" label="Recovery state"/>
+      <PaneItem icon="Alert" label="Error boundary fallback"/>
+      <PaneItem icon="Alert" label="Partial failure indicator"/>
+      <PaneItem icon="Bell" label="Conflict resolution state"/>
+      <PaneItem icon="Bell" label="Unsaved changes indicator"/>
+      <PaneItem icon="Alert" label="Sync failure indicator"/>
+      <PaneItem icon="Bell" label="Stale data indicator"/>
+      <PaneItem icon="Clock" label="Update required indicator"/>
+    </PaneItem>
+    <PaneItem icon="Image" label="Media">
+      <PaneItem section="true" label="Images and galleries"/>
+      <PaneItem icon="Image" label="Image"/>
+      <PaneItem icon="Image" label="Responsive image"/>
+      <PaneItem icon="Image" label="Thumbnail"/>
+      <PaneItem icon="Image" label="Image gallery"/>
+      <PaneItem icon="Image" label="Masonry gallery"/>
+      <PaneItem icon="Image" label="Carousel"/>
+      <PaneItem icon="Sliders" label="Image slider"/>
+      <PaneItem icon="Image" label="Zoomable image"/>
+      <PaneItem icon="Image" label="Image comparison"/>
+      <PaneItem icon="Image" label="Image cropper"/>
+      <PaneItem icon="Image" label="Image editor"/>
+      <PaneItem icon="Layers" label="Annotation layer"/>
+      <PaneItem icon="Sliders" label="Before-and-after slider"/>
+      <PaneItem section="true" label="Audio and video"/>
+      <PaneItem icon="Play" label="Video player"/>
+      <PaneItem icon="Play" label="Audio player"/>
+      <PaneItem icon="Play" label="Playlist"/>
+      <PaneItem icon="Play" label="Waveform"/>
+      <PaneItem icon="Play" label="Audio scrubber"/>
+      <PaneItem icon="Play" label="Playback controls"/>
+      <PaneItem icon="Play" label="Subtitles"/>
+      <PaneItem icon="Play" label="Caption selector"/>
+      <PaneItem icon="Play" label="Playback speed selector"/>
+      <PaneItem icon="Play" label="Volume control"/>
+      <PaneItem icon="Play" label="Mute button"/>
+      <PaneItem icon="Play" label="Picture-in-picture control"/>
+      <PaneItem icon="Access" label="Transcript viewer"/>
+      <PaneItem icon="Play" label="Live stream player"/>
+      <PaneItem section="true" label="Files and documents"/>
+      <PaneItem icon="Document" label="File picker"/>
+      <PaneItem icon="Upload" label="Upload dropzone"/>
+      <PaneItem icon="Upload" label="Upload queue"/>
+      <PaneItem icon="Document" label="File card"/>
+      <PaneItem icon="Document" label="File list"/>
+      <PaneItem icon="Document" label="File preview"/>
+      <PaneItem icon="Document" label="PDF viewer"/>
+      <PaneItem icon="Document" label="Document viewer"/>
+      <PaneItem icon="Document" label="Document editor"/>
+      <PaneItem icon="Document" label="Spreadsheet viewer"/>
+      <PaneItem icon="Document" label="Slide viewer"/>
+      <PaneItem icon="Document" label="Attachment list"/>
+      <PaneItem icon="Download" label="Download manager"/>
+      <PaneItem icon="Share" label="Import wizard"/>
+      <PaneItem icon="Share" label="Export wizard"/>
+      <PaneItem section="true" label="Rich content"/>
+      <PaneItem icon="Code" label="Markdown renderer"/>
+      <PaneItem icon="Code" label="HTML content renderer"/>
+      <PaneItem icon="Bag" label="Syntax highlighting"/>
+      <PaneItem icon="Terminal" label="Terminal emulator"/>
+      <PaneItem icon="Terminal" label="Log viewer"/>
+      <PaneItem icon="Code" label="Notebook cell"/>
+      <PaneItem icon="Code" label="Formula renderer"/>
+      <PaneItem icon="Code" label="Math equation renderer"/>
+      <PaneItem icon="Image" label="Mermaid diagram viewer"/>
+      <PaneItem icon="Web" label="Embedded content"/>
+      <PaneItem icon="Web" label="Web embed"/>
+      <PaneItem icon="Web" label="Social media embed"/>
+      <PaneItem icon="Card" label="Link preview card"/>
+      <PaneItem icon="Card" label="Citation card"/>
+      <PaneItem icon="Lock" label="Quote block"/>
+      <PaneItem icon="Type" label="Pull quote"/>
+      <PaneItem icon="Table" label="Table of contents"/>
+      <PaneItem icon="Image" label="Footnote"/>
+      <PaneItem icon="List" label="Reference list"/>
+      <PaneItem icon="Radius" label="Content divider"/>
+      <PaneItem icon="Image" label="Collapsible content"/>
+      <PaneItem icon="Image" label="Read-more section"/>
+      <PaneItem icon="Image" label="Article reader"/>
+      <PaneItem icon="Image" label="Reader mode"/>
+      <PaneItem icon="Eye" label="Print preview"/>
+      <PaneItem icon="Eye" label="Page preview"/>
+      <PaneItem icon="Document" label="Document outline"/>
+    </PaneItem>
+    <PaneItem icon="Search" label="Search">
+      <PaneItem section="true" label="Search and discovery"/>
+      <PaneItem icon="Filter" label="Local search"/>
+      <PaneItem icon="Filter" label="Search bar"/>
+      <PaneItem icon="Filter" label="Search dialog"/>
+      <PaneItem icon="Filter" label="Search suggestions"/>
+      <PaneItem icon="Input" label="Autocomplete results"/>
+      <PaneItem icon="Filter" label="Recent searches"/>
+      <PaneItem icon="Filter" label="Saved searches"/>
+      <PaneItem icon="Filter" label="Search history"/>
+      <PaneItem icon="Filter" label="Search results page"/>
+      <PaneItem icon="Filter" label="Search result card"/>
+      <PaneItem icon="Filter" label="Search result list"/>
+      <PaneItem icon="Filter" label="Search result highlighting"/>
+      <PaneItem icon="Filter" label="Faceted search"/>
+      <PaneItem icon="Filter" label="Advanced search builder"/>
+      <PaneItem icon="Filter" label="Query builder"/>
+      <PaneItem icon="Filter" label="Filter bar"/>
+      <PaneItem icon="Filter" label="Filter panel"/>
+      <PaneItem icon="Sidebar" label="Filter drawer"/>
+      <PaneItem icon="Menu" label="Filter dropdown"/>
+      <PaneItem icon="Filter" label="Multi-filter selector"/>
+      <PaneItem icon="Filter" label="Date filter"/>
+      <PaneItem icon="Filter" label="Range filter"/>
+      <PaneItem icon="Filter" label="Category filter"/>
+      <PaneItem icon="Filter" label="Status filter"/>
+      <PaneItem icon="Filter" label="Owner filter"/>
+      <PaneItem icon="Filter" label="Location filter"/>
+      <PaneItem icon="Filter" label="Tag filter"/>
+      <PaneItem icon="Filter" label="Saved filter"/>
+      <PaneItem icon="Filter" label="Active-filter summary"/>
+      <PaneItem icon="Filter" label="Clear-all filters"/>
+      <PaneItem icon="Menu" label="Sort dropdown"/>
+      <PaneItem icon="Menu" label="Sort menu"/>
+      <PaneItem icon="Filter" label="Sortable column"/>
+      <PaneItem icon="Filter" label="Sort direction toggle"/>
+      <PaneItem icon="Input" label="Group-by selector"/>
+      <PaneItem icon="Toggle" label="View switcher"/>
+      <PaneItem icon="Toggle" label="List/grid toggle"/>
+      <PaneItem icon="Input" label="Density selector"/>
+      <PaneItem icon="Table" label="Column visibility selector"/>
+      <PaneItem icon="Input" label="Field selector"/>
+      <PaneItem icon="Filter" label="Search pagination"/>
+      <PaneItem icon="Search" label="Infinite result loading"/>
+      <PaneItem icon="Search" label="Result count"/>
+      <PaneItem icon="Filter" label="Search facets"/>
+      <PaneItem icon="Button" label="Relevance controls"/>
+      <PaneItem icon="Filter" label="Search query syntax helper"/>
+    </PaneItem>
+    <PaneItem icon="Tabs" label="Large Data">
+      <PaneItem section="true" label="Pagination and virtualization"/>
+      <PaneItem icon="Tabs" label="Previous/next pagination"/>
+      <PaneItem icon="Input" label="Page-size selector"/>
+      <PaneItem icon="Input" label="Page-jump input"/>
+      <PaneItem icon="Tabs" label="Infinite scroll"/>
+      <PaneItem icon="Button" label="Load-more button"/>
+      <PaneItem icon="Layout" label="Virtualized grid"/>
+      <PaneItem icon="Window" label="Windowed rendering container"/>
+      <PaneItem icon="Table" label="Sticky table header"/>
+      <PaneItem icon="Table" label="Sticky first column"/>
+      <PaneItem icon="Table" label="Column pinning"/>
+      <PaneItem icon="Layout" label="Row pinning"/>
+      <PaneItem icon="Bag" label="Column reordering"/>
+      <PaneItem icon="Bag" label="Row reordering"/>
+      <PaneItem icon="Layout" label="Multi-row selection"/>
+      <PaneItem icon="Check" label="Select-all-results"/>
+      <PaneItem icon="Button" label="Bulk-action toolbar"/>
+      <PaneItem icon="Tabs" label="Batch operation progress"/>
+      <PaneItem icon="Table" label="Table density control"/>
+      <PaneItem icon="Table" label="Grouped rows"/>
+      <PaneItem icon="Folder" label="Lazy-loaded tree"/>
+      <PaneItem icon="Share" label="Data export control"/>
+      <PaneItem icon="Share" label="CSV export"/>
+      <PaneItem icon="Share" label="Excel export"/>
+      <PaneItem icon="Document" label="PDF export"/>
+      <PaneItem icon="Code" label="JSON export"/>
+      <PaneItem icon="Table" label="Print table"/>
+      <PaneItem icon="Table" label="Copy table data"/>
+      <PaneItem icon="Refresh" label="Data refresh control"/>
+      <PaneItem icon="Clock" label="Last-updated indicator"/>
+    </PaneItem>
+    <PaneItem icon="Clock" label="Calendar">
+      <PaneItem section="true" label="Calendar and time"/>
+      <PaneItem icon="Clock" label="Month calendar"/>
+      <PaneItem icon="Clock" label="Week calendar"/>
+      <PaneItem icon="Clock" label="Day calendar"/>
+      <PaneItem icon="Clock" label="Agenda view"/>
+      <PaneItem icon="Clock" label="Year calendar"/>
+      <PaneItem icon="Clock" label="Mini calendar"/>
+      <PaneItem icon="Clock" label="Multi-calendar view"/>
+      <PaneItem icon="Card" label="Event card"/>
+      <PaneItem icon="Window" label="Event detail popup"/>
+      <PaneItem icon="Code" label="Event editor"/>
+      <PaneItem icon="Window" label="Event creation dialog"/>
+      <PaneItem icon="Clock" label="Recurrence editor"/>
+      <PaneItem icon="Clock" label="Appointment card"/>
+      <PaneItem icon="Card" label="Meeting card"/>
+      <PaneItem icon="Clock" label="Booking slot"/>
+      <PaneItem icon="Layout" label="Availability grid"/>
+      <PaneItem icon="Clock" label="Resource calendar"/>
+      <PaneItem icon="Clock" label="Room booking calendar"/>
+      <PaneItem icon="Layout" label="Staff scheduling grid"/>
+      <PaneItem icon="Clock" label="Shift planner"/>
+      <PaneItem icon="Clock" label="Timeline scheduler"/>
+      <PaneItem icon="List" label="Gantt timeline"/>
+      <PaneItem icon="Clock" label="Milestone marker"/>
+      <PaneItem icon="Clock" label="Reminder editor"/>
+      <PaneItem icon="Clock" label="Countdown timer"/>
+      <PaneItem icon="Clock" label="Stopwatch"/>
+      <PaneItem icon="Clock" label="Clock"/>
+      <PaneItem icon="Clock" label="World clock"/>
+      <PaneItem icon="Clock" label="Time-zone comparison"/>
+      <PaneItem icon="Clock" label="Duration input"/>
+      <PaneItem icon="Clock" label="Date-range navigation"/>
+      <PaneItem icon="Filter" label="Calendar filter"/>
+      <PaneItem icon="Clock" label="Calendar legend"/>
+      <PaneItem icon="Plus" label="Drag-to-create event"/>
+      <PaneItem icon="Clock" label="Drag-to-reschedule event"/>
+      <PaneItem icon="Clock" label="Conflict indicator"/>
+      <PaneItem icon="Clock" label="Overbooking warning"/>
+      <PaneItem icon="Button" label="RSVP control"/>
+      <PaneItem icon="Account" label="Meeting participant selector"/>
+      <PaneItem icon="Clock" label="Meeting agenda"/>
+      <PaneItem icon="Clock" label="Attendance tracker"/>
+    </PaneItem>
+    <PaneItem icon="Map" label="Maps">
+      <PaneItem section="true" label="Maps and location"/>
+      <PaneItem icon="Map" label="Interactive map"/>
+      <PaneItem icon="Map" label="Map canvas"/>
+      <PaneItem icon="Map" label="Map marker"/>
+      <PaneItem icon="Map" label="Marker cluster"/>
+      <PaneItem icon="Map" label="Map popup"/>
+      <PaneItem icon="Map" label="Map tooltip"/>
+      <PaneItem icon="Map" label="Map legend"/>
+      <PaneItem icon="Filter" label="Map search"/>
+      <PaneItem icon="Map" label="Location picker"/>
+      <PaneItem icon="Map" label="Geolocation control"/>
+      <PaneItem icon="Map" label="Current-location button"/>
+      <PaneItem icon="Toggle" label="Map layer switcher"/>
+      <PaneItem icon="Toggle" label="Satellite/terrain toggle"/>
+      <PaneItem icon="Folder" label="Street-view control"/>
+      <PaneItem icon="Map" label="Route display"/>
+      <PaneItem icon="Layout" label="Directions panel"/>
+      <PaneItem icon="Map" label="Route planner"/>
+      <PaneItem icon="Map" label="Multi-stop route editor"/>
+      <PaneItem icon="Map" label="Distance measurement"/>
+      <PaneItem icon="Map" label="Area measurement"/>
+      <PaneItem icon="Map" label="Drawing tools"/>
+      <PaneItem icon="Code" label="Polygon editor"/>
+      <PaneItem icon="Code" label="Circle editor"/>
+      <PaneItem icon="Map" label="Geofence editor"/>
+      <PaneItem icon="Map" label="Latitude/longitude display"/>
+      <PaneItem icon="Chart" label="Heatmap layer"/>
+      <PaneItem icon="Layers" label="Choropleth layer"/>
+      <PaneItem icon="Map" label="Traffic layer"/>
+      <PaneItem icon="Map" label="Transit layer"/>
+      <PaneItem icon="Map" label="Store locator"/>
+      <PaneItem icon="List" label="Nearby results list"/>
+      <PaneItem icon="Sidebar" label="Map-and-list split view"/>
+      <PaneItem icon="Map" label="Region selector"/>
+      <PaneItem icon="Map" label="Address verification panel"/>
+      <PaneItem icon="Map" label="Delivery tracking map"/>
+      <PaneItem icon="Map" label="Live vehicle tracker"/>
+    </PaneItem>
+    <PaneItem icon="People" label="Collaboration">
+      <PaneItem icon="Chat" label="Chat window"/>
+      <PaneItem icon="Chat" label="Chat message"/>
+      <PaneItem icon="Chat" label="Message composer"/>
+      <PaneItem icon="Chat" label="Conversation list"/>
+      <PaneItem icon="Chat" label="Chat thread"/>
+      <PaneItem icon="Chat" label="Thread replies"/>
+      <PaneItem icon="Chat" label="Reply composer"/>
+      <PaneItem icon="Button" label="Reaction picker"/>
+      <PaneItem icon="Chat" label="Message reactions"/>
+      <PaneItem icon="Chat" label="Mention autocomplete"/>
+      <PaneItem icon="Chat" label="User mention"/>
+      <PaneItem icon="Input" label="Channel selector"/>
+      <PaneItem icon="Chat" label="Direct-message list"/>
+      <PaneItem icon="Chat" label="Group conversation header"/>
+      <PaneItem icon="Account" label="Online presence indicator"/>
+      <PaneItem icon="Bag" label="Read receipts"/>
+      <PaneItem icon="Tag" label="Delivery status"/>
+      <PaneItem icon="Chat" label="Message timestamp"/>
+      <PaneItem icon="Filter" label="Message search"/>
+      <PaneItem icon="Chat" label="Pinned message"/>
+      <PaneItem icon="Chat" label="Saved message"/>
+      <PaneItem icon="Menu" label="Message actions menu"/>
+      <PaneItem icon="Document" label="Attachment preview"/>
+      <PaneItem icon="Chat" label="Voice message recorder"/>
+      <PaneItem icon="Play" label="Audio call controls"/>
+      <PaneItem icon="Play" label="Video call controls"/>
+      <PaneItem icon="Layout" label="Participant grid"/>
+      <PaneItem icon="Button" label="Screen-sharing controls"/>
+      <PaneItem icon="People" label="Call waiting screen"/>
+      <PaneItem icon="Window" label="Incoming call dialog"/>
+      <PaneItem icon="Card" label="Missed-call card"/>
+      <PaneItem icon="People" label="Meeting lobby"/>
+      <PaneItem icon="People" label="Waiting room"/>
+      <PaneItem icon="Lock" label="Participant permissions"/>
+      <PaneItem icon="People" label="Hand-raise indicator"/>
+      <PaneItem icon="Play" label="Live captions"/>
+      <PaneItem icon="Share" label="Shared notes"/>
+      <PaneItem icon="Code" label="Collaborative editor"/>
+      <PaneItem icon="Account" label="Presence cursor"/>
+      <PaneItem icon="Chat" label="Comment pin"/>
+      <PaneItem icon="Layout" label="Review and approval panel"/>
+      <PaneItem icon="Window" label="Invitation dialog"/>
+      <PaneItem icon="Table" label="Member management table"/>
+      <PaneItem icon="Account" label="Role assignment control"/>
+      <PaneItem icon="List" label="Team activity feed"/>
+      <PaneItem icon="Window" label="Share link dialog"/>
+      <PaneItem icon="Lock" label="Access permission selector"/>
+      <PaneItem icon="Button" label="Follow button"/>
+      <PaneItem icon="Star" label="Rating control"/>
+      <PaneItem icon="Chat" label="Poll"/>
+      <PaneItem icon="Chat" label="Voting component"/>
+      <PaneItem icon="Chat" label="Survey card"/>
+      <PaneItem icon="Chat" label="Q&amp;A panel"/>
+    </PaneItem>
+    <PaneItem icon="Account" label="Account">
+      <PaneItem section="true" label="Authentication and security"/>
+      <PaneItem icon="Lock" label="Login form"/>
+      <PaneItem icon="Input" label="Registration form"/>
+      <PaneItem icon="Lock" label="Logout confirmation"/>
+      <PaneItem icon="Mail" label="Email verification"/>
+      <PaneItem icon="Lock" label="Phone verification"/>
+      <PaneItem icon="Lock" label="OTP verification"/>
+      <PaneItem icon="Lock" label="Password reset form"/>
+      <PaneItem icon="Lock" label="Password change form"/>
+      <PaneItem icon="Lock" label="Password strength meter"/>
+      <PaneItem icon="Lock" label="Passkey sign-in"/>
+      <PaneItem icon="Chart" label="Biometric sign-in prompt"/>
+      <PaneItem icon="Lock" label="Multi-factor authentication setup"/>
+      <PaneItem icon="Lock" label="MFA challenge"/>
+      <PaneItem icon="Play" label="Recovery code display"/>
+      <PaneItem icon="Lock" label="SSO sign-in button"/>
+      <PaneItem icon="Input" label="Identity provider selector"/>
+      <PaneItem icon="Document" label="Profile editor"/>
+      <PaneItem icon="Image" label="Avatar editor"/>
+      <PaneItem icon="Account" label="Personal information form"/>
+      <PaneItem icon="Lock" label="Session management panel"/>
+      <PaneItem icon="List" label="Active devices list"/>
+      <PaneItem icon="Account" label="Device trust prompt"/>
+      <PaneItem icon="Lock" label="Security settings page"/>
+      <PaneItem icon="Key" label="API key management"/>
+      <PaneItem icon="Key" label="Token management panel"/>
+      <PaneItem icon="List" label="Connected apps list"/>
+      <PaneItem icon="Lock" label="OAuth consent screen"/>
+      <PaneItem icon="Lock" label="Permissions dialog"/>
+      <PaneItem icon="Account" label="Role selector"/>
+      <PaneItem icon="Access" label="Access control matrix"/>
+      <PaneItem icon="Lock" label="Login history"/>
+      <PaneItem icon="Alert" label="Suspicious activity warning"/>
+      <PaneItem icon="Lock" label="Privacy consent"/>
+      <PaneItem icon="Alert" label="Cookie consent banner"/>
+      <PaneItem icon="Account" label="Account deletion flow"/>
+      <PaneItem icon="Share" label="Data export request"/>
+      <PaneItem icon="Account" label="Account recovery flow"/>
+      <PaneItem icon="Account" label="Organization invitation flow"/>
+    </PaneItem>
+    <PaneItem icon="Settings" label="Settings">
+      <PaneItem section="true" label="Settings and preferences"/>
+      <PaneItem icon="Settings" label="Settings page"/>
+      <PaneItem icon="Sidebar" label="Settings sidebar"/>
+      <PaneItem icon="Settings" label="Settings navigation"/>
+      <PaneItem icon="Settings" label="General settings panel"/>
+      <PaneItem icon="Settings" label="Profile settings panel"/>
+      <PaneItem icon="Settings" label="Appearance settings"/>
+      <PaneItem icon="Color" label="Theme selector"/>
+      <PaneItem icon="Toggle" label="Light/dark/system theme switch"/>
+      <PaneItem icon="Color" label="Accent color selector"/>
+      <PaneItem icon="Type" label="Font-size selector"/>
+      <PaneItem icon="Input" label="Locale selector"/>
+      <PaneItem icon="Clock" label="Time-zone selector"/>
+      <PaneItem icon="Clock" label="Date-format selector"/>
+      <PaneItem icon="Input" label="Number-format selector"/>
+      <PaneItem icon="Alert" label="Notification preferences"/>
+      <PaneItem icon="Mail" label="Email notification preferences"/>
+      <PaneItem icon="Alert" label="Push notification preferences"/>
+      <PaneItem icon="Lock" label="Privacy settings"/>
+      <PaneItem icon="Lock" label="Security settings"/>
+      <PaneItem icon="Settings" label="Accessibility settings"/>
+      <PaneItem icon="Key" label="Keyboard shortcut settings"/>
+      <PaneItem icon="Settings" label="Gesture settings"/>
+      <PaneItem icon="Settings" label="Startup preferences"/>
+      <PaneItem icon="Input" label="Default-view selector"/>
+      <PaneItem icon="House" label="Home-page selector"/>
+      <PaneItem icon="Settings" label="Sync settings"/>
+      <PaneItem icon="Alert" label="Offline settings"/>
+      <PaneItem icon="Settings" label="Storage settings"/>
+      <PaneItem icon="Settings" label="Data usage settings"/>
+      <PaneItem icon="Settings" label="Connected account settings"/>
+      <PaneItem icon="Settings" label="Integration settings"/>
+      <PaneItem icon="Settings" label="Import/export settings"/>
+      <PaneItem icon="Settings" label="Developer settings"/>
+      <PaneItem icon="Toggle" label="Experimental features toggle"/>
+      <PaneItem icon="Settings" label="Feature flag control"/>
+      <PaneItem icon="Settings" label="Reset settings dialog"/>
+      <PaneItem icon="Button" label="Restore defaults action"/>
+      <PaneItem icon="Settings" label="Configuration editor"/>
+      <PaneItem icon="Settings" label="Advanced settings accordion"/>
+    </PaneItem>
+    <PaneItem icon="Bag" label="Commerce">
+      <PaneItem section="true" label="Commerce and billing"/>
+      <PaneItem icon="Bag" label="Product gallery"/>
+      <PaneItem icon="Bag" label="Product variant selector"/>
+      <PaneItem icon="Input" label="Size selector"/>
+      <PaneItem icon="Input" label="Quantity selector"/>
+      <PaneItem icon="Bag" label="Price display"/>
+      <PaneItem icon="Bag" label="Discount badge"/>
+      <PaneItem icon="Bag" label="Sale price"/>
+      <PaneItem icon="Bag" label="Stock indicator"/>
+      <PaneItem icon="Bag" label="Inventory status"/>
+      <PaneItem icon="Bag" label="Product comparison"/>
+      <PaneItem icon="Bag" label="Product configurator"/>
+      <PaneItem icon="Filter" label="Product filter panel"/>
+      <PaneItem icon="Bag" label="Shopping cart"/>
+      <PaneItem icon="Bag" label="Mini cart"/>
+      <PaneItem icon="Bag" label="Cart item"/>
+      <PaneItem icon="Bag" label="Cart summary"/>
+      <PaneItem icon="Bag" label="Coupon input"/>
+      <PaneItem icon="Bag" label="Gift card input"/>
+      <PaneItem icon="Bag" label="Shipping estimator"/>
+      <PaneItem icon="Map" label="Address form"/>
+      <PaneItem icon="Bag" label="Shipping method selector"/>
+      <PaneItem icon="Box" label="Delivery slot picker"/>
+      <PaneItem icon="Bag" label="Payment method selector"/>
+      <PaneItem icon="Bag" label="Payment card input"/>
+      <PaneItem icon="Sliders" label="Checkout stepper"/>
+      <PaneItem icon="Bag" label="Checkout summary"/>
+      <PaneItem icon="Bag" label="Order review"/>
+      <PaneItem icon="Bag" label="Order confirmation"/>
+      <PaneItem icon="Bag" label="Order history"/>
+      <PaneItem icon="Bag" label="Order status tracker"/>
+      <PaneItem icon="Bag" label="Invoice viewer"/>
+      <PaneItem icon="Bag" label="Receipt viewer"/>
+      <PaneItem icon="Bag" label="Subscription card"/>
+      <PaneItem icon="Bag" label="Plan comparison"/>
+      <PaneItem icon="Table" label="Pricing table"/>
+      <PaneItem icon="Bag" label="Upgrade prompt"/>
+      <PaneItem icon="Bag" label="Usage meter"/>
+      <PaneItem icon="Bag" label="Billing cycle selector"/>
+      <PaneItem icon="Bag" label="Tax breakdown"/>
+      <PaneItem icon="Bag" label="Refund status"/>
+      <PaneItem icon="Alert" label="Payment failure alert"/>
+      <PaneItem icon="Bag" label="Payment retry button"/>
+      <PaneItem icon="Bag" label="Saved payment methods"/>
+      <PaneItem icon="Table" label="Transaction table"/>
+      <PaneItem icon="Bag" label="Payout status"/>
+      <PaneItem icon="Bag" label="Wallet balance card"/>
+      <PaneItem icon="Bag" label="Loyalty points display"/>
+      <PaneItem icon="Card" label="Rewards card"/>
+      <PaneItem icon="Input" label="Review form"/>
+      <PaneItem icon="Bag" label="Product rating"/>
+      <PaneItem icon="Bag" label="Wishlist"/>
+      <PaneItem icon="Alert" label="Stock notification signup"/>
+    </PaneItem>
+    <PaneItem icon="Desktop" label="Desktop">
+      <PaneItem section="true" label="Window and application chrome"/>
+      <PaneItem icon="Window" label="Application window"/>
+      <PaneItem icon="Desktop" label="Custom title bar"/>
+      <PaneItem icon="Desktop" label="Native title bar"/>
+      <PaneItem icon="Window" label="Window controls"/>
+      <PaneItem icon="Button" label="Application toolbar"/>
+      <PaneItem icon="Tag" label="Status bar"/>
+      <PaneItem icon="Desktop" label="Taskbar"/>
+      <PaneItem icon="Desktop" label="System tray"/>
+      <PaneItem icon="Alert" label="Notification area"/>
+      <PaneItem icon="Button" label="Always-on-top control"/>
+      <PaneItem section="true" label="Workspace controls"/>
+      <PaneItem icon="Desktop" label="Resizable split panes"/>
+      <PaneItem icon="Layout" label="Dockable panels"/>
+      <PaneItem icon="Tabs" label="Tabbed document area"/>
+      <PaneItem icon="Tabs" label="Detachable tabs"/>
+      <PaneItem icon="Layout" label="Floating panels"/>
+      <PaneItem icon="Window" label="Inspector"/>
+      <PaneItem icon="Layout" label="Properties panel"/>
+      <PaneItem icon="Window" label="Tool palette"/>
+      <PaneItem icon="Desktop" label="Rulers"/>
+      <PaneItem icon="Desktop" label="Guides"/>
+      <PaneItem icon="Pin" label="Snapping controls"/>
+      <PaneItem icon="Desktop" label="Canvas zoom"/>
+      <PaneItem icon="Map" label="Minimap"/>
+      <PaneItem icon="Layout" label="Workspace presets"/>
+      <PaneItem section="true" label="Desktop components"/>
+      <PaneItem icon="Document" label="Native file picker integration"/>
+      <PaneItem icon="Folder" label="Native folder picker"/>
+      <PaneItem icon="Document" label="File drag-and-drop target"/>
+      <PaneItem icon="Copy" label="Clipboard integration"/>
+      <PaneItem icon="Copy" label="Global shortcut manager"/>
+      <PaneItem icon="Key" label="Keyboard shortcut overlay"/>
+      <PaneItem icon="Menu" label="Menu bar with nested menus"/>
+      <PaneItem icon="Window" label="Multi-window manager"/>
+      <PaneItem icon="Tabs" label="Tabbed document manager"/>
+      <PaneItem icon="Window" label="Window tiling controls"/>
+      <PaneItem icon="Desktop" label="Multi-monitor placement support"/>
+      <PaneItem icon="Tabs" label="Drag-and-drop reorderable tabs"/>
+      <PaneItem icon="Desktop" label="Detachable tab"/>
+      <PaneItem icon="Layout" label="Docking layout manager"/>
+      <PaneItem icon="Menu" label="Panel visibility menu"/>
+      <PaneItem icon="Toggle" label="Workspace layout switcher"/>
+      <PaneItem icon="Desktop" label="Fullscreen mode"/>
+      <PaneItem icon="Desktop" label="Presentation mode"/>
+      <PaneItem icon="Access" label="Focus mode"/>
+      <PaneItem icon="Desktop" label="Compact/dense mode"/>
+      <PaneItem icon="Button" label="Hover toolbar"/>
+      <PaneItem icon="Button" label="Floating formatting toolbar"/>
+      <PaneItem icon="Map" label="Status bar with multiple regions"/>
+      <PaneItem icon="Desktop" label="Progress indicator in title bar"/>
+      <PaneItem icon="Alert" label="Native notification integration"/>
+      <PaneItem icon="Menu" label="System tray menu"/>
+      <PaneItem icon="Desktop" label="Background task manager"/>
+      <PaneItem icon="Clock" label="Update notification"/>
+      <PaneItem icon="Clock" label="Auto-update progress"/>
+      <PaneItem icon="Window" label="Crash recovery dialog"/>
+      <PaneItem icon="Lock" label="Restore previous session"/>
+      <PaneItem icon="Document" label="File conflict dialog"/>
+      <PaneItem icon="Terminal" label="Save/open dialog integration"/>
+      <PaneItem icon="Map" label="Unsaved-document marker"/>
+      <PaneItem icon="Document" label="Document tab with close button"/>
+      <PaneItem icon="Menu" label="Recent files menu"/>
+      <PaneItem icon="Menu" label="Pinned files menu"/>
+      <PaneItem icon="Code" label="Split editor"/>
+      <PaneItem icon="Code" label="Diff editor"/>
+      <PaneItem icon="Terminal" label="Terminal panel"/>
+      <PaneItem icon="Terminal" label="Developer console"/>
+      <PaneItem icon="Terminal" label="Debug panel"/>
+      <PaneItem icon="Terminal" label="Log console"/>
+      <PaneItem icon="Sidebar" label="Multi-pane inspector"/>
+      <PaneItem icon="Access" label="Accessibility focus outline"/>
+    </PaneItem>
+    <PaneItem icon="Phone" label="Mobile">
+      <PaneItem section="true" label="Touch-first components"/>
+      <PaneItem icon="Phone" label="Touch button"/>
+      <PaneItem icon="Card" label="Swipeable card"/>
+      <PaneItem icon="Phone" label="Swipe actions"/>
+      <PaneItem icon="Menu" label="Long-press menu"/>
+      <PaneItem icon="Refresh" label="Pull-to-refresh"/>
+      <PaneItem icon="Window" label="Draggable sheet"/>
+      <PaneItem icon="Layout" label="Expandable panel"/>
+      <PaneItem icon="Sliders" label="Touch slider"/>
+      <PaneItem icon="Clock" label="Touch-friendly date picker"/>
+      <PaneItem section="true" label="Device integrations"/>
+      <PaneItem icon="Phone" label="Camera capture"/>
+      <PaneItem icon="Phone" label="QR scanner"/>
+      <PaneItem icon="Phone" label="Barcode scanner"/>
+      <PaneItem icon="Image" label="Photo picker"/>
+      <PaneItem icon="Account" label="Contact picker"/>
+      <PaneItem icon="Map" label="Location permission prompt"/>
+      <PaneItem icon="Chart" label="Biometric prompt"/>
+      <PaneItem icon="Window" label="Share sheet"/>
+      <PaneItem icon="Document" label="System file picker"/>
+      <PaneItem icon="List" label="Haptic feedback control"/>
+      <PaneItem icon="Lock" label="Microphone permission prompt"/>
+      <PaneItem section="true" label="Mobile components"/>
+      <PaneItem icon="Layout" label="Safe-area container"/>
+      <PaneItem icon="Key" label="Keyboard-avoiding container"/>
+      <PaneItem icon="Key" label="Virtual keyboard-aware form"/>
+      <PaneItem icon="Button" label="Compact toolbar"/>
+      <PaneItem icon="Menu" label="Floating contextual menu"/>
+      <PaneItem icon="Phone" label="Swipeable tab view"/>
+      <PaneItem icon="Refresh" label="Pull-to-refresh indicator"/>
+      <PaneItem icon="List" label="Infinite scrolling feed"/>
+      <PaneItem icon="Phone" label="Collapsible app bar"/>
+      <PaneItem icon="Filter" label="Expanding search bar"/>
+      <PaneItem icon="Phone" label="Full-screen viewer"/>
+      <PaneItem icon="Image" label="Image pinch-to-zoom"/>
+      <PaneItem icon="Image" label="Swipeable image carousel"/>
+      <PaneItem icon="Window" label="Native share sheet"/>
+      <PaneItem icon="Clock" label="Native date picker"/>
+      <PaneItem icon="Clock" label="Native time picker"/>
+      <PaneItem icon="Account" label="Contact selector"/>
+      <PaneItem icon="Document" label="Document picker"/>
+      <PaneItem icon="Image" label="Photo library picker"/>
+      <PaneItem icon="Phone" label="Camera preview"/>
+      <PaneItem icon="Phone" label="QR/barcode scanner view"/>
+      <PaneItem icon="Lock" label="Permission request screen"/>
+      <PaneItem icon="List" label="Haptic feedback integration"/>
+      <PaneItem icon="Alert" label="Offline banner"/>
+      <PaneItem icon="Phone" label="Network recovery indicator"/>
+      <PaneItem icon="Clock" label="App update prompt"/>
+      <PaneItem icon="Link" label="Deep-link routing"/>
+      <PaneItem icon="Phone" label="App launch/splash screen"/>
+      <PaneItem icon="Phone" label="App onboarding screens"/>
+      <PaneItem icon="Phone" label="Gesture tutorial"/>
+      <PaneItem icon="Window" label="Swipe-to-dismiss dialog"/>
+      <PaneItem icon="Phone" label="Edge-swipe navigation"/>
+      <PaneItem icon="Phone" label="App lifecycle recovery screen"/>
+      <PaneItem icon="Upload" label="Background upload status"/>
+      <PaneItem icon="Alert" label="Push notification permission prompt"/>
+      <PaneItem icon="Link" label="Universal link handling"/>
+    </PaneItem>
+    <PaneItem icon="Tablet" label="Tablet">
+      <PaneItem section="true" label="Tablet components"/>
+      <PaneItem icon="Sidebar" label="Adaptive navigation rail"/>
+      <PaneItem icon="Sidebar" label="Persistent navigation drawer"/>
+      <PaneItem icon="Sidebar" label="Split-view layout"/>
+      <PaneItem icon="Sidebar" label="Master-detail layout"/>
+      <PaneItem icon="Layout" label="Three-column layout"/>
+      <PaneItem icon="Document" label="Two-pane document view"/>
+      <PaneItem icon="Tablet" label="Side-by-side comparison view"/>
+      <PaneItem icon="Window" label="Persistent inspector panel"/>
+      <PaneItem icon="Window" label="Floating tool palette"/>
+      <PaneItem icon="Button" label="Contextual toolbar"/>
+      <PaneItem icon="Layout" label="Multicolumn collection"/>
+      <PaneItem icon="Layout" label="Responsive dashboard grid"/>
+      <PaneItem icon="Layout" label="Large-screen form layout"/>
+      <PaneItem icon="Sidebar" label="Keyboard-aware split view"/>
+      <PaneItem icon="Tablet" label="Drag-and-drop between panes"/>
+      <PaneItem icon="Tablet" label="Stylus input support"/>
+      <PaneItem icon="Tablet" label="Palm-rejection integration"/>
+      <PaneItem icon="Tablet" label="Pressure-sensitive drawing support"/>
+      <PaneItem icon="Tablet" label="Handwriting recognition"/>
+      <PaneItem icon="Button" label="Annotation toolbar"/>
+      <PaneItem icon="Document" label="PDF markup controls"/>
+      <PaneItem icon="Key" label="Floating keyboard accessory"/>
+      <PaneItem icon="Key" label="External keyboard shortcut support"/>
+      <PaneItem icon="Play" label="Picture-in-picture media"/>
+      <PaneItem icon="Window" label="Resizable app window"/>
+      <PaneItem icon="Window" label="Multi-window split-screen adaptation"/>
+      <PaneItem icon="Layout" label="Foldable hinge-aware layout"/>
+      <PaneItem icon="Layout" label="Posture-aware layout"/>
+      <PaneItem icon="Layout" label="Book-style dual-pane layout"/>
+      <PaneItem icon="Layout" label="Expandable navigation panel"/>
+      <PaneItem icon="Window" label="Adaptive bottom sheet"/>
+      <PaneItem icon="Window" label="Popover anchored to controls"/>
+    </PaneItem>
+    <PaneItem icon="Web" label="Web">
+      <PaneItem section="true" label="Web components"/>
+      <PaneItem icon="Link" label="Hyperlink"/>
+      <PaneItem icon="Link" label="Anchor navigation"/>
+      <PaneItem icon="Folder" label="Breadcrumb navigation"/>
+      <PaneItem icon="Tabs" label="URL-driven tabs"/>
+      <PaneItem icon="Map" label="Route outlet"/>
+      <PaneItem icon="Map" label="Nested route layout"/>
+      <PaneItem icon="Map" label="Route loading indicator"/>
+      <PaneItem icon="Map" label="Route error boundary"/>
+      <PaneItem icon="Map" label="Not-found route"/>
+      <PaneItem icon="Web" label="Redirect handler"/>
+      <PaneItem icon="Filter" label="Query-parameter filter"/>
+      <PaneItem icon="List" label="Browser history navigation"/>
+      <PaneItem icon="Link" label="Deep-link support"/>
+      <PaneItem icon="Web" label="Page title manager"/>
+      <PaneItem icon="Web" label="Metadata manager"/>
+      <PaneItem icon="Web" label="SEO-friendly pagination"/>
+      <PaneItem icon="Lock" label="Privacy preference manager"/>
+      <PaneItem icon="Web" label="Installable PWA prompt"/>
+      <PaneItem icon="Alert" label="Offline fallback page"/>
+      <PaneItem icon="Clock" label="Service worker update prompt"/>
+      <PaneItem icon="Tag" label="Network status indicator"/>
+      <PaneItem icon="Lock" label="Browser permission prompt"/>
+      <PaneItem icon="Alert" label="Web notification prompt"/>
+      <PaneItem icon="Lock" label="Clipboard permission integration"/>
+      <PaneItem icon="Web" label="Web share control"/>
+      <PaneItem icon="Button" label="Fullscreen API control"/>
+      <PaneItem icon="Phone" label="Web camera capture"/>
+      <PaneItem icon="Image" label="Web microphone capture"/>
+      <PaneItem icon="Document" label="Web file picker"/>
+      <PaneItem icon="Upload" label="Drag-and-drop upload"/>
+      <PaneItem icon="Download" label="Download link"/>
+      <PaneItem icon="Window" label="Print stylesheet support"/>
+      <PaneItem icon="Image" label="Responsive image source"/>
+      <PaneItem icon="Image" label="Lazy-loaded image"/>
+      <PaneItem icon="Web" label="Embedded iframe"/>
+      <PaneItem icon="Layout" label="Third-party embed wrapper"/>
+      <PaneItem icon="Lock" label="Captcha integration"/>
+      <PaneItem icon="Lock" label="Consent management controls"/>
+      <PaneItem icon="Link" label="Accessibility skip link"/>
+      <PaneItem icon="Access" label="Focus restoration manager"/>
+      <PaneItem icon="Key" label="Keyboard navigation support"/>
+      <PaneItem icon="Lock" label="Browser storage consent interface"/>
+      <PaneItem icon="Lock" label="Session-expiry manager"/>
+      <PaneItem icon="Refresh" label="Cross-tab synchronization indicator"/>
+      <PaneItem icon="Alert" label="Install banner"/>
+      <PaneItem icon="Layout" label="Browser compatibility notice"/>
+    </PaneItem>
+    <PaneItem icon="Access" label="Accessibility">
+      <PaneItem icon="Access" label="Accessible button"/>
+      <PaneItem icon="Access" label="Accessible form field"/>
+      <PaneItem icon="Access" label="Accessible select"/>
+      <PaneItem icon="Window" label="Accessible dialog"/>
+      <PaneItem icon="Menu" label="Accessible menu"/>
+      <PaneItem icon="Tabs" label="Accessible tabs"/>
+      <PaneItem icon="Folder" label="Accessible tree view"/>
+      <PaneItem icon="Table" label="Accessible table"/>
+      <PaneItem icon="Chart" label="Accessible data chart description"/>
+      <PaneItem icon="Access" label="Screen-reader-only text"/>
+      <PaneItem icon="Link" label="Skip-to-content link"/>
+      <PaneItem icon="Compass" label="Landmark navigation"/>
+      <PaneItem icon="Access" label="Focus ring"/>
+      <PaneItem icon="Access" label="Focus trap"/>
+      <PaneItem icon="Access" label="Focus restoration"/>
+      <PaneItem icon="Key" label="Keyboard shortcut help"/>
+      <PaneItem icon="Key" label="Keyboard navigation manager"/>
+      <PaneItem icon="Access" label="Roving tab index"/>
+      <PaneItem icon="Window" label="Accessible tooltip"/>
+      <PaneItem icon="Map" label="Accessible live region"/>
+      <PaneItem icon="Access" label="Screen-reader announcement"/>
+      <PaneItem icon="Alert" label="Error summary with links"/>
+      <PaneItem icon="Access" label="Accessible progress indicator"/>
+      <PaneItem icon="Chat" label="Accessible status message"/>
+      <PaneItem icon="Settings" label="Reduced-motion preference support"/>
+      <PaneItem icon="Color" label="High-contrast theme support"/>
+      <PaneItem icon="Color" label="Color-contrast-safe status indicator"/>
+      <PaneItem icon="Access" label="Text scaling support"/>
+      <PaneItem icon="Type" label="Dynamic type support"/>
+      <PaneItem icon="Phone" label="Touch target sizing"/>
+      <PaneItem icon="Play" label="Captions and subtitles"/>
+      <PaneItem icon="Layout" label="Transcript panel"/>
+      <PaneItem icon="Play" label="Audio description support"/>
+      <PaneItem icon="Map" label="Sign-language media region"/>
+      <PaneItem icon="Access" label="Alternative text manager"/>
+      <PaneItem icon="Chart" label="Accessible chart summary"/>
+      <PaneItem icon="Layout" label="RTL layout support"/>
+      <PaneItem icon="Input" label="Localization-aware input"/>
+      <PaneItem icon="Access" label="Accessible drag-and-drop alternative"/>
+      <PaneItem icon="Button" label="Non-gesture alternative controls"/>
+      <PaneItem icon="Lock" label="Accessible authentication flow"/>
+    </PaneItem>
+    <PaneItem icon="Primitive" label="Primitives">
+      <PaneItem section="true" label="Design tokens"/>
+      <PaneItem icon="Key" label="Color tokens"/>
+      <PaneItem icon="Key" label="Spacing tokens"/>
+      <PaneItem icon="Chart" label="Typography tokens"/>
+      <PaneItem icon="Key" label="Radius tokens"/>
+      <PaneItem icon="Key" label="Shadow tokens"/>
+      <PaneItem icon="Key" label="Border tokens"/>
+      <PaneItem icon="Key" label="Elevation tokens"/>
+      <PaneItem icon="Sliders" label="Opacity tokens"/>
+      <PaneItem icon="Key" label="Motion tokens"/>
+      <PaneItem icon="Key" label="Breakpoint tokens"/>
+      <PaneItem section="true" label="Typography"/>
+      <PaneItem icon="Type" label="Font family"/>
+      <PaneItem icon="Type" label="Font size"/>
+      <PaneItem icon="Type" label="Font weight"/>
+      <PaneItem icon="Primitive" label="Line height"/>
+      <PaneItem icon="Type" label="Letter spacing"/>
+      <PaneItem icon="Primitive" label="Text alignment"/>
+      <PaneItem icon="Primitive" label="Text truncation"/>
+      <PaneItem icon="Pin" label="Line clamping"/>
+      <PaneItem section="true" label="Color"/>
+      <PaneItem icon="Window" label="Color palette"/>
+      <PaneItem icon="Color" label="Semantic colors"/>
+      <PaneItem icon="Key" label="Theme tokens"/>
+      <PaneItem icon="Color" label="Accent colors"/>
+      <PaneItem icon="Color" label="Surface colors"/>
+      <PaneItem icon="Color" label="Contrast pairs"/>
+      <PaneItem icon="Key" label="Gradient tokens"/>
+      <PaneItem section="true" label="Spacing"/>
+      <PaneItem icon="Space" label="Padding"/>
+      <PaneItem icon="Space" label="Margin"/>
+      <PaneItem icon="Space" label="Gap"/>
+      <PaneItem icon="Space" label="Inset"/>
+      <PaneItem icon="Space" label="Stack spacing"/>
+      <PaneItem icon="Space" label="Inline spacing"/>
+      <PaneItem icon="Space" label="Safe-area spacing"/>
+      <PaneItem section="true" label="Shape"/>
+      <PaneItem icon="Bag" label="Border radius"/>
+      <PaneItem icon="Bag" label="Border width"/>
+      <PaneItem icon="Primitive" label="Outline"/>
+      <PaneItem icon="Radius" label="Divider"/>
+      <PaneItem icon="Radius" label="Separator"/>
+      <PaneItem icon="Radius" label="Corner treatment"/>
+      <PaneItem section="true" label="Elevation"/>
+      <PaneItem icon="Primitive" label="Shadow"/>
+      <PaneItem icon="Primitive" label="Elevation level"/>
+      <PaneItem icon="Window" label="Overlay scrim"/>
+      <PaneItem icon="Layers" label="Z-index layer"/>
+      <PaneItem icon="Layout" label="Stacking context"/>
+      <PaneItem section="true" label="Motion"/>
+      <PaneItem icon="Map" label="Transition"/>
+      <PaneItem icon="Primitive" label="Animation"/>
+      <PaneItem icon="Primitive" label="Easing curve"/>
+      <PaneItem icon="Key" label="Duration token"/>
+      <PaneItem icon="Primitive" label="Reduced-motion variant"/>
+      <PaneItem icon="Primitive" label="Spring animation"/>
+      <PaneItem section="true" label="Icons"/>
+      <PaneItem icon="Icons" label="Icon"/>
+      <PaneItem icon="Icons" label="Icon set"/>
+      <PaneItem icon="Icons" label="Icon sizing"/>
+      <PaneItem icon="Icons" label="Icon alignment"/>
+      <PaneItem icon="Icons" label="Icon sprite"/>
+      <PaneItem section="true" label="Responsive behavior"/>
+      <PaneItem icon="Layers" label="Breakpoints"/>
+      <PaneItem icon="Layout" label="Container queries"/>
+      <PaneItem icon="Primitive" label="Fluid sizing"/>
+      <PaneItem icon="Primitive" label="Responsive visibility"/>
+      <PaneItem icon="Layout" label="Adaptive layout"/>
+      <PaneItem icon="Primitive" label="Orientation handling"/>
+      <PaneItem section="true" label="Interaction states"/>
+      <PaneItem icon="Primitive" label="Default"/>
+      <PaneItem icon="Primitive" label="Hover"/>
+      <PaneItem icon="Access" label="Focus"/>
+      <PaneItem icon="Primitive" label="Pressed"/>
+      <PaneItem icon="Input" label="Selected"/>
+      <PaneItem icon="Primitive" label="Active"/>
+      <PaneItem icon="Primitive" label="Disabled"/>
+      <PaneItem icon="Primitive" label="Loading"/>
+      <PaneItem icon="Primitive" label="Invalid"/>
+      <PaneItem icon="Alert" label="Error"/>
+      <PaneItem icon="Primitive" label="Success"/>
+      <PaneItem icon="Primitive" label="Read-only"/>
+      <PaneItem section="true" label="Accessibility"/>
+      <PaneItem icon="Bag" label="Focus order"/>
+      <PaneItem icon="Account" label="Semantic roles"/>
+      <PaneItem icon="Access" label="Accessible names"/>
+      <PaneItem icon="Tag" label="Labels"/>
+      <PaneItem icon="Primitive" label="Descriptions"/>
+      <PaneItem icon="Key" label="Keyboard behavior"/>
+      <PaneItem icon="Primitive" label="Live announcements"/>
+      <PaneItem section="true" label="Internationalization"/>
+      <PaneItem icon="Input" label="Locale formatting"/>
+      <PaneItem icon="Primitive" label="Pluralization"/>
+      <PaneItem icon="Tag" label="Translated labels"/>
+      <PaneItem icon="Access" label="RTL support"/>
+      <PaneItem icon="Clock" label="Date/number formatting"/>
+      <PaneItem section="true" label="Component infrastructure"/>
+      <PaneItem icon="Box" label="Slot"/>
+      <PaneItem icon="Box" label="Compound component"/>
+      <PaneItem icon="Box" label="Controlled component"/>
+      <PaneItem icon="Box" label="Uncontrolled component"/>
+      <PaneItem icon="House" label="Ref forwarding"/>
+      <PaneItem icon="Box" label="Polymorphic component"/>
+      <PaneItem icon="Color" label="Theme provider"/>
+    </PaneItem>
+    <PaneItem icon="Code" label="Advanced">
+      <PaneItem section="true" label="Developer tools"/>
+      <PaneItem icon="Terminal" label="Terminal"/>
+      <PaneItem icon="Folder" label="File explorer"/>
+      <PaneItem icon="Terminal" label="Debugger"/>
+      <PaneItem icon="List" label="Breakpoint list"/>
+      <PaneItem icon="Layout" label="Stack trace viewer"/>
+      <PaneItem icon="Bag" label="Syntax highlighter"/>
+      <PaneItem icon="Search" label="Symbol navigator"/>
+      <PaneItem icon="Code" label="Code folding"/>
+      <PaneItem icon="Code" label="Inline diagnostics"/>
+      <PaneItem icon="Input" label="Autocomplete"/>
+      <PaneItem icon="Code" label="Test runner"/>
+      <PaneItem icon="Layout" label="Build output panel"/>
+      <PaneItem section="true" label="Productivity"/>
+      <PaneItem icon="Code" label="Backlog"/>
+      <PaneItem icon="Bag" label="Sprint planner"/>
+      <PaneItem icon="Chart" label="Workload chart"/>
+      <PaneItem icon="Bag" label="Resource planner"/>
+      <PaneItem icon="Code" label="Dependency editor"/>
+      <PaneItem icon="Code" label="Goal tracker"/>
+      <PaneItem icon="Layout" label="OKR panel"/>
+      <PaneItem icon="Code" label="Time tracker"/>
+      <PaneItem icon="Code" label="Approval workflow"/>
+      <PaneItem icon="Tag" label="Status report"/>
+      <PaneItem icon="Document" label="Document collaboration editor"/>
+      <PaneItem section="true" label="Creative tools"/>
+      <PaneItem icon="Code" label="Canvas"/>
+      <PaneItem icon="Code" label="Artboard"/>
+      <PaneItem icon="Layout" label="Layer panel"/>
+      <PaneItem icon="Folder" label="Layer tree"/>
+      <PaneItem icon="Code" label="Property editor"/>
+      <PaneItem icon="Code" label="Gradient editor"/>
+      <PaneItem icon="Input" label="Brush picker"/>
+      <PaneItem icon="Code" label="Ruler"/>
+      <PaneItem icon="Layout" label="Snap-to-grid"/>
+      <PaneItem icon="Input" label="Transform handles"/>
+      <PaneItem icon="Box" label="Selection box"/>
+      <PaneItem icon="Image" label="Crop tool"/>
+      <PaneItem icon="Code" label="Timeline editor"/>
+      <PaneItem icon="Code" label="Vector path editor"/>
+      <PaneItem icon="Code" label="Node editor"/>
+      <PaneItem section="true" label="AI applications"/>
+      <PaneItem icon="Code" label="Prompt editor"/>
+      <PaneItem icon="Chat" label="Chat composer"/>
+      <PaneItem icon="Input" label="Model selector"/>
+      <PaneItem icon="Key" label="Token usage meter"/>
+      <PaneItem icon="Play" label="Response streaming indicator"/>
+      <PaneItem icon="Layout" label="Citation panel"/>
+      <PaneItem icon="Card" label="Source reference card"/>
+      <PaneItem icon="List" label="Tool execution timeline"/>
+      <PaneItem icon="Code" label="Approval prompt"/>
+      <PaneItem icon="Code" label="Structured output viewer"/>
+      <PaneItem icon="Eye" label="Artifact preview"/>
+      <PaneItem icon="Code" label="Diff approval"/>
+      <PaneItem icon="Button" label="Regeneration control"/>
+      <PaneItem icon="List" label="Feedback rating"/>
+      <PaneItem icon="Input" label="Prompt template selector"/>
+      <PaneItem icon="Code" label="Model comparison view"/>
+      <PaneItem section="true" label="Operations"/>
+      <PaneItem icon="Lock" label="Permission matrix"/>
+      <PaneItem icon="Code" label="Approval queue"/>
+      <PaneItem icon="Code" label="Workflow builder"/>
+      <PaneItem icon="Code" label="Rule editor"/>
+      <PaneItem icon="Input" label="Automation trigger selector"/>
+      <PaneItem icon="Code" label="Job queue"/>
+      <PaneItem icon="Code" label="Background task monitor"/>
+      <PaneItem icon="Code" label="Service health dashboard"/>
+      <PaneItem icon="List" label="Incident timeline"/>
+      <PaneItem icon="List" label="Deployment history"/>
+      <PaneItem icon="Input" label="Environment selector"/>
+      <PaneItem icon="Settings" label="Feature flag editor"/>
+      <PaneItem icon="Layout" label="Access review panel"/>
+      <PaneItem icon="Code" label="Compliance evidence viewer"/>
+      <PaneItem section="true" label="Education"/>
+      <PaneItem icon="Card" label="Course card"/>
+      <PaneItem icon="Code" label="Lesson viewer"/>
+      <PaneItem icon="Code" label="Quiz question"/>
+      <PaneItem icon="Input" label="Answer selector"/>
+      <PaneItem icon="Code" label="Exam timer"/>
+      <PaneItem icon="Code" label="Progress tracker"/>
+      <PaneItem icon="Code" label="Grading rubric"/>
+      <PaneItem icon="Code" label="Assignment submission"/>
+      <PaneItem icon="List" label="Feedback panel"/>
+      <PaneItem icon="Card" label="Flashcard"/>
+      <PaneItem icon="Card" label="Spaced-repetition card"/>
+      <PaneItem icon="Code" label="Attendance register"/>
+      <PaneItem icon="Code" label="Gradebook"/>
+      <PaneItem icon="Code" label="Learning path"/>
+      <PaneItem icon="Code" label="Certificate viewer"/>
+      <PaneItem section="true" label="Healthcare"/>
+      <PaneItem icon="Clock" label="Appointment scheduler"/>
+      <PaneItem icon="List" label="Patient list"/>
+      <PaneItem icon="Code" label="Encounter summary"/>
+      <PaneItem icon="List" label="Medication list"/>
+      <PaneItem icon="List" label="Clinical timeline"/>
+      <PaneItem icon="Chart" label="Vitals chart"/>
+      <PaneItem icon="Lock" label="Consent form"/>
+      <PaneItem icon="Card" label="Referral card"/>
+      <PaneItem icon="Table" label="Lab results table"/>
+      <PaneItem icon="Clock" label="Practitioner schedule"/>
+      <PaneItem icon="Input" label="Patient intake form"/>
+      <PaneItem icon="Layout" label="Secure messaging panel"/>
+      <PaneItem section="true" label="Devices"/>
+      <PaneItem icon="Card" label="Device card"/>
+      <PaneItem icon="Tag" label="Device status indicator"/>
+      <PaneItem icon="Chart" label="Sensor chart"/>
+      <PaneItem icon="Code" label="Telemetry viewer"/>
+      <PaneItem icon="Layout" label="Command control panel"/>
+      <PaneItem icon="Tag" label="Connection status"/>
+      <PaneItem icon="Clock" label="Firmware update panel"/>
+      <PaneItem icon="Code" label="Device provisioning wizard"/>
+      <PaneItem icon="Alert" label="Alert rule editor"/>
+      <PaneItem icon="Sliders" label="Threshold slider"/>
+      <PaneItem icon="Map" label="Topology map"/>
+      <PaneItem icon="Bag" label="Fleet inventory table"/>
+    </PaneItem>
+  </Sidebar>
+
+  <Container when="syntax" width="100%" padding="{space.6}" gap="{space.5}" showScrollbar="false">
+    <H1>Foundation Syntax</H1>
+    <Paragraph>Write a foundation token in braces. The compiler binds it, so the same XML follows the light and dark theme. A bare number or hex color is a custom value and the compiler warns.</Paragraph>
+    <H2>Tokens</H2>
+    <Paragraph selectable="true">{color.brand.primary} fills, text, and borders.</Paragraph>
+    <Paragraph selectable="true">{space.4} is padding, gap, and control size. Steps run from space.1 through space.10.</Paragraph>
+    <Paragraph selectable="true">{radius.md} is a corner. Aliases: radius.control, radius.card, radius.panel.</Paragraph>
+    <Paragraph selectable="true">{type.body.size} and {type.body.weight} are the type role. Roles: display, h1, h2, h3, subhead, body, bodyLg, caption, button.</Paragraph>
+    <Paragraph selectable="true">{layout.width.docs} is a layout length. Also breakpoints, page padding, columns, gutters, and the copy, wide, marketing, and section widths.</Paragraph>
+    <H2>Live</H2>
+    <Flexbox gap="{space.3}" align="center" wrap="wrap">
+      <Button variant="filled">Continue</Button>
+      <Button variant="tinted">Tinted</Button>
+      <Button variant="gray">Secondary</Button>
+      <Button variant="plain">Plain</Button>
+      <Button variant="destructive">Delete</Button>
+    </Flexbox>
+    <Input variant="filled" placeholder="Search the foundation"/>
+    <Container padding="{space.4}" gap="{space.3}" background="{color.bg.secondary}" cornerRadius="{radius.lg}" showScrollbar="false">
+      <Text fontSize="{type.body.size}" color="{color.text.primary}">This panel uses color.bg.secondary, radius.lg, and space.4.</Text>
+    </Container>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Foundation name="DevKit" from="RoboFoundation"/&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;FoundationUse name="DevKit"/&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Button variant="filled"&gt;Continue&lt;/Button&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Container padding="{space.4}" background="{color.bg.secondary}" cornerRadius="{radius.lg}"&gt;</Paragraph>
+    <Container padding="{space.5}" gap="{space.2}" borderWidth="1" borderColor="{color.border.default}" cornerRadius="{radius.lg}" showScrollbar="false">
+      <H2>Code</H2>
+      <Paragraph>Not built yet. A Code block will show this XML with highlighting. The markup above is the documentation until then.</Paragraph>
+    </Container>
+  </Container>
+
+  <Container when="color" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Color</H1>
+    <Paragraph>Every color token has a light value and a dark value. Use it as background, color, or borderColor. The swatch is a Container because a color chip component is not a separate control.</Paragraph>
+    <H2>Brand</H2>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#0E7AFF / #3B9EFF</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary.hover}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary.hover</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#0A6AE8 / #5CADFF</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary.active}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary.active</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#0757C7 / #2E8CE6</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary.disabled}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary.disabled</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#B8D9FF / #1E3A5C</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary.subtle</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#0E7AFF1A / #3B9EFF26</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary.range}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary.range</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#0E7AFF38 / #3B9EFF61</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.brand.primary.focus-ring}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">brand.primary.focus-ring</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#0E7AFF40 / #3B9EFF4D</Text></Flexbox>
+    <H2>Accent, success, warning, danger</H2>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.accent.teal}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">accent.teal</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#14B8A6 / #2DD4C4</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.accent.teal.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">accent.teal.subtle</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#14B8A61A / #2DD4C426</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.success}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">success</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#30D158 / #30D158</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.success.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">success.subtle</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#30D1581A / #30D15826</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.success.focus-ring}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">success.focus-ring</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#30D15840 / #30D1584D</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.warning}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">warning</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FF9F0A / #FF9F0A</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.warning.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">warning.subtle</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FF9F0A1A / #FF9F0A26</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.danger}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">danger</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FF3B30 / #FF453A</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.danger.hover}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">danger.hover</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#E0342A / #FF5A50</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.danger.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">danger.subtle</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FF3B301A / #FF453A1A</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.danger.focus-ring}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">danger.focus-ring</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FF3B3040 / #FF453A66</Text></Flexbox>
+    <H2>Text</H2>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.text.primary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">text.primary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#1D1D1F / #FFFFFF</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.text.secondary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">text.secondary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#6E6E73 / #A1A1A6</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.text.tertiary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">text.tertiary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#86868B / #98989D</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.text.disabled}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">text.disabled</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#C7C7CC / #48484A</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.text.on-brand}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">text.on-brand</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FFFFFF / #FFFFFF</Text></Flexbox>
+    <H2>Background</H2>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.primary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.primary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FFFFFF / #000000</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.secondary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.secondary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#F5F5F7 / #1C1C1E</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.tertiary}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.tertiary</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#EDEDEF / #2C2C2E</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.elevated}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.elevated</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FFFFFF / #2C2C2E</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.hover}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.hover</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#F5F5F7 / #2C2C2E</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.active}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.active</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#EDEDEF / #3A3A3C</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.bg.overlay}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">bg.overlay</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#00000080 / #000000B3</Text></Flexbox>
+    <H2>Border</H2>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.border.default}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">border.default</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#D2D2D7 / #38383A</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.border.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.default}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">border.subtle</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#E5E5E7 / #2C2C2E</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.border.strong}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">border.strong</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#B8B8BD / #48484A</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.7}" height="{space.7}" background="{color.border.danger}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.border.subtle}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">border.danger</Text><Text fontSize="{type.caption.size}" color="{color.text.secondary}">#FF3B304D / #FF453A4D</Text></Flexbox>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Container background="{color.brand.primary}" cornerRadius="{radius.md}"/&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Text color="{color.text.primary}"&gt;Label&lt;/Text&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Container borderWidth="1" borderColor="{color.border.default}"/&gt;</Paragraph>
+  </Container>
+
+  <Container when="type" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Type</H1>
+    <Paragraph>Heading and Paragraph carry the semantic sizes. A Text node can also take a type token directly. Desktop size is first, then the mobile size.</Paragraph>
+    <H1>Display is the page title</H1>
+    <H2>Heading two</H2>
+    <H3>Heading three</H3>
+    <Paragraph>Body copy uses the paragraph default. It stays 17px on mobile and desktop, with a 1.47 line height.</Paragraph>
+    <Text fontSize="{type.display.size}" fontWeight="{type.display.weight}" color="{color.text.primary}">Display 80 / 40</Text>
+    <Text fontSize="{type.h1.size}" fontWeight="{type.h1.weight}" color="{color.text.primary}">H1 56 / 32</Text>
+    <Text fontSize="{type.h2.size}" fontWeight="{type.h2.weight}" color="{color.text.primary}">H2 40 / 28</Text>
+    <Text fontSize="{type.h3.size}" fontWeight="{type.h3.weight}" color="{color.text.primary}">H3 28 / 21</Text>
+    <Text fontSize="{type.subhead.size}" fontWeight="{type.subhead.weight}" color="{color.text.primary}">Subhead 24 / 19</Text>
+    <Text fontSize="{type.bodyLg.size}" color="{color.text.primary}">Body large 19 / 17</Text>
+    <Text fontSize="{type.body.size}" color="{color.text.primary}">Body 17 / 17</Text>
+    <Text fontSize="{type.button.size}" fontWeight="{type.button.weight}" color="{color.text.primary}">Button 17 / 17 medium</Text>
+    <Text fontSize="{type.caption.size}" color="{color.text.secondary}">Caption 12 / 12</Text>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;H1&gt;Display is the page title&lt;/H1&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Paragraph&gt;Body copy.&lt;/Paragraph&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Text fontSize="{type.body.size}" fontWeight="{type.body.weight}" color="{color.text.primary}"&gt;Body&lt;/Text&gt;</Paragraph>
+    <Container padding="{space.5}" gap="{space.2}" borderWidth="1" borderColor="{color.border.default}" cornerRadius="{radius.lg}" showScrollbar="false">
+      <H2>Table</H2>
+      <Paragraph>Not built yet. A Table will list role, size, mobile size, weight, tracking, and leading in columns. The samples above are the documentation until then.</Paragraph>
+    </Container>
+  </Container>
+
+  <Container when="space" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Space</H1>
+    <Paragraph>Space is a 4px scale. Use it for padding, gap, and fixed control size. The gap between the two marks is the token.</Paragraph>
+    <Flexbox align="center" gap="{space.1}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.1 · 4</Text></Flexbox>
+    <Flexbox align="center" gap="{space.2}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.2 · 8</Text></Flexbox>
+    <Flexbox align="center" gap="{space.3}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.3 · 12</Text></Flexbox>
+    <Flexbox align="center" gap="{space.4}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.4 · 16</Text></Flexbox>
+    <Flexbox align="center" gap="{space.5}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.5 · 24</Text></Flexbox>
+    <Flexbox align="center" gap="{space.6}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.6 · 32</Text></Flexbox>
+    <Flexbox align="center" gap="{space.7}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.7 · 48</Text></Flexbox>
+    <Flexbox align="center" gap="{space.8}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.8 · 64</Text></Flexbox>
+    <Flexbox align="center" gap="{space.9}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.9 · 96</Text></Flexbox>
+    <Flexbox align="center" gap="{space.10}"><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Container width="{space.6}" height="{space.6}" background="{color.brand.primary}" cornerRadius="{radius.sm}" showScrollbar="false"/><Text fontSize="{type.body.size}" color="{color.text.primary}">space.10 · 128</Text></Flexbox>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Flexbox gap="{space.4}"&gt;...&lt;/Flexbox&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Container padding="{space.6}" gap="{space.4}"&gt;...&lt;/Container&gt;</Paragraph>
+  </Container>
+
+  <Container when="radius" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Radius</H1>
+    <Paragraph>Corners use a named radius. radius.control is md, radius.card is lg, and radius.panel is 2xl.</Paragraph>
+    <Flexbox gap="{space.4}" wrap="wrap" align="start" width="100%">
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}">
+        <Container width="{space.8}" height="{space.8}" background="{color.brand.primary.subtle}" cornerRadius="{radius.sm}" borderWidth="1" borderColor="{color.brand.primary}" showScrollbar="false"/>
+        <Text fontSize="{type.caption.size}" color="{color.text.secondary}">sm · 6</Text>
+      </Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}">
+        <Container width="{space.8}" height="{space.8}" background="{color.brand.primary.subtle}" cornerRadius="{radius.md}" borderWidth="1" borderColor="{color.brand.primary}" showScrollbar="false"/>
+        <Text fontSize="{type.caption.size}" color="{color.text.secondary}">md · 8</Text>
+      </Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}">
+        <Container width="{space.8}" height="{space.8}" background="{color.brand.primary.subtle}" cornerRadius="{radius.lg}" borderWidth="1" borderColor="{color.brand.primary}" showScrollbar="false"/>
+        <Text fontSize="{type.caption.size}" color="{color.text.secondary}">lg · 12</Text>
+      </Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}">
+        <Container width="{space.8}" height="{space.8}" background="{color.brand.primary.subtle}" cornerRadius="{radius.xl}" borderWidth="1" borderColor="{color.brand.primary}" showScrollbar="false"/>
+        <Text fontSize="{type.caption.size}" color="{color.text.secondary}">xl · 16</Text>
+      </Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}">
+        <Container width="{space.8}" height="{space.8}" background="{color.brand.primary.subtle}" cornerRadius="{radius.2xl}" borderWidth="1" borderColor="{color.brand.primary}" showScrollbar="false"/>
+        <Text fontSize="{type.caption.size}" color="{color.text.secondary}">2xl · 20</Text>
+      </Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}">
+        <Container width="{space.8}" height="{space.8}" background="{color.brand.primary.subtle}" cornerRadius="{radius.pill}" borderWidth="1" borderColor="{color.brand.primary}" showScrollbar="false"/>
+        <Text fontSize="{type.caption.size}" color="{color.text.secondary}">pill · 980</Text>
+      </Flexbox>
+    </Flexbox>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Container cornerRadius="{radius.lg}"&gt;...&lt;/Container&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Button cornerRadius="{radius.pill}"&gt;Pill&lt;/Button&gt;</Paragraph>
+  </Container>
+
+  <Container when="layout" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Layout</H1>
+    <Paragraph>Layout tokens are the page grid. Breakpoints pick the padding, column count, and gutter. Width tokens cap a column.</Paragraph>
+    <Paragraph>breakpoint.tablet 734. breakpoint.desktop 1068.</Paragraph>
+    <Paragraph>padding.mobile 22. padding.tablet 40. padding.desktop 80.</Paragraph>
+    <Paragraph>columns.mobile 1. columns.tablet 12. columns.desktop 12.</Paragraph>
+    <Paragraph>gutter.mobile 16. gutter.tablet 24. gutter.desktop 24.</Paragraph>
+    <Paragraph>width.copy 692. width.docs 760. width.wide 900. width.marketing 980. width.section 1024.</Paragraph>
+    <H2>Grid</H2>
+    <Grid columnCount="3" gap="{space.4}" width="100%">
+      <Container padding="{space.4}" background="{color.bg.secondary}" cornerRadius="{radius.lg}" showScrollbar="false"><Text fontSize="{type.body.size}" color="{color.text.primary}">One</Text></Container>
+      <Container padding="{space.4}" background="{color.bg.secondary}" cornerRadius="{radius.lg}" showScrollbar="false"><Text fontSize="{type.body.size}" color="{color.text.primary}">Two</Text></Container>
+      <Container padding="{space.4}" background="{color.bg.secondary}" cornerRadius="{radius.lg}" showScrollbar="false"><Text fontSize="{type.body.size}" color="{color.text.primary}">Three</Text></Container>
+    </Grid>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Container width="{layout.width.docs}" padding="{space.6}"&gt;...&lt;/Container&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Grid columnCount="3" gap="{space.4}"&gt;...&lt;/Grid&gt;</Paragraph>
+    <Container padding="{space.5}" gap="{space.2}" borderWidth="1" borderColor="{color.border.default}" cornerRadius="{radius.lg}" showScrollbar="false">
+      <H2>Screen</H2>
+      <Paragraph>Not built yet. A Screen will switch this page at the tablet and desktop breakpoints.</Paragraph>
+    </Container>
+    <Container padding="{space.5}" gap="{space.2}" borderWidth="1" borderColor="{color.border.default}" cornerRadius="{radius.lg}" showScrollbar="false">
+      <H2>Board</H2>
+      <Paragraph>Not built yet. A Board is the blank canvas a Screen displays.</Paragraph>
+    </Container>
+  </Container>
+
+  <Container when="icons" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Icons</H1>
+    <Paragraph>An icon is the tag of its name in RoboIcons.pack. Set width, height, and color with tokens. An IconButton uses the same name in its icon attribute.</Paragraph>
+    <Flexbox gap="{space.4}" wrap="wrap" align="start" width="100%">
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Search width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Search</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Plus width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Plus</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Check width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Check</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Close width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Close</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Home width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Home</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Heart width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Heart</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><House width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">House</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Download width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Download</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Academic width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Academic</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Book width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Book</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Document width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Document</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Page width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Page</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Image width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Image</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Type width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Type</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Card width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Card</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Window width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Window</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Compass width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Compass</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Bell width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Bell</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Tabs width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Tabs</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Refresh width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Refresh</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Code width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Code</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><Clock width="{space.6}" height="{space.6}" color="{color.text.primary}"/><Text fontSize="{type.caption.size}" color="{color.text.secondary}">Clock</Text></Flexbox>
+    </Flexbox>
+    <Flexbox gap="{space.3}" align="center">
+      <IconButton icon="Search" label="Search"/>
+      <IconButton icon="Plus" label="Add"/>
+      <IconButton icon="Heart" label="Favorite"/>
+    </Flexbox>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Search width="{space.6}" height="{space.6}" color="{color.text.primary}"/&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;IconButton icon="Search" label="Search"/&gt;</Paragraph>
+  </Container>
+
+  <Container when="flags" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Country Flags</H1>
+    <Paragraph>Flags live in RoboCountry.pack and use the same tag as icons. These three are in the pack today.</Paragraph>
+    <Flexbox gap="{space.5}" wrap="wrap" align="start" width="100%">
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><FlagFrance width="{space.7}" height="{space.6}"/><Text fontSize="{type.body.size}" color="{color.text.primary}">France</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><FlagJapan width="{space.7}" height="{space.6}"/><Text fontSize="{type.body.size}" color="{color.text.primary}">Japan</Text></Flexbox>
+      <Flexbox direction="column" gap="{space.2}" align="center" width="{space.10}"><FlagGermany width="{space.7}" height="{space.6}"/><Text fontSize="{type.body.size}" color="{color.text.primary}">Germany</Text></Flexbox>
+    </Flexbox>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;FlagFrance width="{space.7}" height="{space.6}"/&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;FlagJapan width="{space.7}" height="{space.6}"/&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;FlagGermany width="{space.7}" height="{space.6}"/&gt;</Paragraph>
+  </Container>
+
+  <Container when="text" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Text</H1>
+    <Paragraph>Text is the typography primitive. Set its size, weight, and color with foundation tokens. Each Text node is one style.</Paragraph>
+    <Text fontSize="{type.display.size}" fontWeight="{type.display.weight}" color="{color.text.primary}">Display</Text>
+    <Text fontSize="{type.h2.size}" fontWeight="{type.h2.weight}" color="{color.text.primary}">Heading size</Text>
+    <Text fontSize="{type.body.size}" color="{color.text.primary}">Body copy stays at 17.</Text>
+    <Text fontSize="{type.body.size}" color="{color.text.secondary}">Secondary body.</Text>
+    <Text fontSize="{type.caption.size}" color="{color.text.tertiary}">Caption at 12.</Text>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Text fontSize="{type.body.size}" fontWeight="{type.body.weight}" color="{color.text.primary}"&gt;Body copy stays at 17.&lt;/Text&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Text fontSize="{type.caption.size}" color="{color.text.tertiary}"&gt;Caption at 12.&lt;/Text&gt;</Paragraph>
+  </Container>
+
+  <Container when="heading" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Heading</H1>
+    <Paragraph>Heading is Text with a semantic size and weight. Levels run from 1 to 6. H1 through H6 are the same component.</Paragraph>
+    <H1>Heading 1</H1>
+    <H2>Heading 2</H2>
+    <H3>Heading 3</H3>
+    <H4>Heading 4</H4>
+    <H5>Heading 5</H5>
+    <H6>Heading 6</H6>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;H1&gt;Heading 1&lt;/H1&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;H2&gt;Heading 2&lt;/H2&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;Heading level="3"&gt;Heading 3&lt;/Heading&gt;</Paragraph>
+  </Container>
+
+  <Container when="paragraph" width="100%" padding="{space.6}" gap="{space.4}" showScrollbar="false">
+    <H1>Paragraph</H1>
+    <Paragraph>Paragraph is body copy. It uses the body type role: 17px, regular weight, and a 1.47 line height.</Paragraph>
+    <Paragraph>A second paragraph stacks under the first with the page gap. Use it for explanation, and use Heading when the line is a title.</Paragraph>
+    <H2>XML</H2>
+    <Paragraph selectable="true">&lt;Paragraph&gt;Paragraph is body copy.&lt;/Paragraph&gt;</Paragraph>
+    <Paragraph selectable="true">&lt;P&gt;A second paragraph stacks under the first.&lt;/P&gt;</Paragraph>
+  </Container>
+</Robo>

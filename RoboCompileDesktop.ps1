@@ -56,9 +56,23 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+$devKitXml = Join-Path $compiler "DevKit\DevKit.xml"
+$devKitGenerated = Join-Path $toolDir "DevKitPage.cpp"
+if (-not (Test-Path $devKitXml)) {
+    Write-Error "Compiler\DevKit\DevKit.xml is missing."
+}
+& $toolExe $devKitXml $devKitGenerated $assets
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+$devKitText = [IO.File]::ReadAllText($devKitGenerated)
+$devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
+[IO.File]::WriteAllText($devKitGenerated, $devKitText)
+
 $sources = @(Get-ChildItem (Join-Path $compiler "Compiler\Source") -Filter *.cpp | ForEach-Object { $_.FullName })
 $sources += @(
     $generated,
+    $devKitGenerated,
     (Join-Path $compiler "RoboPlatforms\RoboticelaOS\RoboticelaOSPlatform.cpp")
 )
 

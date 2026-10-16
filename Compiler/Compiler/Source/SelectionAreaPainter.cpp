@@ -1,4 +1,5 @@
 #include "Robo/SelectionAreaPainter.hpp"
+#include "Robo/BrandLogo.hpp"
 #include "Robo/SvgPainter.hpp"
 
 #include <algorithm>
@@ -250,7 +251,13 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
                                    Color::FromHex("#FFFFFF"), 0.28f);
         }
         const bool paintedFolder = folderIcon != nullptr && !folderIcon->GetShapes().empty();
-        if (paintedFolder) {
+        if (!item.GetOpen().empty()) {
+            BrandLogo mark;
+            mark.SetSize(52.0f);
+            mark.SetVariant(BrandLogoVariant::Mark);
+            Svg icon = mark.Mark();
+            SvgPainter::Paint(buffer, icon, iconX, iconY, iconSize, scale);
+        } else if (paintedFolder) {
             SvgStyle iconStyle = folderIcon->GetStyle();
             iconStyle.width = 52.0f;
             iconStyle.height = 52.0f;
