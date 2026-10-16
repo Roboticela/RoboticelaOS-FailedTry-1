@@ -425,6 +425,28 @@ void RoboFrameCompose(RoboDesktop* desktop) {
     RoboDesktopShowCursor(desktop);
 }
 
+void RoboFrameComposeDamage(RoboDesktop* desktop, int32_t x, int32_t y, int32_t width, int32_t height) {
+    if (desktop == nullptr || gOrderCount == 0 || width <= 0 || height <= 0) {
+        return;
+    }
+    const int32_t damageRight = x + width;
+    const int32_t damageBottom = y + height;
+    RoboDesktopHideCursor(desktop);
+    for (uint32_t index = 0; index < gOrderCount; ++index) {
+        RoboFrame* frame = &gFrames[gOrder[index]];
+        if (!frame->used) {
+            continue;
+        }
+        const int32_t frameRight = frame->x + frame->width;
+        const int32_t frameBottom = frame->y + frame->height;
+        if (frameRight <= x || frame->x >= damageRight || frameBottom <= y || frame->y >= damageBottom) {
+            continue;
+        }
+        RoboFrameBlit(gOrder[index], 0, 0, frame->width, frame->height);
+    }
+    RoboDesktopShowCursor(desktop);
+}
+
 bool RoboFramePointer(const RoboInputEvent* event, int32_t x, int32_t y, uint8_t* appClient, int32_t* localX, int32_t* localY) {
     if (appClient != nullptr) {
         *appClient = 0;

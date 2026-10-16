@@ -161,6 +161,17 @@ public:
     bool NeedsTick();
     bool NeedsRender() const;
     void DamageRect(float x, float y, float width, float height);
+    void GetLastPresentRect(int& x, int& y, int& width, int& height) const;
+
+    // Dynamic catalog apps (DevKit): load one pane / rail panel on demand.
+    using PaneEnsureFn = void (*)(RoboScene& scene, const char* paneId);
+    using RailChildrenFn = void (*)(Sidebar& sidebar, int railIndex);
+    void SetPaneEnsure(PaneEnsureFn fn);
+    void SetRailChildrenEnsure(RailChildrenFn fn);
+    bool HasPaneContainer(const char* paneId) const;
+    void EnsurePaneContent();
+    void EnsureSelectedRailChildren(Sidebar* owner);
+    void SetActivePaneId(const std::string& paneId);
 
     bool KeyInsert(const std::string& utf8);
     bool KeyBackspace();
@@ -225,7 +236,12 @@ private:
     void DirtyButton(const Button* button);
     void DirtyInput(const Input* input);
     void DirtyScrollbar(const Scrollbar* scrollbar);
+    void DirtySidebarItem(const SidebarItem* item);
+    void DirtyRailArrows(const Sidebar& sidebar);
+    void DirtyWallpaperAroundDevKit();
     void DirtySelectionVisual();
+    void DirtyThemeBounds(float x, float y, float width, float height);
+    bool PaneIsActive(const Container& container) const;
     bool CanPaintPartial(float paintScale, int width, int height) const;
     bool PresentVideoFrame(IPlatform& platform);
     bool ChromeFits(std::size_t bytes, std::size_t maskBytes) const;
@@ -237,9 +253,12 @@ private:
     void DevKitFrame(float& x, float& y, float& width, float& height) const;
     bool PointerOnDevKit(float x, float y) const;
     void EnsureDevKit();
-    void AdvanceDevKitBuild();
+    void DirtyDevKitWindow();
+    void DirtyDevKitFromNested();
     void OpenDevKit();
     void PaintDevKit();
+    void CompositeDevKit();
+    bool DevKitNeedsPaint() const;
     bool ForwardDevKitPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks);
     bool ForwardDevKitMove(float x, float y);
     bool ForwardDevKitWheel(float x, float y, float deltaX, float deltaY);
@@ -306,7 +325,13 @@ private:
     float devKitW_ = 1080.0f;
     float devKitH_ = 700.0f;
     RoboScene* devKitScene_ = nullptr;
-    int devKitBuildStep_ = -1;  // -1 idle, >=0 building, -2 ready
+    bool devKitPaintDirty_ = false;
+    bool devKitSurfaceValid_ = false;
+    bool devKitParentWiped_ = false;
+    PaneEnsureFn paneEnsureFn_ = nullptr;
+    RailChildrenFn railChildrenFn_ = nullptr;
+    double wallpaperPresentDueMs_ = 0.0;
+    double wallpaperClockMs_ = 0.0;
     std::vector<std::uint8_t> chromeBase_;
     std::vector<std::uint8_t> chromePixels_;
     std::vector<std::uint8_t> chromeMask_;

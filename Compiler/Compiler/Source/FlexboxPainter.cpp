@@ -696,11 +696,18 @@ FlexboxMeasureResult FlexboxPainter::Measure(const FontEngine& fonts,
                                             float pixelScale,
                                             float forcedWidth,
                                             float forcedHeight) {
+    const float scale = std::max(0.5f, pixelScale);
+    if (flexbox.HasMeasureCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+        FlexboxMeasureResult cached;
+        flexbox.ReadMeasureCache(cached.width, cached.height);
+        return cached;
+    }
     ComputedFlexLayout layout =
         ComputeLayout(fonts, flexbox, containerWidth, pixelScale, forcedWidth, forcedHeight);
     FlexboxMeasureResult result;
     result.width = layout.containerWidth;
     result.height = layout.containerHeight;
+    flexbox.WriteMeasureCache(containerWidth, scale, forcedWidth, forcedHeight, result.width, result.height);
     return result;
 }
 

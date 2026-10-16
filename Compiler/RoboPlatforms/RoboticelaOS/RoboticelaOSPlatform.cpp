@@ -159,10 +159,11 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
         int32_t cursorHeight = 0;
         const bool cursor = RoboDesktopCursorRect(&cursorX, &cursorY, &cursorWidth, &cursorHeight);
 #endif
+        // Nearest-neighbor downsample keeps paint at ROBO_RENDER_QUALITY 1.3 without
+        // the O(coverage) area-filter that made every Present a CPU sink.
         for (int row = 0; row < screenHeight; ++row) {
             const int screenY = screenY0 + row;
-            const float sourceY0 = static_cast<float>(screenY) * scaleY;
-            const float sourceY1 = sourceY0 + scaleY;
+            const int sourceY = std::min(height_ - 1, std::max(0, static_cast<int>((static_cast<float>(screenY) + 0.5f) * scaleY)));
             std::uint8_t* to = scanout_ + static_cast<std::size_t>(screenY) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(screenX0) * 4u;
             auto* packed = reinterpret_cast<std::uint32_t*>(to);
 #ifdef ROBO_KERNEL
@@ -170,41 +171,9 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
 #endif
             for (int column = 0; column < screenWidth; ++column) {
                 const int screenX = screenX0 + column;
-                const float sourceX0 = static_cast<float>(screenX) * scaleX;
-                const float sourceX1 = sourceX0 + scaleX;
-                float red = 0.0f;
-                float green = 0.0f;
-                float blue = 0.0f;
-                float weight = 0.0f;
-                const int yStart = std::max(0, static_cast<int>(std::floor(sourceY0)));
-                const int yEnd = std::min(height_, static_cast<int>(std::ceil(sourceY1)));
-                const int xStart = std::max(0, static_cast<int>(std::floor(sourceX0)));
-                const int xEnd = std::min(width_, static_cast<int>(std::ceil(sourceX1)));
-                for (int sourceY = yStart; sourceY < yEnd; ++sourceY) {
-                    const float coverY = std::min(sourceY1, static_cast<float>(sourceY + 1)) - std::max(sourceY0, static_cast<float>(sourceY));
-                    if (coverY <= 0.0f) {
-                        continue;
-                    }
-                    for (int sourceX = xStart; sourceX < xEnd; ++sourceX) {
-                        const float coverX = std::min(sourceX1, static_cast<float>(sourceX + 1)) - std::max(sourceX0, static_cast<float>(sourceX));
-                        if (coverX <= 0.0f) {
-                            continue;
-                        }
-                        const float sample = coverX * coverY;
-                        const std::uint8_t* from = source + (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(sourceX)) * 4u;
-                        red += static_cast<float>(from[0]) * sample;
-                        green += static_cast<float>(from[1]) * sample;
-                        blue += static_cast<float>(from[2]) * sample;
-                        weight += sample;
-                    }
-                }
-                if (weight <= 0.0f) {
-                    continue;
-                }
-                const float inv = 1.0f / weight;
-                uint32_t scene = Pack(static_cast<std::uint8_t>(std::min(255.0f, red * inv + 0.5f)),
-                                      static_cast<std::uint8_t>(std::min(255.0f, green * inv + 0.5f)),
-                                      static_cast<std::uint8_t>(std::min(255.0f, blue * inv + 0.5f)));
+                const int sourceX = std::min(width_ - 1, std::max(0, static_cast<int>((static_cast<float>(screenX) + 0.5f) * scaleX)));
+                const std::uint8_t* from = source + (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(sourceX)) * 4u;
+                uint32_t scene = Pack(from[0], from[1], from[2]);
 #ifdef ROBO_KERNEL
                 uint32_t cursorRgb = 0;
                 if (cursorRow && RoboDesktopCursorSample(screenX - cursorX, screenY - cursorY, &cursorRgb)) {

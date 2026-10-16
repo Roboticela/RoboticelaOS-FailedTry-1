@@ -2,6 +2,7 @@
 #include "Robo/Container.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace Robo {
 
@@ -13,6 +14,7 @@ Flexbox::Flexbox() = default;
 
 void Flexbox::SetStyle(const FlexboxStyle& style) {
     style_ = style;
+    InvalidateMeasureCache();
 }
 
 const FlexboxStyle& Flexbox::GetStyle() const {
@@ -145,6 +147,34 @@ void Flexbox::AddContainer(Container container, const FlexItemProps& props) {
 
 void Flexbox::AddItem(FlexboxItem item) {
     items_.push_back(std::move(item));
+    InvalidateMeasureCache();
+}
+
+bool Flexbox::HasMeasureCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight) const {
+    return measureCacheValid_ && std::fabs(measureCacheContainer_ - containerWidth) < 0.5f &&
+           std::fabs(measureCacheScale_ - pixelScale) < 0.001f &&
+           std::fabs(measureCacheForcedW_ - forcedWidth) < 0.5f &&
+           std::fabs(measureCacheForcedH_ - forcedHeight) < 0.5f;
+}
+
+void Flexbox::ReadMeasureCache(float& width, float& height) const {
+    width = measureCacheWidth_;
+    height = measureCacheHeight_;
+}
+
+void Flexbox::WriteMeasureCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight,
+                                float width, float height) const {
+    measureCacheValid_ = true;
+    measureCacheContainer_ = containerWidth;
+    measureCacheScale_ = pixelScale;
+    measureCacheForcedW_ = forcedWidth;
+    measureCacheForcedH_ = forcedHeight;
+    measureCacheWidth_ = width;
+    measureCacheHeight_ = height;
+}
+
+void Flexbox::InvalidateMeasureCache() const {
+    measureCacheValid_ = false;
 }
 
 const std::vector<FlexboxItem>& Flexbox::GetItems() const {

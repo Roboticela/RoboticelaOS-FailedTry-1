@@ -230,6 +230,8 @@ exit /b %ERRORLEVEL%
         }
         $devKitText = [IO.File]::ReadAllText($devKitCpp)
         $devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
+        $devKitText = $devKitText.Replace("BuildPage(scene)", "BuildDevKitPage(scene)")
+        $devKitText = $devKitText.Replace("int BuildPageStep(", "int BuildDevKitPageStep(")
         [IO.File]::WriteAllText($devKitCpp, $devKitText)
         Write-Host "Built: $devKitCpp"
     }

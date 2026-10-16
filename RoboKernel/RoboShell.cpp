@@ -327,6 +327,16 @@ void RoboShellKey(uint16_t code, bool pressed) {
     }
 }
 
+bool RoboShellNeedsTick(void) {
+    if (gScene == nullptr) {
+        return false;
+    }
+    if (gTouchHeld && !gLongPressSent) {
+        return true;
+    }
+    return gScene->NeedsTick();
+}
+
 bool RoboShellTick(uint32_t deltaMs) {
     if (gScene == nullptr || deltaMs == 0) {
         return false;
@@ -339,8 +349,25 @@ bool RoboShellTick(uint32_t deltaMs) {
             gLongPressSent = true;
             changed = gScene->LongPressSelect(RoboSceneCoord(gPressX), RoboSceneCoord(gPressY));
         }
+    } else if (!gScene->NeedsTick()) {
+        return changed;
     }
     return gScene->Tick(static_cast<double>(deltaMs)) || changed;
+}
+
+void RoboShellLastPresentRect(int32_t* x, int32_t* y, int32_t* width, int32_t* height) {
+    if (x == nullptr || y == nullptr || width == nullptr || height == nullptr || gScene == nullptr) {
+        return;
+    }
+    int px = 0;
+    int py = 0;
+    int pw = 0;
+    int ph = 0;
+    gScene->GetLastPresentRect(px, py, pw, ph);
+    *x = px;
+    *y = py;
+    *width = pw;
+    *height = ph;
 }
 
 void RoboShellSetBackground(const char* path) {

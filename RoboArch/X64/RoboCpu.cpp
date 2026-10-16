@@ -284,9 +284,9 @@ void RoboCpuJoin(void) {
             }
             __asm__ volatile("pause");
         }
-        // Missing AP: leave the rest for a later join; keep the painter moving.
+        // Missing APIC id: try the next one so sparse AP lists still join workers.
         if (gRoboCpuReady == before) {
-            return;
+            continue;
         }
     }
 }

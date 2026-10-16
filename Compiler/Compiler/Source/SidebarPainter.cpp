@@ -7,10 +7,26 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace Robo {
 
 namespace {
+
+std::string LabelFirstLine(const std::string& label) {
+    std::string out;
+    out.reserve(std::min<std::size_t>(label.size(), 64u));
+    for (char ch : label) {
+        if (ch == '\n' || ch == '\r') {
+            break;
+        }
+        out.push_back(ch);
+        if (out.size() >= 64u) {
+            break;
+        }
+    }
+    return out;
+}
 
 const float ROW_HEIGHT = 36.0f;
 const float SECTION_HEIGHT = 40.0f;
@@ -215,7 +231,7 @@ void PaintRow(FrameBuffer& buffer,
     const float baseline = y + (height - fontSize) * 0.5f + (fontSize - (ascent + descent)) * 0.5f + ascent;
     const float textX = iconX + icon + LABEL_GAP * scale;
     buffer.PushClipRect(textX, y, std::max(1.0f, x + width - textX - 8.0f * scale), height);
-    fonts.DrawString(buffer, textX, baseline, item.GetLabel(), fontSize, FontFaceId::Medium, ink, labelOpacity * opacity, -0.01f * fontSize, true);
+    fonts.DrawString(buffer, textX, baseline, LabelFirstLine(item.GetLabel()), fontSize, FontFaceId::Medium, ink, labelOpacity * opacity, -0.01f * fontSize, true);
     buffer.PopClip();
 }
 
@@ -253,7 +269,7 @@ void PaintSection(FrameBuffer& buffer,
         const float fontSize = SECTION_SIZE * scale;
         const float ascent = fonts.GetAscent(fontSize, FontFaceId::Medium);
         const Color title = ResolveColor(Color::FromHex("#6E6E73"), "color.text.secondary");
-        fonts.DrawString(buffer, x + 16.0f * scale, y + 24.0f * scale + ascent * 0.15f, item.GetLabel(), fontSize, FontFaceId::Medium, title, opacity, 0.02f * fontSize, true);
+        fonts.DrawString(buffer, x + 16.0f * scale, y + 24.0f * scale + ascent * 0.15f, LabelFirstLine(item.GetLabel()), fontSize, FontFaceId::Medium, title, opacity, 0.02f * fontSize, true);
     }
     buffer.PopClip();
 }
@@ -271,13 +287,28 @@ SidebarMeasureResult SidebarPainter::Measure(const Sidebar& sidebar, float avail
 SidebarItemMeasureResult SidebarPainter::MeasureItem(const FontEngine& fonts, const SidebarItem& item, float pixelScale) {
     const float scale = std::max(0.5f, pixelScale);
     SidebarItemMeasureResult result;
+    std::string label;
+    label.reserve(std::min<std::size_t>(item.GetLabel().size(), 64u));
+    for (char ch : item.GetLabel()) {
+        if (ch == '\n' || ch == '\r') {
+            break;
+        }
+        label.push_back(ch);
+        if (label.size() >= 64u) {
+            break;
+        }
+    }
     if (item.IsSection()) {
-        const float text = item.GetLabel().empty() ? 0.0f : fonts.MeasureWidth(item.GetLabel(), SECTION_SIZE * scale, FontFaceId::Medium, 0.02f * SECTION_SIZE * scale);
+        const float text = label.empty() ? 0.0f
+                                         : fonts.MeasureWidth(label, SECTION_SIZE * scale, FontFaceId::Medium,
+                                                              0.02f * SECTION_SIZE * scale);
         result.width = 16.0f * scale + text + 16.0f * scale;
         result.height = SECTION_HEIGHT * scale;
         return result;
     }
-    const float text = item.GetLabel().empty() ? 0.0f : fonts.MeasureWidth(item.GetLabel(), LABEL_SIZE * scale, FontFaceId::Medium, -0.01f * LABEL_SIZE * scale);
+    const float text = label.empty() ? 0.0f
+                                     : fonts.MeasureWidth(label, LABEL_SIZE * scale, FontFaceId::Medium,
+                                                          -0.01f * LABEL_SIZE * scale);
     result.width = 14.0f * scale + ICON_SIZE * scale + (text > 0.0f ? LABEL_GAP * scale + text + 12.0f * scale : 14.0f * scale);
     result.height = ROW_HEIGHT * scale;
     return result;
@@ -411,7 +442,9 @@ void SidebarPainter::Paint(FrameBuffer& buffer,
         const float fontSize = 13.0f * scale;
         const float ascent = fonts.GetAscent(fontSize, FontFaceId::SemiBold);
         const Color title = ResolveColor(Color::FromHex("#6E6E73"), "color.text.secondary");
-        fonts.DrawString(buffer, panelX + 16.0f * scale, originY + 22.0f * scale + ascent * 0.2f, current.GetLabel(), fontSize, FontFaceId::SemiBold, title, 1.0f, 0.04f * fontSize, true);
+        fonts.DrawString(buffer, panelX + 16.0f * scale, originY + 22.0f * scale + ascent * 0.2f,
+                         LabelFirstLine(current.GetLabel()), fontSize, FontFaceId::SemiBold, title, 1.0f,
+                         0.04f * fontSize, true);
     }
     const float header = 44.0f * scale;
     float content = 0.0f;
@@ -421,16 +454,22 @@ void SidebarPainter::Paint(FrameBuffer& buffer,
     const float viewHeight = std::max(0.0f, height - header);
     sidebar.SetPanel(originX, originY, width, height, originY + header, viewHeight, content);
     float rowY = originY + header - sidebar.Scroll();
-    buffer.PushClipRect(panelX, originY + header, std::max(1.0f, panelW), viewHeight);
+    const float clipTop = originY + header;
+    const float clipBottom = clipTop + viewHeight;
+    buffer.PushClipRect(panelX, clipTop, std::max(1.0f, panelW), viewHeight);
     bool firstRow = true;
     for (SidebarItem& child : current.Children()) {
-        if (child.IsSection()) {
-            PaintSection(buffer, fonts, child, panelX, rowY, panelW, SECTION_HEIGHT * scale, scale, 1.0f, !firstRow);
-            rowY += SECTION_HEIGHT * scale;
+        const float rowH = child.IsSection() ? SECTION_HEIGHT * scale : row;
+        if (rowY + rowH >= clipTop && rowY <= clipBottom) {
+            if (child.IsSection()) {
+                PaintSection(buffer, fonts, child, panelX, rowY, panelW, rowH, scale, 1.0f, !firstRow);
+            } else {
+                PaintRow(buffer, fonts, child, panelX, rowY, panelW, rowH, scale, child.IsSelected(), 1.0f);
+            }
         } else {
-            PaintRow(buffer, fonts, child, panelX, rowY, panelW, row, scale, child.IsSelected(), 1.0f);
-            rowY += row;
+            child.SetBounds(SidebarItemBounds{});
         }
+        rowY += rowH;
         firstRow = false;
     }
     buffer.PopClip();

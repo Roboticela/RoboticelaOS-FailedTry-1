@@ -117,6 +117,8 @@ public:
     void SetPanel(float paneX, float paneY, float paneWidth, float paneHeight, float viewY, float viewHeight, float contentHeight);
     void SetRail(float railWidth, float contentHeight, float viewportHeight, float step);
     void SetRailArrows(const SidebarItemBounds& up, const SidebarItemBounds& down);
+    const SidebarItemBounds& RailUpBounds() const;
+    const SidebarItemBounds& RailDownBounds() const;
     SidebarRailArrow HitRailArrow(float x, float y) const;
     bool SetHotRailArrow(SidebarRailArrow arrow);
     bool SetPressedRailArrow(SidebarRailArrow arrow);

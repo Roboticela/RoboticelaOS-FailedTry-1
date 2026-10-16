@@ -67,6 +67,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 $devKitText = [IO.File]::ReadAllText($devKitGenerated)
 $devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
+$devKitText = $devKitText.Replace("BuildPage(scene)", "BuildDevKitPage(scene)")
+$devKitText = $devKitText.Replace("int BuildPageStep(", "int BuildDevKitPageStep(")
 [IO.File]::WriteAllText($devKitGenerated, $devKitText)
 
 $sources = @(Get-ChildItem (Join-Path $compiler "Compiler\Source") -Filter *.cpp | ForEach-Object { $_.FullName })

@@ -3,14 +3,14 @@
 #include <stdint.h>
 
 void BuildDevKitPage(Robo::RoboScene& scene);
-int BuildPageStep(Robo::RoboScene& scene, int step);
+int BuildDevKitPageStep(Robo::RoboScene& scene, int step);
 
 extern "C" void RoboDevKitBuild(Robo::RoboScene& scene) {
     BuildDevKitPage(scene);
 }
 
 extern "C" int RoboDevKitBuildStep(Robo::RoboScene& scene, int step) {
-    return BuildPageStep(scene, step);
+    return BuildDevKitPageStep(scene, step);
 }
 
 struct RoboDevKitExports {

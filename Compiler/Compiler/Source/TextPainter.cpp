@@ -163,6 +163,11 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
                                        float containerWidth,
                                        float pixelScale) {
     const float scale = std::max(0.5f, pixelScale);
+    if (text.HasMeasureCache(containerWidth, scale)) {
+        TextMeasureResult cached;
+        text.ReadMeasureCache(cached.width, cached.height, cached.advanceY);
+        return cached;
+    }
     TextStyle style = text.GetStyle();
     Resolve(style);
     const float logicalWidth = containerWidth / scale;
@@ -285,6 +290,7 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
     result.width = maxLineWidth;
     result.height = std::max(baseLineHeight, static_cast<float>(nonEmptyLines) * baseLineHeight);
     result.advanceY = result.height + 12.0f * scale;
+    text.WriteMeasureCache(containerWidth, scale, result.width, result.height, result.advanceY);
     return result;
 }
 

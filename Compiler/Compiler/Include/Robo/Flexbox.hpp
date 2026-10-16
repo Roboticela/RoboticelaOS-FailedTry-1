@@ -190,10 +190,23 @@ public:
     float ResolveGapX(float pixelScale) const;
     float ResolveGapY(float pixelScale) const;
 
+    bool HasMeasureCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight) const;
+    void ReadMeasureCache(float& width, float& height) const;
+    void WriteMeasureCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight,
+                           float width, float height) const;
+    void InvalidateMeasureCache() const;
+
 private:
     FlexboxStyle style_;
     std::vector<FlexboxItem> items_;
     FlexboxBounds bounds_;
+    mutable bool measureCacheValid_ = false;
+    mutable float measureCacheContainer_ = -1.0f;
+    mutable float measureCacheScale_ = -1.0f;
+    mutable float measureCacheForcedW_ = -1.0f;
+    mutable float measureCacheForcedH_ = -1.0f;
+    mutable float measureCacheWidth_ = 0.0f;
+    mutable float measureCacheHeight_ = 0.0f;
 };
 
 FlexDirection ParseFlexDirection(const std::string& value);

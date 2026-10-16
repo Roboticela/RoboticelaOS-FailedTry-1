@@ -42,9 +42,22 @@ public:
     void AddPlain(const std::string& content);
     const std::vector<TextRun>& GetRuns() const;
 
+    // Layout cache: Measure is hot on every Present; reuse when width/scale/content match.
+    bool HasMeasureCache(float containerWidth, float pixelScale) const;
+    void ReadMeasureCache(float& width, float& height, float& advanceY) const;
+    void WriteMeasureCache(float containerWidth, float pixelScale, float width, float height,
+                           float advanceY) const;
+    void InvalidateMeasureCache() const;
+
 private:
     TextStyle style_;
     std::vector<TextRun> runs_;
+    mutable bool measureCacheValid_ = false;
+    mutable float measureCacheContainer_ = -1.0f;
+    mutable float measureCacheScale_ = -1.0f;
+    mutable float measureCacheWidth_ = 0.0f;
+    mutable float measureCacheHeight_ = 0.0f;
+    mutable float measureCacheAdvanceY_ = 0.0f;
 };
 
 }  // namespace Robo

@@ -330,13 +330,24 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
                 if (deltaMs > 100u) {
                     deltaMs = 100u;
                 }
-                if (RoboShellTick(deltaMs)) {
-                    shellInput = true;
+                if (RoboShellNeedsTick()) {
+                    if (RoboShellTick(deltaMs)) {
+                        shellInput = true;
+                    }
                 }
             }
             RoboArchSti();
             if (RoboShellFlush(&desktop)) {
-                RoboFrameCompose(&desktop);
+                int32_t presentX = 0;
+                int32_t presentY = 0;
+                int32_t presentW = 0;
+                int32_t presentH = 0;
+                RoboShellLastPresentRect(&presentX, &presentY, &presentW, &presentH);
+                if (presentW > 0 && presentH > 0) {
+                    RoboFrameComposeDamage(&desktop, presentX, presentY, presentW, presentH);
+                } else {
+                    RoboFrameCompose(&desktop);
+                }
                 shellInput = true;
             }
         }

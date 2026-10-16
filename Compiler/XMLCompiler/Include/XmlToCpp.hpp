@@ -34,7 +34,8 @@ private:
     void EmitContextMenu(std::ostringstream& code, const XmlNode& node, int indent) const;
     void EmitContextMenuItem(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable, int& index) const;
     void EmitSidebar(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable) const;
-    void EmitSidebarItem(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable) const;
+    void EmitSidebarItem(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable,
+                         int nestDepth = 0) const;
     void EmitSeparator(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable) const;
     void EmitThemeToggle(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable) const;
     void EmitThemeIconToggle(std::ostringstream& code, const XmlNode& node, int indent, const std::string& variable) const;

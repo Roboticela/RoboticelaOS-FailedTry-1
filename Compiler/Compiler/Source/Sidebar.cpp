@@ -296,6 +296,14 @@ void Sidebar::SetRailArrows(const SidebarItemBounds& up, const SidebarItemBounds
     }
 }
 
+const SidebarItemBounds& Sidebar::RailUpBounds() const {
+    return railUp_;
+}
+
+const SidebarItemBounds& Sidebar::RailDownBounds() const {
+    return railDown_;
+}
+
 SidebarRailArrow Sidebar::HitRailArrow(float x, float y) const {
     if (railUp_.width > 1.0f && railUp_.Contains(x, y)) {
         return SidebarRailArrow::Up;
