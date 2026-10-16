@@ -125,6 +125,9 @@ public:
     const SelectionLabelStyle& GetLabelStyle() const;
 
     SelectionGesture GetGesture() const;
+    int Hover() const;
+    bool SetHoverAt(float x, float y);
+    bool ClearHover();
     bool HasMarquee() const;
     SelectionBounds MarqueeRect() const;
     int SelectedCount() const;
@@ -178,6 +181,7 @@ private:
     float moveAnchorX_ = 0.0f;
     float moveAnchorY_ = 0.0f;
     int pressedItem_ = -1;
+    int hover_ = -1;
     int focus_ = -1;
     int rangeAnchor_ = -1;
     bool fromTouch_ = false;

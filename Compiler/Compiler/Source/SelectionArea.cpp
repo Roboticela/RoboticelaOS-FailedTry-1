@@ -193,6 +193,33 @@ bool SelectionArea::HasMarquee() const {
     return gesture_ == SelectionGesture::Marquee;
 }
 
+int SelectionArea::Hover() const {
+    return hover_;
+}
+
+bool SelectionArea::SetHoverAt(float x, float y) {
+    if (gesture_ != SelectionGesture::Idle) {
+        return ClearHover();
+    }
+    int hit = -1;
+    if (bounds_.Contains(x, y)) {
+        Hit(x, y, hit);
+    }
+    if (hit == hover_) {
+        return false;
+    }
+    hover_ = hit;
+    return true;
+}
+
+bool SelectionArea::ClearHover() {
+    if (hover_ < 0) {
+        return false;
+    }
+    hover_ = -1;
+    return true;
+}
+
 SelectionBounds SelectionArea::MarqueeRect() const {
     return NormalizedRect();
 }

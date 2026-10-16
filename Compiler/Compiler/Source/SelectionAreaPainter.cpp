@@ -220,6 +220,7 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
     const Color folderMark = dark ? Color::FromHex("#F5F5F7") : Color::FromHex("#1D1D1F");
     const float scale = pixelScale > 0.0f ? pixelScale : 1.0f;
 
+    int itemIndex = 0;
     for (SelectionAreaItem& item : area.Items()) {
         const float itemX = x + item.GetX() * scale;
         const float itemY = y + item.GetY() * scale;
@@ -241,9 +242,12 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
         const bool selected = item.IsSelected();
         const bool focused = item.IsFocused() && area.HasKeyboardFocus();
 
-        if (selected) {
-            buffer.FillRoundedRect(iconX - 6.0f * scale, iconY - 4.0f * scale, iconSize + 12.0f * scale,
-                                   iconSize + 8.0f * scale, 8.0f * scale, accent, 0.28f);
+        const bool iconPlate = selected || area.Hover() == itemIndex;
+        if (iconPlate) {
+            const float padX = 8.0f * scale;
+            const float padY = 6.0f * scale;
+            buffer.FillRoundedRect(iconX - padX, iconY - padY, iconSize + padX * 2.0f, iconSize + padY * 2.0f, 12.0f * scale,
+                                   Color::FromHex("#FFFFFF"), 0.28f);
         }
         const bool paintedFolder = folderIcon != nullptr && !folderIcon->GetShapes().empty();
         if (paintedFolder) {
@@ -308,6 +312,7 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
             DrawOutline(buffer, chipX + 1.0f * scale, labelY, chipWidth - 2.0f * scale, std::max(1.0f, labelHeight - 2.0f * scale),
                         Color::FromHex("#FFFFFF"));
         }
+        itemIndex += 1;
     }
 
     if (area.HasMarquee()) {

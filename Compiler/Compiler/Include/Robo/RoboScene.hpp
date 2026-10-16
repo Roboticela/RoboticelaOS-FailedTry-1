@@ -219,6 +219,7 @@ private:
     void DirtyContextMenu();
     void RunContextAction(const std::string& action);
     void DirtySelection(SelectionArea& area);
+    bool UpdateSelectionHover(float x, float y);
     SelectionArea* GesturingSelection();
     SelectionArea* SelectionAt(float x, float y);
     void DirtyButton(const Button* button);

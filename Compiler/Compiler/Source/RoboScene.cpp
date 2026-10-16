@@ -1874,6 +1874,24 @@ void RoboScene::AddDockItem(DockItem item) {
     desktop_.AddDockItem(std::move(item));
 }
 
+bool RoboScene::UpdateSelectionHover(float x, float y) {
+    bool changed = false;
+    for (SceneItem& item : items_) {
+        if (item.kind != SceneItemKind::SelectionArea) {
+            continue;
+        }
+        if (item.selectionArea.GetGesture() != SelectionGesture::Idle) {
+            changed = item.selectionArea.ClearHover() || changed;
+            continue;
+        }
+        changed = item.selectionArea.SetHoverAt(x, y) || changed;
+    }
+    if (changed) {
+        MarkFullDirty();
+    }
+    return changed;
+}
+
 void RoboScene::DirtySelection(SelectionArea& area) {
     const SelectionBounds& bounds = area.GetBounds();
     if (bounds.width > 0.0f && bounds.height > 0.0f) {
@@ -4437,11 +4455,15 @@ bool RoboScene::PointerMove(float x, float y) {
         }
     }
     if (SelectionArea* area = GesturingSelection()) {
+        if (area->ClearHover()) {
+            MarkFullDirty();
+        }
         if (area->PointerMove(x, y)) {
             DirtySelection(*area);
             return true;
         }
     }
+    const bool folderHover = desktop_.IsEnabled() && UpdateSelectionHover(x, y);
     selectX_ = x;
     selectY_ = y;
     if (desktop_.IsEnabled()) {
@@ -4465,7 +4487,7 @@ bool RoboScene::PointerMove(float x, float y) {
                     barChanged = true;
                 }
                 barChanged = SetHoveredButton(nullptr) || barChanged;
-                return barChanged;
+                return barChanged || folderHover;
             }
         }
         const int hover = desktop_.HitDock(x, y);
@@ -4525,7 +4547,7 @@ bool RoboScene::PointerMove(float x, float y) {
             MarkFullDirty();
             return true;
         }
-        return false;
+        return folderHover;
     }
 
     if (pressedButton_) {
@@ -4536,7 +4558,7 @@ bool RoboScene::PointerMove(float x, float y) {
             DirtyButton(pressedButton_);
             return true;
         }
-        return false;
+        return folderHover;
     }
 
     const bool railChanged = UpdateRailArrows(x, y);
@@ -4584,7 +4606,7 @@ bool RoboScene::PointerMove(float x, float y) {
             changed = true;
         }
     }
-    return changed;
+    return changed || folderHover;
 }
 
 bool RoboScene::LongPressSelect(float x, float y) {
