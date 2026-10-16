@@ -4,6 +4,11 @@ SECTIONS
 {
     . = 0x10000000;
 
+    .devkit_exports : ALIGN(16)
+    {
+        KEEP(*(.devkit_exports))
+    }
+
     .text : ALIGN(16)
     {
         *(.text .text.*)

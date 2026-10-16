@@ -414,7 +414,9 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
     if (node.name == "Robo") {
         std::ostringstream parts;
         std::ostringstream calls;
+        std::ostringstream stepCases;
         int part = 0;
+        int step = 1;  // step 0 is foundation/setup inside BuildPageStep
         for (const XmlNode& child : node.children) {
             if (child.name == "Foundation" || child.name == "FoundationUse" || child.name == "Keyframes" || child.isText) {
                 continue;
@@ -427,6 +429,7 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
                     body << Indent(indent + 1) << "sidebar.SetVariant(Robo::ParseSidebarVariant(\""
                          << EscapeCpp(child.attributes.at("variant")) << "\"));\n";
                 }
+                std::vector<std::string> itemFns;
                 for (const XmlNode& item : child.children) {
                     if (!IsPaneItem(item.name)) {
                         continue;
@@ -436,19 +439,41 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
                     EmitSidebarItem(parts, item, 1, "item");
                     parts << "    return item;\n}\n\n";
                     body << Indent(indent + 1) << "sidebar.AddItem(" << function << "());\n";
+                    itemFns.push_back(function);
                 }
                 body << Indent(indent + 1) << "scene.AddSidebar(std::move(sidebar));\n";
                 parts << "static void BuildPagePart" << part << "(Robo::RoboScene& scene) {\n";
                 parts << body.str();
                 parts << "}\n\n";
+                // One OS frame per sidebar item so DevKit cannot freeze the painter BSP.
+                stepCases << Indent(indent + 2) << "case " << step++ << ": {\n";
+                stepCases << Indent(indent + 3) << "gStepSidebar = Robo::Sidebar();\n";
+                if (child.attributes.count("variant") != 0) {
+                    stepCases << Indent(indent + 3) << "gStepSidebar.SetVariant(Robo::ParseSidebarVariant(\""
+                              << EscapeCpp(child.attributes.at("variant")) << "\"));\n";
+                }
+                stepCases << Indent(indent + 3) << "return " << step << ";\n";
+                stepCases << Indent(indent + 2) << "}\n";
+                for (const std::string& function : itemFns) {
+                    stepCases << Indent(indent + 2) << "case " << step++ << ":\n";
+                    stepCases << Indent(indent + 3) << "gStepSidebar.AddItem(" << function << "());\n";
+                    stepCases << Indent(indent + 3) << "return " << step << ";\n";
+                }
+                stepCases << Indent(indent + 2) << "case " << step++ << ":\n";
+                stepCases << Indent(indent + 3) << "scene.AddSidebar(std::move(gStepSidebar));\n";
+                stepCases << Indent(indent + 3) << "return " << step << ";\n";
             } else {
                 parts << "static void BuildPagePart" << part << "(Robo::RoboScene& scene) {\n";
                 parts << ConvertNode(child, indent + 1);
                 parts << "}\n\n";
+                stepCases << Indent(indent + 2) << "case " << step++ << ":\n";
+                stepCases << Indent(indent + 3) << "BuildPagePart" << part << "(scene);\n";
+                stepCases << Indent(indent + 3) << "return " << step << ";\n";
             }
             calls << Indent(indent + 1) << "BuildPagePart" << part << "(scene);\n";
             ++part;
         }
+        const int doneStep = step;
         code << parts.str();
         code << Indent(indent) << "// Generated from Robo XML\n";
         code << Indent(indent) << "void BuildPage(Robo::RoboScene& scene) {\n";
@@ -472,7 +497,41 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             }
         }
         code << calls.str();
+        code << Indent(indent) << "}\n\n";
+        code << Indent(indent) << "static Robo::Sidebar gStepSidebar;\n\n";
+        code << Indent(indent) << "// Returns the next step, or -1 when the page is fully built.\n";
+        code << Indent(indent) << "int BuildPageStep(Robo::RoboScene& scene, int step) {\n";
+        code << Indent(indent + 1) << "switch (step) {\n";
+        code << Indent(indent + 2) << "case 0: {\n";
+        if (node.attributes.count("padding") != 0) {
+            code << Indent(indent + 3) << "scene.SetPagePadding(" << FloatLiteral(node.attributes.at("padding"))
+                 << ");\n";
+        }
+        for (const XmlNode& child : node.children) {
+            if (child.name == "Foundation") {
+                code << ConvertNode(child, indent + 3);
+            }
+        }
+        for (const XmlNode& child : node.children) {
+            if (child.name == "FoundationUse") {
+                code << ConvertNode(child, indent + 3);
+            }
+        }
+        for (const XmlNode& child : node.children) {
+            if (child.name == "Keyframes") {
+                code << ConvertNode(child, indent + 3);
+            }
+        }
+        code << Indent(indent + 3) << "return 1;\n";
+        code << Indent(indent + 2) << "}\n";
+        code << stepCases.str();
+        code << Indent(indent + 2) << "default:\n";
+        code << Indent(indent + 3) << "(void)scene;\n";
+        code << Indent(indent + 3) << "return -1;\n";
+        code << Indent(indent + 1) << "}\n";
         code << Indent(indent) << "}\n";
+        code << Indent(indent) << "// Done sentinel used by hosts: first return of -1 after step " << doneStep
+             << ".\n";
         return code.str();
     }
 

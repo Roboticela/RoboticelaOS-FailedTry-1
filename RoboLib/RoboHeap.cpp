@@ -87,9 +87,9 @@ extern "C" void* malloc(size_t bytes) {
         }
         previous = block;
         block = block->next;
-        (void)previous;
     }
-    RoboHalt();
+    (void)previous;
+    // Never halt the machine on OOM — a heavy app (DevKit) must not freeze the desktop.
     return nullptr;
 }
 

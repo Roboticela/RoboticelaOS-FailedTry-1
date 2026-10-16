@@ -237,6 +237,7 @@ private:
     void DevKitFrame(float& x, float& y, float& width, float& height) const;
     bool PointerOnDevKit(float x, float y) const;
     void EnsureDevKit();
+    void AdvanceDevKitBuild();
     void OpenDevKit();
     void PaintDevKit();
     bool ForwardDevKitPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks);
@@ -305,6 +306,7 @@ private:
     float devKitW_ = 1080.0f;
     float devKitH_ = 700.0f;
     RoboScene* devKitScene_ = nullptr;
+    int devKitBuildStep_ = -1;  // -1 idle, >=0 building, -2 ready
     std::vector<std::uint8_t> chromeBase_;
     std::vector<std::uint8_t> chromePixels_;
     std::vector<std::uint8_t> chromeMask_;

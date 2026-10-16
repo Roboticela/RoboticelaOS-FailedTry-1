@@ -29,6 +29,7 @@
 
 #ifdef ROBO_KERNEL
 void RoboDevKitOpenPage(Robo::RoboScene& scene);
+int RoboDevKitOpenPageStep(Robo::RoboScene& scene, int step);
 #else
 void BuildDevKitPage(Robo::RoboScene& scene);
 #endif
@@ -2419,10 +2420,32 @@ void RoboScene::EnsureDevKit() {
         return;
     }
     devKitScene_ = new RoboScene();
+    if (devKitScene_ == nullptr) {
+        return;
+    }
 #ifdef ROBO_KERNEL
-    RoboDevKitOpenPage(*devKitScene_);
+    // Build across frames so sidebar/icons cannot freeze the desktop BSP.
+    devKitBuildStep_ = 0;
 #else
     BuildDevKitPage(*devKitScene_);
+    devKitBuildStep_ = -2;
+#endif
+}
+
+void RoboScene::AdvanceDevKitBuild() {
+#ifdef ROBO_KERNEL
+    if (devKitScene_ == nullptr || devKitBuildStep_ < 0) {
+        return;
+    }
+    const int next = RoboDevKitOpenPageStep(*devKitScene_, devKitBuildStep_);
+    if (next < 0) {
+        devKitBuildStep_ = -2;
+    } else {
+        devKitBuildStep_ = next;
+    }
+    MarkFullDirty();
+#else
+    (void)0;
 #endif
 }
 
@@ -2444,6 +2467,10 @@ void RoboScene::OpenDevKit() {
     } else {
         devKitW_ = DEV_KIT_WIDTH;
         devKitH_ = DEV_KIT_HEIGHT;
+    }
+    // Kick a few build steps immediately so the window is not empty on first paint.
+    for (int kick = 0; kick < 3 && devKitBuildStep_ >= 0; ++kick) {
+        AdvanceDevKitBuild();
     }
     MarkFullDirty();
 }
@@ -2513,6 +2540,7 @@ void RoboScene::PaintDevKit() {
         return;
     }
     EnsureDevKit();
+    AdvanceDevKitBuild();
     if (devKitScene_ == nullptr) {
         return;
     }
@@ -5342,6 +5370,9 @@ bool RoboScene::Tick(double deltaMs) {
         if (contextGuardMs_ < 0.0f) {
             contextGuardMs_ = 0.0f;
         }
+    }
+    if (devKitOpen_ && devKitBuildStep_ >= 0) {
+        AdvanceDevKitBuild();
     }
     bool changed = false;
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {

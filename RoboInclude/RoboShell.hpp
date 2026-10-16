@@ -10,6 +10,13 @@ bool RoboShellStart(RoboDesktop* desktop);
 extern "C"
 #endif
 void RoboDevKitBind(const RoboBootInfo* info);
+#ifdef __cplusplus
+namespace Robo {
+class RoboScene;
+}
+void RoboDevKitOpenPage(Robo::RoboScene& scene);
+int RoboDevKitOpenPageStep(Robo::RoboScene& scene, int step);
+#endif
 void RoboShellPointerMove(int32_t x, int32_t y);
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch);
 void RoboShellPointerContext(int32_t x, int32_t y);

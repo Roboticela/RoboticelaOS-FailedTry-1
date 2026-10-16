@@ -220,8 +220,22 @@ static void RoboLoadDevKit(EfiBootServices* boot, EfiFileProtocol* root, uint16_
     RoboBootFileName(slot->name, name);
     slot->size = (uint32_t)fileSize;
     slot->reserved = 0;
-    slot->address = entry;
+    /* Host reads RoboDevKitExports at the DevKit load base, not the ELF entry. */
+    slot->address = ROBO_DEVKIT_LOAD_ADDRESS;
+    (void)entry;
     info->fileCount += 1u;
+}
+
+static int RoboRangesOverlap(uint64_t a, uint64_t aBytes, uint64_t b, uint64_t bBytes) {
+    if (aBytes == 0 || bBytes == 0) {
+        return 0;
+    }
+    uint64_t aEnd = a + aBytes;
+    uint64_t bEnd = b + bBytes;
+    if (aEnd < a || bEnd < b) {
+        return 1;
+    }
+    return a < bEnd && b < aEnd;
 }
 
 static int RoboAddressInMappedRam(uint64_t address, uint64_t bytes) {
@@ -229,6 +243,12 @@ static int RoboAddressInMappedRam(uint64_t address, uint64_t bytes) {
         return 0;
     }
     if (address + bytes < address || address + bytes > ROBO_RAM_MAP_MAX_BYTES) {
+        return 0;
+    }
+    if (RoboRangesOverlap(address, bytes, ROBO_KERNEL_LOAD_ADDRESS, ROBO_KERNEL_BYTES)) {
+        return 0;
+    }
+    if (RoboRangesOverlap(address, bytes, ROBO_DEVKIT_LOAD_ADDRESS, ROBO_DEVKIT_BYTES)) {
         return 0;
     }
     return 1;
@@ -328,6 +348,9 @@ static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t i
     if (header->phOff + (uint64_t)header->phNum * header->phEntSize > imageSize || header->phEntSize < sizeof(Elf64Phdr)) {
         return 0;
     }
+    /* One contiguous page span covers overlapping PT_LOAD tails (DevKit .text/.rodata share a page). */
+    uint64_t mapStart = ~0ull;
+    uint64_t mapEnd = 0;
     uint16_t index = 0;
     for (index = 0; index < header->phNum; index += 1) {
         Elf64Phdr* program = (Elf64Phdr*)(image + header->phOff + (uint64_t)index * header->phEntSize);
@@ -338,10 +361,28 @@ static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t i
             return 0;
         }
         uint64_t address = program->vAddr & ~0xFFFull;
-        uint64_t end = program->vAddr + program->memSize;
-        uint64_t pages = (end - address + 0xFFFu) >> 12;
+        uint64_t end = (program->vAddr + program->memSize + 0xFFFull) & ~0xFFFull;
+        if (address < mapStart) {
+            mapStart = address;
+        }
+        if (end > mapEnd) {
+            mapEnd = end;
+        }
+    }
+    if (mapEnd <= mapStart) {
+        return 0;
+    }
+    {
+        uint64_t address = mapStart;
+        uint64_t pages = (mapEnd - mapStart) >> 12;
         if (boot->allocatePages(ROBO_EFI_ALLOCATE_ADDRESS, ROBO_EFI_LOADER_DATA, pages, &address) != ROBO_EFI_SUCCESS) {
             return 0;
+        }
+    }
+    for (index = 0; index < header->phNum; index += 1) {
+        Elf64Phdr* program = (Elf64Phdr*)(image + header->phOff + (uint64_t)index * header->phEntSize);
+        if (program->type != ROBO_ELF_PT_LOAD || program->memSize == 0) {
+            continue;
         }
         uint8_t* dest = (uint8_t*)(uintptr_t)program->vAddr;
         uint64_t byte = 0;
@@ -499,6 +540,8 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     static uint16_t logoPath[] = u"\\ROBOLOGO.SVG";
     static uint16_t emptyPath[] = u"\\EMPTYFOL.SVG";
     static uint16_t devKitPath[] = u"\\DevKit.elf";
+    /* Claim DevKit's fixed VMA before other held files can land on it. */
+    RoboLoadDevKit(boot, root, devKitPath, "DEVKIT.ELF", &info);
     RoboLoadBootFile(boot, root, regularPath, "INTERR.TTF", &info);
     RoboLoadBootFile(boot, root, mediumPath, "INTERM.TTF", &info);
     RoboLoadBootFile(boot, root, semiPath, "INTERS.TTF", &info);
@@ -509,7 +552,6 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     RoboLoadBootFile(boot, root, reelPath, "BACKGROU.RJP", &info);
     RoboLoadBootFile(boot, root, logoPath, "ROBOLOGO.SVG", &info);
     RoboLoadBootFile(boot, root, emptyPath, "EMPTYFOL.SVG", &info);
-    RoboLoadDevKit(boot, root, devKitPath, "DEVKIT.ELF", &info);
     root->close(root);
     {
         static uint16_t heldMsg[] = u"Held files: 0\r\n";
