@@ -21,18 +21,6 @@ struct ResolvedRun {
     float opacity = 1.0f;
 };
 
-struct GlyphSpan {
-    std::string text;
-    ResolvedRun style;
-    float width = 0.0f;
-    bool isSpace = false;
-};
-
-struct LayoutLine {
-    std::vector<GlyphSpan> spans;
-    float width = 0.0f;
-};
-
 ResolvedRun ResolveRun(const TextRun& run, const TextStyle& style, const FontEngine& fonts, float pixelScale) {
     ResolvedRun resolved;
     resolved.content = run.content;
@@ -64,7 +52,6 @@ std::string NormalizeXmlText(const std::string& input) {
             break;
         }
     }
-    // Whitespace-only run between styled spans must stay as a real space.
     if (!hasNonWhitespace) {
         return " ";
     }
@@ -87,7 +74,6 @@ std::string NormalizeXmlText(const std::string& input) {
         output.push_back(static_cast<char>(ch));
     }
 
-    // Keep boundary spaces so "word <Span>x</Span> word" does not become "wordxword".
     if (leadSpace) {
         output.insert(output.begin(), ' ');
     }
@@ -117,7 +103,21 @@ std::vector<std::string> SplitTokens(const std::string& text) {
     return tokens;
 }
 
-void PushSpan(LayoutLine& line, const GlyphSpan& span) {
+TextLayoutSpan MakeSpan(const std::string& token, const ResolvedRun& run, float width, bool isSpace) {
+    TextLayoutSpan span;
+    span.text = token;
+    span.width = width;
+    span.isSpace = isSpace;
+    span.fontSize = run.fontSize;
+    span.color = run.color;
+    span.faceId = run.faceId;
+    span.decoration = run.decoration;
+    span.letterSpacing = run.letterSpacing;
+    span.opacity = run.opacity;
+    return span;
+}
+
+void PushSpan(TextLayoutLine& line, const TextLayoutSpan& span) {
     if (span.text.empty()) {
         return;
     }
@@ -125,7 +125,7 @@ void PushSpan(LayoutLine& line, const GlyphSpan& span) {
     line.width += span.width;
 }
 
-void TrimLineEdges(LayoutLine& line) {
+void TrimLineEdges(TextLayoutLine& line) {
     while (!line.spans.empty() && line.spans.front().isSpace) {
         line.width -= line.spans.front().width;
         line.spans.erase(line.spans.begin());
@@ -158,24 +158,37 @@ float TextPainter::ResolveWidthValue(const std::string& value, float referenceWi
     return static_cast<float>(std::atof(value.c_str()));
 }
 
-TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
-                                       const Text& text,
-                                       float containerWidth,
-                                       float pixelScale) {
+float TextPainter::ResolveWidth(const TextStyle& style, float referenceWidth, float pixelScale) {
     const float scale = std::max(0.5f, pixelScale);
-    if (text.HasMeasureCache(containerWidth, scale)) {
-        TextMeasureResult cached;
-        text.ReadMeasureCache(cached.width, cached.height, cached.advanceY);
-        return cached;
+    const float logicalWidth = referenceWidth / scale;
+    float blockWidth;
+    if (style.hasWidthLength) {
+        blockWidth = style.widthLength.Resolve(logicalWidth, 1.0f) * scale;
+    } else {
+        blockWidth = ResolveWidthValue(style.width, logicalWidth) * scale;
     }
-    TextStyle style = text.GetStyle();
-    Resolve(style);
-    const float logicalWidth = containerWidth / scale;
-    float blockWidth = ResolveWidthValue(style.width, logicalWidth) * scale;
-    if (!style.maxWidth.empty()) {
+    if (style.hasMaxWidthLength && !style.maxWidthLength.IsAuto()) {
+        blockWidth = std::min(blockWidth, style.maxWidthLength.Resolve(logicalWidth, 1.0f) * scale);
+    } else if (!style.maxWidth.empty()) {
         blockWidth = std::min(blockWidth, ResolveWidthValue(style.maxWidth, logicalWidth) * scale);
     }
-    blockWidth = std::max(1.0f, blockWidth);
+    return std::max(1.0f, blockWidth);
+}
+
+const TextLayoutCache& TextPainter::EnsureLayout(const FontEngine& fonts,
+                                                const Text& text,
+                                                float containerWidth,
+                                                float pixelScale) {
+    const float scale = std::max(0.5f, pixelScale);
+    TextLayoutCache& cache = text.LayoutCache();
+    if (cache.valid && std::fabs(cache.containerWidth - containerWidth) < 0.5f &&
+        std::fabs(cache.pixelScale - scale) < 0.001f && !text.NeedsLayout()) {
+        return cache;
+    }
+
+    TextStyle style = text.GetStyle();
+    Resolve(style);
+    const float blockWidth = ResolveWidth(style, containerWidth, scale);
 
     std::vector<ResolvedRun> runs;
     for (const TextRun& run : text.GetRuns()) {
@@ -191,60 +204,66 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
         }
     }
 
-    TextMeasureResult result;
+    cache = TextLayoutCache{};
+    cache.blockWidth = blockWidth;
+    cache.align = style.align;
+    cache.styleOpacity = static_cast<float>(style.opacity);
+    cache.containerWidth = containerWidth;
+    cache.pixelScale = scale;
+
     if (runs.empty()) {
-        result.height = static_cast<float>(style.fontSize) * static_cast<float>(style.lineHeight) * scale;
-        result.width = 0.0f;
-        result.advanceY = result.height + 12.0f * scale;
-        return result;
+        cache.height = static_cast<float>(style.fontSize) * static_cast<float>(style.lineHeight) * scale;
+        cache.width = 0.0f;
+        cache.advanceY = cache.height + 12.0f * scale;
+        cache.baseLineHeight = cache.height;
+        cache.valid = true;
+        text.SetNeedsLayout(false);
+        text.WriteMeasureCache(containerWidth, scale, cache.width, cache.height, cache.advanceY);
+        return cache;
     }
 
-    std::vector<LayoutLine> lines;
-    LayoutLine currentLine;
+    TextLayoutLine currentLine;
 
     auto BreakLongToken = [&](const std::string& token, const ResolvedRun& runStyle) {
         std::string built;
         for (unsigned char byte : token) {
             std::string candidate = built;
             candidate.push_back(static_cast<char>(byte));
-            const float width = fonts.MeasureWidth(candidate, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
-            if (!built.empty() && style.wrap && currentLine.width + width > blockWidth && !currentLine.spans.empty()) {
-                GlyphSpan span;
-                span.text = built;
-                span.style = runStyle;
-                span.width = fonts.MeasureWidth(built, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
-                span.isSpace = false;
-                PushSpan(currentLine, span);
-                lines.push_back(currentLine);
-                currentLine = LayoutLine();
+            const float width =
+                fonts.MeasureWidth(candidate, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
+            if (!built.empty() && style.wrap && currentLine.width + width > blockWidth &&
+                !currentLine.spans.empty()) {
+                PushSpan(currentLine,
+                         MakeSpan(built, runStyle,
+                                  fonts.MeasureWidth(built, runStyle.fontSize, runStyle.faceId,
+                                                     runStyle.letterSpacing),
+                                  false));
+                cache.lines.push_back(std::move(currentLine));
+                currentLine = TextLayoutLine();
                 built.assign(1, static_cast<char>(byte));
             } else {
                 built = candidate;
             }
         }
         if (!built.empty()) {
-            GlyphSpan span;
-            span.text = built;
-            span.style = runStyle;
-            span.width = fonts.MeasureWidth(built, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
-            span.isSpace = false;
+            TextLayoutSpan span =
+                MakeSpan(built, runStyle,
+                         fonts.MeasureWidth(built, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing),
+                         false);
             if (style.wrap && !currentLine.spans.empty() && currentLine.width + span.width > blockWidth) {
-                lines.push_back(currentLine);
-                currentLine = LayoutLine();
+                cache.lines.push_back(std::move(currentLine));
+                currentLine = TextLayoutLine();
             }
             PushSpan(currentLine, span);
         }
     };
 
-    for (std::size_t runIndex = 0; runIndex < runs.size(); ++runIndex) {
-        const ResolvedRun& run = runs[runIndex];
+    for (const ResolvedRun& run : runs) {
         const std::vector<std::string> tokens = SplitTokens(run.content);
         for (const std::string& token : tokens) {
-            GlyphSpan span;
-            span.text = token;
-            span.style = run;
-            span.isSpace = (token == " ");
-            span.width = fonts.MeasureWidth(token, run.fontSize, run.faceId, run.letterSpacing);
+            const bool isSpace = (token == " ");
+            TextLayoutSpan span = MakeSpan(
+                token, run, fonts.MeasureWidth(token, run.fontSize, run.faceId, run.letterSpacing), isSpace);
 
             if (!style.wrap) {
                 PushSpan(currentLine, span);
@@ -252,8 +271,8 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
             }
 
             if (!span.isSpace && !currentLine.spans.empty() && currentLine.width + span.width > blockWidth) {
-                lines.push_back(currentLine);
-                currentLine = LayoutLine();
+                cache.lines.push_back(std::move(currentLine));
+                currentLine = TextLayoutLine();
             }
 
             if (!span.isSpace && span.width > blockWidth) {
@@ -263,7 +282,7 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
             }
         }
     }
-    lines.push_back(currentLine);
+    cache.lines.push_back(std::move(currentLine));
 
     float maxAscent = 0.0f;
     float maxDescent = 0.0f;
@@ -274,12 +293,13 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
     if (maxAscent <= 0.0f) {
         maxAscent = static_cast<float>(style.fontSize) * 0.8f;
     }
-    const float baseLineHeight = std::max(maxAscent + maxDescent, static_cast<float>(style.fontSize)) *
-                                 static_cast<float>(style.lineHeight);
+    const float baseLineHeight =
+        std::max(maxAscent + maxDescent, static_cast<float>(style.fontSize)) *
+        static_cast<float>(style.lineHeight);
 
     float maxLineWidth = 0.0f;
     std::size_t nonEmptyLines = 0;
-    for (auto& line : lines) {
+    for (TextLayoutLine& line : cache.lines) {
         TrimLineEdges(line);
         if (!line.spans.empty()) {
             ++nonEmptyLines;
@@ -287,132 +307,56 @@ TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
         }
     }
 
-    result.width = maxLineWidth;
-    result.height = std::max(baseLineHeight, static_cast<float>(nonEmptyLines) * baseLineHeight);
-    result.advanceY = result.height + 12.0f * scale;
-    text.WriteMeasureCache(containerWidth, scale, result.width, result.height, result.advanceY);
+    cache.maxAscent = maxAscent;
+    cache.baseLineHeight = baseLineHeight;
+    cache.width = maxLineWidth;
+    cache.height = std::max(baseLineHeight, static_cast<float>(nonEmptyLines) * baseLineHeight);
+    cache.advanceY = cache.height + 12.0f * scale;
+    cache.valid = true;
+    text.SetNeedsLayout(false);
+    text.WriteMeasureCache(containerWidth, scale, cache.width, cache.height, cache.advanceY);
+    return cache;
+}
+
+TextMeasureResult TextPainter::Measure(const FontEngine& fonts,
+                                       const Text& text,
+                                       float containerWidth,
+                                       float pixelScale) {
+    const TextLayoutCache& cache = EnsureLayout(fonts, text, containerWidth, pixelScale);
+    TextMeasureResult result;
+    result.width = cache.width;
+    result.height = cache.height;
+    result.advanceY = cache.advanceY;
     return result;
 }
 
 float TextPainter::Paint(FrameBuffer& buffer,
-                       const FontEngine& fonts,
-                       const Text& text,
-                       float originX,
-                       float originY,
-                       float containerWidth,
-                       float pixelScale) {
+                         const FontEngine& fonts,
+                         const Text& text,
+                         float originX,
+                         float originY,
+                         float containerWidth,
+                         float pixelScale) {
     const SelectableScope selection(&text, text.GetStyle().selectable);
     const float scale = std::max(0.5f, pixelScale);
-    TextStyle style = text.GetStyle();
-    Resolve(style);
-    const float logicalWidth = containerWidth / scale;
-    float blockWidth = ResolveWidthValue(style.width, logicalWidth) * scale;
-    if (!style.maxWidth.empty()) {
-        blockWidth = std::min(blockWidth, ResolveWidthValue(style.maxWidth, logicalWidth) * scale);
-    }
-    blockWidth = std::max(1.0f, blockWidth);
+    const TextLayoutCache& cache = EnsureLayout(fonts, text, containerWidth, scale);
 
-    std::vector<ResolvedRun> runs;
-    for (const TextRun& run : text.GetRuns()) {
-        if (run.content.empty()) {
-            continue;
-        }
-        TextRun runStyle = run;
-        Resolve(runStyle);
-        ResolvedRun resolved = ResolveRun(runStyle, style, fonts, scale);
-        resolved.content = NormalizeXmlText(run.content);
-        if (!resolved.content.empty()) {
-            runs.push_back(resolved);
-        }
+    if (cache.lines.empty()) {
+        return cache.advanceY;
     }
 
-    if (runs.empty()) {
-        return static_cast<float>(style.fontSize) * static_cast<float>(style.lineHeight) * scale + 12.0f * scale;
-    }
-
-    // Re-join adjacent runs with spaces only between word boundaries handled per-token.
-    std::vector<LayoutLine> lines;
-    LayoutLine currentLine;
-
-    auto BreakLongToken = [&](const std::string& token, const ResolvedRun& runStyle) {
-        std::string built;
-        for (unsigned char byte : token) {
-            std::string candidate = built;
-            candidate.push_back(static_cast<char>(byte));
-            const float width = fonts.MeasureWidth(candidate, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
-            if (!built.empty() && style.wrap && currentLine.width + width > blockWidth && !currentLine.spans.empty()) {
-                GlyphSpan span;
-                span.text = built;
-                span.style = runStyle;
-                span.width = fonts.MeasureWidth(built, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
-                span.isSpace = false;
-                PushSpan(currentLine, span);
-                lines.push_back(currentLine);
-                currentLine = LayoutLine();
-                built.assign(1, static_cast<char>(byte));
-            } else {
-                built = candidate;
-            }
-        }
-        if (!built.empty()) {
-            GlyphSpan span;
-            span.text = built;
-            span.style = runStyle;
-            span.width = fonts.MeasureWidth(built, runStyle.fontSize, runStyle.faceId, runStyle.letterSpacing);
-            span.isSpace = false;
-            if (style.wrap && !currentLine.spans.empty() && currentLine.width + span.width > blockWidth) {
-                lines.push_back(currentLine);
-                currentLine = LayoutLine();
-            }
-            PushSpan(currentLine, span);
-        }
-    };
-
-    for (std::size_t runIndex = 0; runIndex < runs.size(); ++runIndex) {
-        const ResolvedRun& run = runs[runIndex];
-        const std::vector<std::string> tokens = SplitTokens(run.content);
-        for (const std::string& token : tokens) {
-            GlyphSpan span;
-            span.text = token;
-            span.style = run;
-            span.isSpace = (token == " ");
-            span.width = fonts.MeasureWidth(token, run.fontSize, run.faceId, run.letterSpacing);
-
-            if (!style.wrap) {
-                PushSpan(currentLine, span);
-                continue;
-            }
-
-            if (!span.isSpace && !currentLine.spans.empty() && currentLine.width + span.width > blockWidth) {
-                lines.push_back(currentLine);
-                currentLine = LayoutLine();
-            }
-
-            if (!span.isSpace && span.width > blockWidth) {
-                BreakLongToken(token, run);
-            } else if (!(span.isSpace && currentLine.spans.empty())) {
-                PushSpan(currentLine, span);
-            }
-        }
-    }
-    lines.push_back(currentLine);
-
-    float maxAscent = 0.0f;
-    float maxDescent = 0.0f;
-    for (const ResolvedRun& run : runs) {
-        maxAscent = std::max(maxAscent, fonts.GetAscent(run.fontSize, run.faceId));
-        maxDescent = std::max(maxDescent, fonts.GetDescent(run.fontSize, run.faceId));
-    }
-    if (maxAscent <= 0.0f) {
-        maxAscent = static_cast<float>(style.fontSize) * 0.8f;
-    }
-    const float baseLineHeight = std::max(maxAscent + maxDescent, static_cast<float>(style.fontSize)) *
-                                 static_cast<float>(style.lineHeight);
+    const float blockWidth = cache.blockWidth;
+    const float maxAscent = cache.maxAscent;
+    const float baseLineHeight = cache.baseLineHeight;
+    const float opacity = cache.styleOpacity;
     float cursorY = originY;
 
-    for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
-        LayoutLine& line = lines[lineIndex];
-        TrimLineEdges(line);
+    // Retained capacity across paints — no mid-frame malloc growth after warm-up.
+    // Single painter thread (AGENTS); avoid thread_local for freestanding kernels.
+    static std::vector<TextGlyphDraw> paintDraws;
+
+    for (std::size_t lineIndex = 0; lineIndex < cache.lines.size(); ++lineIndex) {
+        const TextLayoutLine& line = cache.lines[lineIndex];
         if (line.spans.empty()) {
             continue;
         }
@@ -420,19 +364,18 @@ float TextPainter::Paint(FrameBuffer& buffer,
         float startX = originX;
         float extraGap = 0.0f;
         int gapCount = 0;
-        const bool isLastLine = lineIndex + 1 >= lines.size();
+        const bool isLastLine = lineIndex + 1 >= cache.lines.size();
 
-        if (style.align == TextAlign::Center) {
+        if (cache.align == TextAlign::Center) {
             startX = originX + std::max(0.0f, (blockWidth - line.width) * 0.5f);
-        } else if (style.align == TextAlign::Right) {
+        } else if (cache.align == TextAlign::Right) {
             startX = originX + std::max(0.0f, blockWidth - line.width);
-        } else if (style.align == TextAlign::Justify && !isLastLine) {
-            for (const GlyphSpan& span : line.spans) {
+        } else if (cache.align == TextAlign::Justify && !isLastLine) {
+            for (const TextLayoutSpan& span : line.spans) {
                 if (span.isSpace) {
                     ++gapCount;
                 }
             }
-            // Only justify lines that nearly fill the block; avoids huge gaps on short lines.
             if (gapCount > 0 && line.width >= blockWidth * 0.75f && blockWidth > line.width) {
                 extraGap = (blockWidth - line.width) / static_cast<float>(gapCount);
             }
@@ -450,47 +393,48 @@ float TextPainter::Paint(FrameBuffer& buffer,
 
         float penX = startX;
         const float baseline = cursorY + maxAscent;
-        const float opacity = static_cast<float>(style.opacity);
-        std::vector<TextGlyphDraw> draws;
-        draws.reserve(64);
+        paintDraws.clear();
+        if (paintDraws.capacity() < line.spans.size() * 8) {
+            paintDraws.reserve(line.spans.size() * 8);
+        }
 
-        for (const GlyphSpan& span : line.spans) {
-            fonts.RecordString(draws,
+        for (const TextLayoutSpan& span : line.spans) {
+            fonts.RecordString(paintDraws,
                                penX,
                                baseline,
                                span.text,
-                               span.style.fontSize,
-                               span.style.faceId,
-                               span.style.color,
-                               span.style.opacity * opacity,
-                               span.style.letterSpacing);
+                               span.fontSize,
+                               span.faceId,
+                               span.color,
+                               span.opacity * opacity,
+                               span.letterSpacing);
             penX += span.width;
             if (span.isSpace) {
                 penX += extraGap;
             }
         }
 
-        FontEngine::PaintSelectionBands(buffer, draws);
-        fonts.PaintGlyphDraws(buffer, draws);
+        FontEngine::PaintSelectionBands(buffer, paintDraws);
+        fonts.PaintGlyphDraws(buffer, paintDraws);
 
         penX = startX;
-        for (const GlyphSpan& span : line.spans) {
-            if (span.style.decoration == TextDecoration::Underline) {
-                const int y = static_cast<int>(std::round(baseline + std::max(1.0f, span.style.fontSize * 0.12f)));
+        for (const TextLayoutSpan& span : line.spans) {
+            if (span.decoration == TextDecoration::Underline) {
+                const int y = static_cast<int>(std::round(baseline + std::max(1.0f, span.fontSize * 0.12f)));
                 buffer.FillRect(static_cast<int>(std::floor(penX)),
                                 y,
                                 std::max(1, static_cast<int>(std::ceil(span.width))),
-                                std::max(1, static_cast<int>(span.style.fontSize * 0.07f)),
-                                span.style.color,
-                                span.style.opacity * opacity);
-            } else if (span.style.decoration == TextDecoration::LineThrough) {
+                                std::max(1, static_cast<int>(span.fontSize * 0.07f)),
+                                span.color,
+                                span.opacity * opacity);
+            } else if (span.decoration == TextDecoration::LineThrough) {
                 const int y = static_cast<int>(std::round(baseline - maxAscent * 0.35f));
                 buffer.FillRect(static_cast<int>(std::floor(penX)),
                                 y,
                                 std::max(1, static_cast<int>(std::ceil(span.width))),
-                                std::max(1, static_cast<int>(span.style.fontSize * 0.07f)),
-                                span.style.color,
-                                span.style.opacity * opacity);
+                                std::max(1, static_cast<int>(span.fontSize * 0.07f)),
+                                span.color,
+                                span.opacity * opacity);
             }
             penX += span.width;
             if (span.isSpace) {
@@ -501,7 +445,7 @@ float TextPainter::Paint(FrameBuffer& buffer,
         cursorY += baseLineHeight;
     }
 
-    return std::max(baseLineHeight, cursorY - originY) + 12.0f * scale;
+    return cache.advanceY;
 }
 
 }  // namespace Robo

@@ -124,13 +124,13 @@ void RoboArchFpuStart(void) {
     uint64_t cr0 = 0;
     uint64_t cr4 = 0;
     __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
-    cr0 &= ~uint64_t{0xC};
-    cr0 |= 0x22;
+    cr0 &= ~uint64_t{0xC};  // clear EM|TS
+    cr0 |= 0x22;            // MP|NE
     __asm__ volatile("mov %0, %%cr0" : : "r"(cr0) : "memory");
     __asm__ volatile("fninit");
     __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
-    cr4 |= 0x600;
-    cr4 &= ~(1ull << 18);
+    cr4 |= 0x600;  // OSFXSR|OSXMMEXCPT for SSE2 shell (-msse2)
+    // Leave firmware OSXSAVE alone; do not xsetbv (that #GP under qemu64/WHPX).
     __asm__ volatile("mov %0, %%cr4" : : "r"(cr4) : "memory");
 }
 

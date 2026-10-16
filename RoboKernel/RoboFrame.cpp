@@ -442,7 +442,18 @@ void RoboFrameComposeDamage(RoboDesktop* desktop, int32_t x, int32_t y, int32_t 
         if (frameRight <= x || frame->x >= damageRight || frameBottom <= y || frame->y >= damageBottom) {
             continue;
         }
-        RoboFrameBlit(gOrder[index], 0, 0, frame->width, frame->height);
+        // Blit only the intersection of shell damage and this window (local coords).
+        int32_t interLeft = x > frame->x ? x : frame->x;
+        int32_t interTop = y > frame->y ? y : frame->y;
+        int32_t interRight = damageRight < frameRight ? damageRight : frameRight;
+        int32_t interBottom = damageBottom < frameBottom ? damageBottom : frameBottom;
+        int32_t localX = interLeft - frame->x;
+        int32_t localY = interTop - frame->y;
+        int32_t localW = interRight - interLeft;
+        int32_t localH = interBottom - interTop;
+        if (localW > 0 && localH > 0) {
+            RoboFrameBlit(gOrder[index], localX, localY, localW, localH);
+        }
     }
     RoboDesktopShowCursor(desktop);
 }

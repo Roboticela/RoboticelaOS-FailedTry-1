@@ -60,6 +60,7 @@ enum class HitKind {
     Theme
 };
 
+// Slim SceneItem: heavy layout nodes are heap-backed so inactive slots stay small.
 struct SceneItem {
     SceneItemKind kind = SceneItemKind::Text;
     Text text;
@@ -67,9 +68,9 @@ struct SceneItem {
     Input input;
     Scrollbar scrollbar;
     std::shared_ptr<Container> container;
-    Flexbox flexbox;
-    Grid grid;
-    Position position;
+    std::shared_ptr<Flexbox> flexbox;
+    std::shared_ptr<Grid> grid;
+    std::shared_ptr<Position> position;
     Svg svg;
     BrandLogo brandLogo;
     Robo::TitleBar titleBar;
@@ -172,6 +173,7 @@ public:
     void EnsurePaneContent();
     void EnsureSelectedRailChildren(Sidebar* owner);
     void SetActivePaneId(const std::string& paneId);
+    void EvictInactivePanes(const std::string& keepPaneId);
 
     bool KeyInsert(const std::string& utf8);
     bool KeyBackspace();
@@ -244,9 +246,11 @@ private:
     bool PaneIsActive(const Container& container) const;
     bool CanPaintPartial(float paintScale, int width, int height) const;
     bool PresentVideoFrame(IPlatform& platform);
+    bool PresentWallpaperAroundDevKit(IPlatform& platform);
     bool ChromeFits(std::size_t bytes, std::size_t maskBytes) const;
     void CaptureChrome();
     void ApplyChrome(FrameBuffer& frame);
+    void ApplyChromeRect(FrameBuffer& frame, int x, int y, int width, int height);
     void EnsureMenuMark();
     void EnsureFolderIcon();
     float SceneScale() const;
@@ -314,6 +318,7 @@ private:
     bool fullDirty_ = true;
     bool frameReady_ = false;
     bool videoOnly_ = false;
+    bool wallpaperAroundDevKit_ = false;
     bool chromeReady_ = false;
     bool menuMarkTried_ = false;
     bool folderIconTried_ = false;

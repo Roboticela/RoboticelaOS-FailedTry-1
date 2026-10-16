@@ -4,6 +4,7 @@
 #include "Selectable.hpp"
 #include "TextAlign.hpp"
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>
@@ -100,5 +101,9 @@ private:
 
 // Reads an SVG document into filled shapes. A gradient fill uses the average of its stops.
 bool LoadSvgDocument(const std::uint8_t* bytes, std::size_t size, Svg& graphic);
+
+// Packed command blob: kind,x,y,c1x,c1y,c2x,c2y per command (kind as float).
+// Close uses kind=3. Avoids per-command push_back floods in generated bake helpers.
+void AppendSvgCommandsFromBlob(SvgShape& shape, const float* data, std::size_t count);
 
 }  // namespace Robo

@@ -404,12 +404,12 @@ void VisitSceneScrollbars(std::vector<SceneItem>& items, const std::string& pane
                 continue;
             }
             VisitScrollbars(*item.container, visit);
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            VisitScrollbars(item.flexbox, visit);
-        } else if (item.kind == SceneItemKind::Grid) {
-            VisitScrollbars(item.grid, visit);
-        } else if (item.kind == SceneItemKind::Position) {
-            VisitScrollbars(item.position, visit);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            VisitScrollbars(*item.flexbox, visit);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            VisitScrollbars(*item.grid, visit);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            VisitScrollbars(*item.position, visit);
         } else if (item.kind == SceneItemKind::Sidebar) {
             visit(item.sidebar.PanelScrollbar());
         }
@@ -1433,12 +1433,12 @@ void VisitSceneThemes(std::vector<SceneItem>& items, const std::string& paneId, 
                 continue;
             }
             VisitThemeContainer(*item.container, visit);
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            VisitThemeFlex(item.flexbox, visit);
-        } else if (item.kind == SceneItemKind::Grid) {
-            VisitThemeGrid(item.grid, visit);
-        } else if (item.kind == SceneItemKind::Position) {
-            VisitThemePosition(item.position, visit);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            VisitThemeFlex(*item.flexbox, visit);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            VisitThemeGrid(*item.grid, visit);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            VisitThemePosition(*item.position, visit);
         }
     }
 }
@@ -1453,12 +1453,12 @@ void VisitSceneMotion(std::vector<SceneItem>& items, const std::string& paneId,
                 continue;
             }
             VisitMotionContainer(*item.container, visit);
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            VisitMotionFlex(item.flexbox, visit);
-        } else if (item.kind == SceneItemKind::Grid) {
-            VisitMotionGrid(item.grid, visit);
-        } else if (item.kind == SceneItemKind::Position) {
-            VisitMotionPosition(item.position, visit);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            VisitMotionFlex(*item.flexbox, visit);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            VisitMotionGrid(*item.grid, visit);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            VisitMotionPosition(*item.position, visit);
         }
     }
 }
@@ -1556,16 +1556,16 @@ MotionShape* FindThemeMotionScene(std::vector<SceneItem>& items, float x, float 
             if (MotionShape* found = FindThemeMotionContainer(*item.container, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            if (MotionShape* found = FindThemeMotionFlex(item.flexbox, x, y)) {
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            if (MotionShape* found = FindThemeMotionFlex(*item.flexbox, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            if (MotionShape* found = FindThemeMotionGrid(item.grid, x, y)) {
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            if (MotionShape* found = FindThemeMotionGrid(*item.grid, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            if (MotionShape* found = FindThemeMotionPosition(item.position, x, y)) {
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            if (MotionShape* found = FindThemeMotionPosition(*item.position, x, y)) {
                 return found;
             }
         } else if (item.kind == SceneItemKind::MotionShape && item.motionShape.TogglesTheme() &&
@@ -1584,12 +1584,12 @@ void CollectSceneContainers(std::vector<SceneItem>& items, const std::string& pa
                 continue;
             }
             CollectContainersIn(*item.container, x, y, out);
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            CollectContainersIn(item.flexbox, x, y, out);
-        } else if (item.kind == SceneItemKind::Grid) {
-            CollectContainersIn(item.grid, x, y, out);
-        } else if (item.kind == SceneItemKind::Position) {
-            CollectContainersIn(item.position, x, y, out);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            CollectContainersIn(*item.flexbox, x, y, out);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            CollectContainersIn(*item.grid, x, y, out);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            CollectContainersIn(*item.position, x, y, out);
         }
     }
 }
@@ -1926,21 +1926,21 @@ void RoboScene::SetModifiers(int modifiers) {
 void RoboScene::AddFlexbox(Flexbox flexbox) {
     SceneItem item;
     item.kind = SceneItemKind::Flexbox;
-    item.flexbox = std::move(flexbox);
+    item.flexbox = std::make_shared<Flexbox>(std::move(flexbox));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddGrid(Grid grid) {
     SceneItem item;
     item.kind = SceneItemKind::Grid;
-    item.grid = std::move(grid);
+    item.grid = std::make_shared<Grid>(std::move(grid));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddPosition(Position position) {
     SceneItem item;
     item.kind = SceneItemKind::Position;
-    item.position = std::move(position);
+    item.position = std::make_shared<Position>(std::move(position));
     items_.push_back(std::move(item));
 }
 
@@ -2205,7 +2205,9 @@ bool RoboScene::RerenderIfPossible() {
     if (!hasRenderContext_ || !platform_ || !fonts_) {
         return false;
     }
-    MarkFullDirty();
+    // Scroll / localized invalidation: surface damage keeps retained layout caches.
+    // Theme and foundation callers still use MarkFullDirty directly.
+    MarkSurfaceDirty();
     return true;
 }
 
@@ -2379,8 +2381,14 @@ bool RoboScene::CanPaintPartial(float paintScale, int width, int height) const {
     if (std::fabs(paintScale - paintedScale_) > 0.001f) {
         return false;
     }
+    // Scroll moves content; only full-surface damage is safe (MarkSurfaceDirty).
     if (std::fabs(scrollX_ - paintedScrollX_) > 0.5f || std::fabs(scrollY_ - paintedScrollY_) > 0.5f) {
-        return false;
+        const bool fullSurface =
+            dirtyLeft_ <= 0.5f && dirtyTop_ <= 0.5f && dirtyRight_ + 0.5f >= static_cast<float>(paintedWidth_) &&
+            dirtyBottom_ + 0.5f >= static_cast<float>(paintedHeight_);
+        if (!fullSurface) {
+            return false;
+        }
     }
     return dirtyRight_ > dirtyLeft_ && dirtyBottom_ > dirtyTop_;
 }
@@ -2614,6 +2622,23 @@ void RoboScene::EnsurePaneContent() {
     paneEnsureFn_(*this, id.c_str());
 }
 
+void RoboScene::EvictInactivePanes(const std::string& keepPaneId) {
+    // Soft-evict ShownWhen containers that are not the active pane so walk cost
+    // and retained layout memory stay bounded. Rebuild on next EnsurePane.
+    items_.erase(std::remove_if(items_.begin(), items_.end(),
+                                [&](const SceneItem& item) {
+                                    if (item.kind != SceneItemKind::Container || !item.container) {
+                                        return false;
+                                    }
+                                    const std::string& when = item.container->ShownWhen();
+                                    if (when.empty()) {
+                                        return false;
+                                    }
+                                    return when != keepPaneId;
+                                }),
+                 items_.end());
+}
+
 void RoboScene::SetActivePaneId(const std::string& paneId) {
     if (paneId.empty() || paneId == activePaneId_) {
         if (!paneId.empty()) {
@@ -2626,7 +2651,9 @@ void RoboScene::SetActivePaneId(const std::string& paneId) {
     scrollY_ = 0.0f;
     SetFocusedButton(nullptr);
     SetFocusedInput(nullptr);
+    EvictInactivePanes(activePaneId_);
     EnsurePaneContent();
+    MarkSurfaceDirty();
 }
 
 void RoboScene::EnsureSelectedRailChildren(Sidebar* owner) {
@@ -2956,23 +2983,124 @@ void RoboScene::CaptureChrome() {
 }
 
 void RoboScene::ApplyChrome(FrameBuffer& frame) {
+    ApplyChromeRect(frame, 0, 0, frame.GetWidth(), frame.GetHeight());
+}
+
+void RoboScene::ApplyChromeRect(FrameBuffer& frame, int x, int y, int width, int height) {
     std::uint8_t* pixels = frame.GetPixels();
+    const int frameW = frame.GetWidth();
+    const int frameH = frame.GetHeight();
     const std::size_t count = chromeMask_.size();
-    if (pixels == nullptr || chromePixels_.size() != count * 4u) {
+    if (pixels == nullptr || chromePixels_.size() != count * 4u || frameW <= 0 || frameH <= 0) {
         return;
     }
-    for (std::size_t index = 0; index < count; ++index) {
-        if (chromeMask_[index] == 0) {
-            continue;
+    if (static_cast<std::size_t>(frameW) * static_cast<std::size_t>(frameH) != count) {
+        return;
+    }
+    int left = std::max(0, x);
+    int top = std::max(0, y);
+    int right = std::min(frameW, x + width);
+    int bottom = std::min(frameH, y + height);
+    for (int row = top; row < bottom; ++row) {
+        for (int col = left; col < right; ++col) {
+            const std::size_t index = static_cast<std::size_t>(row) * static_cast<std::size_t>(frameW) +
+                                      static_cast<std::size_t>(col);
+            if (chromeMask_[index] == 0) {
+                continue;
+            }
+            pixels[index * 4u] = chromePixels_[index * 4u];
+            pixels[index * 4u + 1u] = chromePixels_[index * 4u + 1u];
+            pixels[index * 4u + 2u] = chromePixels_[index * 4u + 2u];
+            pixels[index * 4u + 3u] = chromePixels_[index * 4u + 3u];
         }
-        pixels[index * 4u] = chromePixels_[index * 4u];
-        pixels[index * 4u + 1u] = chromePixels_[index * 4u + 1u];
-        pixels[index * 4u + 2u] = chromePixels_[index * 4u + 2u];
-        pixels[index * 4u + 3u] = chromePixels_[index * 4u + 3u];
     }
 }
 
+bool RoboScene::PresentWallpaperAroundDevKit(IPlatform& platform) {
+    if (!chromeReady_ || platform_ == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
+        return false;
+    }
+    if (frame_.GetWidth() != paintedWidth_ || frame_.GetHeight() != paintedHeight_) {
+        return false;
+    }
+    float kitX = 0.0f;
+    float kitY = 0.0f;
+    float kitW = 0.0f;
+    float kitH = 0.0f;
+    DevKitFrame(kitX, kitY, kitW, kitH);
+    const int surfaceW = paintedWidth_;
+    const int surfaceH = paintedHeight_;
+    const int left = std::max(0, static_cast<int>(std::floor(kitX)));
+    const int top = std::max(0, static_cast<int>(std::floor(kitY)));
+    const int right = std::min(surfaceW, static_cast<int>(std::ceil(kitX + kitW)));
+    const int bottom = std::min(surfaceH, static_cast<int>(std::ceil(kitY + kitH)));
+    if (kitW <= 1.0f || kitH <= 1.0f || right <= left || bottom <= top) {
+        return PresentVideoFrame(platform);
+    }
+
+    auto paintBand = [&](int x, int y, int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), surfaceW, surfaceH, x, y, width, height);
+        ApplyChromeRect(frame_, x, y, width, height);
+    };
+    paintBand(0, 0, surfaceW, top);
+    paintBand(0, bottom, surfaceW, surfaceH - bottom);
+    paintBand(0, top, left, bottom - top);
+    paintBand(right, top, surfaceW - right, bottom - top);
+
+    EnsureMenuMark();
+    EnsureFolderIcon();
+    // Live-paint chrome only inside bands so DevKit interior pixels stay retained.
+    if (fonts_ != nullptr && desktop_.IsEnabled()) {
+        const float barScale = paintedScale_ > 0.0f ? paintedScale_ : std::max(0.5f, platform.GetPixelScale());
+        if (desktop_.HasTopBarMenu()) {
+            desktop_.GetTopBarMenu().ApplyTheme(theme_ == Theme::Dark);
+        }
+        const DesktopChrome chrome =
+            DesktopPainter::Layout(static_cast<float>(surfaceW), static_cast<float>(surfaceH), barScale,
+                                   desktop_.HasTopBarMenu(), desktop_.HasAppShell(), !desktop_.Dock().empty());
+        auto paintChromeBand = [&](int x, int y, int width, int height) {
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+            frame_.PushClipRect(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width),
+                                static_cast<float>(height));
+            DesktopPainter::Paint(frame_, *fonts_, desktop_, chrome, barScale, hoveredDock_);
+            frame_.PopClip();
+        };
+        paintChromeBand(0, 0, surfaceW, top);
+        paintChromeBand(0, bottom, surfaceW, surfaceH - bottom);
+        paintChromeBand(0, top, left, bottom - top);
+        paintChromeBand(right, top, surfaceW - right, bottom - top);
+    }
+
+    // Bands do not cover the DevKit interior — skip wipe-restore unless nested content needs paint.
+    const bool nestedNeeds = devKitPaintDirty_ || !devKitSurfaceValid_ ||
+                             (devKitScene_ != nullptr && (devKitScene_->NeedsRender() || devKitScene_->fullDirty_));
+    if (nestedNeeds) {
+        CompositeDevKit();
+    }
+
+    // AABB of the L-shaped bands is the full surface for an inset window; Present still
+    // uploads that rect, but paint/chrome/DevKit wipe work above is what we avoided.
+    frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
+    platform.Present(frame_);
+    needsRender_ = false;
+    fullDirty_ = false;
+    damageOpen_ = false;
+    frameReady_ = true;
+    return true;
+}
+
 void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding) {
+    if (wallpaperAroundDevKit_ && !fullDirty_ && !damageOpen_ && PresentWallpaperAroundDevKit(platform)) {
+        wallpaperAroundDevKit_ = false;
+        videoOnly_ = false;
+        return;
+    }
+    wallpaperAroundDevKit_ = false;
     if (videoOnly_ && !fullDirty_ && !damageOpen_ && PresentVideoFrame(platform)) {
         videoOnly_ = false;
         return;
@@ -3162,9 +3290,9 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 cursorY += painted.advanceY;
                 const InputBounds& bounds = item.container->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
-            } else if (item.kind == SceneItemKind::Flexbox) {
+            } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
                 if (partial) {
-                    const FlexboxBounds& prior = item.flexbox.GetBounds();
+                    const FlexboxBounds& prior = item.flexbox->GetBounds();
                     if (prior.width > 1.0f && prior.height > 1.0f &&
                         frame.MissesClip(static_cast<int>(prior.x), static_cast<int>(prior.y),
                                          static_cast<int>(prior.width), static_cast<int>(prior.height))) {
@@ -3174,15 +3302,15 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                     }
                 }
                 const FlexboxPaintResult painted =
-                    FlexboxPainter::Paint(frame, fonts, item.flexbox, columnX, cursorY, columnW, paintScale);
+                    FlexboxPainter::Paint(frame, fonts, *item.flexbox, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
-                const FlexboxBounds& bounds = item.flexbox.GetBounds();
+                const FlexboxBounds& bounds = item.flexbox->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
-            } else if (item.kind == SceneItemKind::Grid) {
+            } else if (item.kind == SceneItemKind::Grid && item.grid) {
                 const GridPaintResult painted =
-                    GridPainter::Paint(frame, fonts, item.grid, columnX, cursorY, columnW, paintScale);
+                    GridPainter::Paint(frame, fonts, *item.grid, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
-                const GridBounds& bounds = item.grid.GetBounds();
+                const GridBounds& bounds = item.grid->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
             } else if (item.kind == SceneItemKind::Svg) {
                 const SvgPaintResult painted =
@@ -3276,11 +3404,11 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                     cursorY += areaH;
                     contentRight = std::max(contentRight, areaX + areaW + scrollX_);
                 }
-            } else if (item.kind == SceneItemKind::Position) {
+            } else if (item.kind == SceneItemKind::Position && item.position) {
                 const PositionPaintResult painted =
-                    PositionPainter::Paint(frame, fonts, item.position, columnX, cursorY, columnW, paintScale);
+                    PositionPainter::Paint(frame, fonts, *item.position, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
-                const InputBounds& bounds = item.position.GetBounds();
+                const InputBounds& bounds = item.position->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
             }
             if (!edgeSet) {
@@ -3459,7 +3587,8 @@ bool RoboScene::ZoomTo(float zoom, float anchorX, float anchorY) {
     maxScrollX_ *= ratio;
     maxScrollY_ *= ratio;
     appZoom_ = next;
-    RerenderIfPossible();
+    // Zoom changes paint scale; retained layout keys must remesaure.
+    MarkFullDirty();
     return true;
 }
 
@@ -3788,16 +3917,16 @@ ThemeToggle* RoboScene::FindThemeToggleAt(float x, float y) {
             if (ThemeToggle* found = FindThemeToggleInContainer(*item.container, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            if (ThemeToggle* found = FindThemeToggleInFlexbox(item.flexbox, x, y)) {
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            if (ThemeToggle* found = FindThemeToggleInFlexbox(*item.flexbox, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            if (ThemeToggle* found = FindThemeToggleInGrid(item.grid, x, y)) {
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            if (ThemeToggle* found = FindThemeToggleInGrid(*item.grid, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            if (ThemeToggle* found = FindThemeToggleInPosition(item.position, x, y)) {
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            if (ThemeToggle* found = FindThemeToggleInPosition(*item.position, x, y)) {
                 return found;
             }
         }
@@ -3818,16 +3947,16 @@ ThemeIconToggle* RoboScene::FindThemeIconToggleAt(float x, float y) {
             if (ThemeIconToggle* found = FindThemeIconInContainer(*item.container, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            if (ThemeIconToggle* found = FindThemeIconInFlexbox(item.flexbox, x, y)) {
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            if (ThemeIconToggle* found = FindThemeIconInFlexbox(*item.flexbox, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            if (ThemeIconToggle* found = FindThemeIconInGrid(item.grid, x, y)) {
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            if (ThemeIconToggle* found = FindThemeIconInGrid(*item.grid, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            if (ThemeIconToggle* found = FindThemeIconInPosition(item.position, x, y)) {
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            if (ThemeIconToggle* found = FindThemeIconInPosition(*item.position, x, y)) {
                 return found;
             }
         }
@@ -3871,21 +4000,21 @@ bool SyncThemeHot(RoboScene& scene, std::vector<SceneItem>& items, const std::st
                 DirtyThemeControl(scene, bounds.x, bounds.y, bounds.width, bounds.height);
                 changed = true;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            if (SyncHotInFlexbox(item.flexbox, x, y)) {
-                const FlexboxBounds& bounds = item.flexbox.GetBounds();
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            if (SyncHotInFlexbox(*item.flexbox, x, y)) {
+                const FlexboxBounds& bounds = item.flexbox->GetBounds();
                 DirtyThemeControl(scene, bounds.x, bounds.y, bounds.width, bounds.height);
                 changed = true;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            if (SyncHotInGrid(item.grid, x, y)) {
-                const GridBounds& bounds = item.grid.GetBounds();
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            if (SyncHotInGrid(*item.grid, x, y)) {
+                const GridBounds& bounds = item.grid->GetBounds();
                 DirtyThemeControl(scene, bounds.x, bounds.y, bounds.width, bounds.height);
                 changed = true;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            if (SyncHotInPosition(item.position, x, y)) {
-                const InputBounds& bounds = item.position.GetBounds();
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            if (SyncHotInPosition(*item.position, x, y)) {
+                const InputBounds& bounds = item.position->GetBounds();
                 DirtyThemeControl(scene, bounds.x, bounds.y, bounds.width, bounds.height);
                 changed = true;
             }
@@ -3913,18 +4042,18 @@ Button* RoboScene::FindButtonAt(float x, float y) {
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            Button* found = FindButtonInFlexbox(item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            Button* found = FindButtonInFlexbox(*item.flexbox, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            Button* found = FindButtonInGrid(item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            Button* found = FindButtonInGrid(*item.grid, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            Button* found = FindButtonInPosition(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            Button* found = FindButtonInPosition(*item.position, x, y);
             if (found) {
                 return found;
             }
@@ -3948,18 +4077,18 @@ Input* RoboScene::FindInputAt(float x, float y) {
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            Input* found = FindInputInFlexbox(item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            Input* found = FindInputInFlexbox(*item.flexbox, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            Input* found = FindInputInGrid(item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            Input* found = FindInputInGrid(*item.grid, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            Input* found = FindInputInPosition(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            Input* found = FindInputInPosition(*item.position, x, y);
             if (found) {
                 return found;
             }
@@ -4011,18 +4140,18 @@ Scrollbar* RoboScene::FindScrollbarAt(float x, float y) {
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            Scrollbar* found = FindScrollbarInFlexbox(item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            Scrollbar* found = FindScrollbarInFlexbox(*item.flexbox, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            Scrollbar* found = FindScrollbarInGrid(item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            Scrollbar* found = FindScrollbarInGrid(*item.grid, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            Scrollbar* found = FindScrollbarInPosition(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            Scrollbar* found = FindScrollbarInPosition(*item.position, x, y);
             if (found) {
                 return found;
             }
@@ -4050,18 +4179,18 @@ const Button* RoboScene::FindButtonAt(float x, float y) const {
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            const Button* found = FindButtonInFlexboxConst(item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            const Button* found = FindButtonInFlexboxConst(*item.flexbox, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            const Button* found = FindButtonInGridConst(item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            const Button* found = FindButtonInGridConst(*item.grid, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            const Button* found = FindButtonInPositionConst(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            const Button* found = FindButtonInPositionConst(*item.position, x, y);
             if (found) {
                 return found;
             }
@@ -4085,18 +4214,18 @@ const Input* RoboScene::FindInputAt(float x, float y) const {
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            const Input* found = FindInputInFlexboxConst(item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            const Input* found = FindInputInFlexboxConst(*item.flexbox, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            const Input* found = FindInputInGridConst(item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            const Input* found = FindInputInGridConst(*item.grid, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            const Input* found = FindInputInPositionConst(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            const Input* found = FindInputInPositionConst(*item.position, x, y);
             if (found) {
                 return found;
             }
@@ -4128,18 +4257,18 @@ const Scrollbar* RoboScene::FindScrollbarAt(float x, float y) const {
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            const Scrollbar* found = FindScrollbarInFlexboxConst(item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            const Scrollbar* found = FindScrollbarInFlexboxConst(*item.flexbox, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            const Scrollbar* found = FindScrollbarInGridConst(item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            const Scrollbar* found = FindScrollbarInGridConst(*item.grid, x, y);
             if (found) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            const Scrollbar* found = FindScrollbarInPositionConst(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            const Scrollbar* found = FindScrollbarInPositionConst(*item.position, x, y);
             if (found) {
                 return found;
             }
@@ -4189,12 +4318,12 @@ Container* RoboScene::FindContainerAt(float x, float y) {
                 continue;
             }
             found = FindContainerInContainer(*item.container, x, y);
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            found = FindContainerInFlexbox(item.flexbox, x, y);
-        } else if (item.kind == SceneItemKind::Grid) {
-            found = FindContainerInGrid(item.grid, x, y);
-        } else if (item.kind == SceneItemKind::Position) {
-            found = FindContainerInPosition(item.position, x, y);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            found = FindContainerInFlexbox(*item.flexbox, x, y);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            found = FindContainerInGrid(*item.grid, x, y);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            found = FindContainerInPosition(*item.position, x, y);
         }
         if (found) {
             return found;
@@ -4549,16 +4678,16 @@ SidebarItem* RoboScene::FindSidebarItemAt(float x, float y) {
             if (SidebarItem* found = FindPaneInContainer(*item.container, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            if (SidebarItem* found = FindPaneInFlexbox(item.flexbox, x, y)) {
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            if (SidebarItem* found = FindPaneInFlexbox(*item.flexbox, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Grid) {
-            if (SidebarItem* found = FindPaneInGrid(item.grid, x, y)) {
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            if (SidebarItem* found = FindPaneInGrid(*item.grid, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::Position) {
-            if (SidebarItem* found = FindPaneInPosition(item.position, x, y)) {
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            if (SidebarItem* found = FindPaneInPosition(*item.position, x, y)) {
                 return found;
             }
         }
@@ -4804,7 +4933,9 @@ void RoboScene::RememberPane(const SidebarItem* item) {
     scrollY_ = 0.0f;
     SetFocusedButton(nullptr);
     SetFocusedInput(nullptr);
+    EvictInactivePanes(activePaneId_);
     EnsurePaneContent();
+    MarkSurfaceDirty();
 }
 
 void RoboScene::CollectButtons(std::vector<Button*>& out) {
@@ -4818,12 +4949,12 @@ void RoboScene::CollectButtons(std::vector<Button*>& out) {
                 continue;
             }
             CollectButtonsInContainer(*item.container, out);
-        } else if (item.kind == SceneItemKind::Flexbox) {
-            CollectButtonsInFlexbox(item.flexbox, out);
-        } else if (item.kind == SceneItemKind::Grid) {
-            CollectButtonsInGrid(item.grid, out);
-        } else if (item.kind == SceneItemKind::Position) {
-            CollectButtonsInPosition(item.position, out);
+        } else if (item.kind == SceneItemKind::Flexbox && item.flexbox) {
+            CollectButtonsInFlexbox(*item.flexbox, out);
+        } else if (item.kind == SceneItemKind::Grid && item.grid) {
+            CollectButtonsInGrid(*item.grid, out);
+        } else if (item.kind == SceneItemKind::Position && item.position) {
+            CollectButtonsInPosition(*item.position, out);
         }
     }
 }
@@ -4993,9 +5124,9 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
                     }
                 }
                 AppendPaneSlotsContainer(*scene.container, slots);
-            } else if (scene.kind == SceneItemKind::Flexbox) {
+            } else if (scene.kind == SceneItemKind::Flexbox && scene.flexbox) {
                 std::vector<Button*> buttons;
-                CollectButtonsInFlexbox(scene.flexbox, buttons);
+                CollectButtonsInFlexbox(*scene.flexbox, buttons);
                 for (Button* button : buttons) {
                     if (button->CanActivate()) {
                         FocusSlot slot;
@@ -5003,10 +5134,10 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
                         slots.push_back(slot);
                     }
                 }
-                AppendPaneSlotsFlex(scene.flexbox, slots);
-            } else if (scene.kind == SceneItemKind::Grid) {
+                AppendPaneSlotsFlex(*scene.flexbox, slots);
+            } else if (scene.kind == SceneItemKind::Grid && scene.grid) {
                 std::vector<Button*> buttons;
-                CollectButtonsInGrid(scene.grid, buttons);
+                CollectButtonsInGrid(*scene.grid, buttons);
                 for (Button* button : buttons) {
                     if (button->CanActivate()) {
                         FocusSlot slot;
@@ -5014,10 +5145,10 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
                         slots.push_back(slot);
                     }
                 }
-                AppendPaneSlotsGrid(scene.grid, slots);
-            } else if (scene.kind == SceneItemKind::Position) {
+                AppendPaneSlotsGrid(*scene.grid, slots);
+            } else if (scene.kind == SceneItemKind::Position && scene.position) {
                 std::vector<Button*> buttons;
-                CollectButtonsInPosition(scene.position, buttons);
+                CollectButtonsInPosition(*scene.position, buttons);
                 for (Button* button : buttons) {
                     if (button->CanActivate()) {
                         FocusSlot slot;
@@ -5025,7 +5156,7 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
                         slots.push_back(slot);
                     }
                 }
-                AppendPaneSlotsPosition(scene.position, slots);
+                AppendPaneSlotsPosition(*scene.position, slots);
             }
         }
         if (slots.empty()) {
@@ -5737,9 +5868,11 @@ bool RoboScene::Tick(double deltaMs) {
         }
     }
     // Cap decode and Present together (~15 FPS) so idle does not burn JPEG decode for dropped frames.
+    // While DevKit is focused, freeze wallpaper under the opaque window so idle can hlt.
     constexpr double ROBO_WALLPAPER_PRESENT_MS = 66.0;
     bool videoAdvanced = false;
-    if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated()) {
+    const bool freezeWallpaper = devKitOpen_ && devKitFocus_;
+    if (!freezeWallpaper && desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated()) {
         if (wallpaperClockMs_ >= wallpaperPresentDueMs_) {
             if (desktop_.GetBackgroundSource().Advance(deltaMs + ROBO_WALLPAPER_PRESENT_MS)) {
                 videoAdvanced = true;
@@ -5898,17 +6031,25 @@ bool RoboScene::Tick(double deltaMs) {
     const bool contextOpen = desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible();
     const bool liveOverlay = contextOpen || sidebarAnimating_ || themeMixing_ || GesturingSelection() != nullptr ||
                              TextSelection::ShowsHandles() || TextSelection::IsDragging();
-    // Wallpaper-only Present restores DevKit via CompositeDevKit (devKitParentWiped_).
-    // Do not MarkDirty bands around DevKit — that AABB escalates to fullDirty_.
+    // With DevKit open: banded wallpaper Present (no wipe of window interior).
+    // Without DevKit: full PresentVideoFrame path.
     if (videoAdvanced && !contentMoved && !motionChanged && !liveOverlay && chromeReady_ && !fullDirty_ &&
         !damageOpen_) {
-        videoOnly_ = true;
+        if (devKitOpen_) {
+            wallpaperAroundDevKit_ = true;
+            videoOnly_ = false;
+        } else {
+            videoOnly_ = true;
+            wallpaperAroundDevKit_ = false;
+        }
         needsRender_ = true;
     } else if (videoAdvanced && !fullDirty_) {
         videoOnly_ = false;
+        wallpaperAroundDevKit_ = false;
         MarkSurfaceDirty();
     } else if (videoAdvanced) {
         videoOnly_ = false;
+        wallpaperAroundDevKit_ = false;
     }
     return changed;
 }
@@ -5917,8 +6058,9 @@ bool RoboScene::NeedsTick() {
     if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->NeedsTick()) {
         return true;
     }
-    // Static pictures do not need Tick; only animated wallpaper keeps the clock warm.
-    if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated()) {
+    // Animated wallpaper keeps Tick warm only when not frozen under focused DevKit.
+    if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() &&
+        !(devKitOpen_ && devKitFocus_)) {
         return true;
     }
     bool needsTick = false;

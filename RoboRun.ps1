@@ -85,7 +85,7 @@ Write-Host "Starting QEMU with the Windows hypervisor (smp $smp)"
 $arguments = @(
     "-accel", "whpx",
     "-accel", "tcg",
-    "-cpu", "qemu64,svm=off",
+    "-cpu", "max,svm=off",
     "-machine", "pc",
     "-m", "2048",
     "-smp", "$smp",

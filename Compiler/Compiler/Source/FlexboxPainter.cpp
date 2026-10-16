@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 namespace Robo {
@@ -187,31 +188,6 @@ bool KeepsIntrinsicCrossSize(const FlexboxItem& item) {
     return false;
 }
 
-struct MeasuredFlexChild {
-    std::size_t itemIndex = 0;
-    float baseWidth = 0.0f;
-    float baseHeight = 0.0f;
-    float baseMain = 0.0f;
-    float baseCross = 0.0f;
-    float allocatedMain = 0.0f;
-    float allocatedCross = 0.0f;
-    float finalX = 0.0f;
-    float finalY = 0.0f;
-    float finalWidth = 0.0f;
-    float finalHeight = 0.0f;
-};
-
-struct FlexLine {
-    std::vector<MeasuredFlexChild> children;
-    float lineCrossSize = 0.0f;
-};
-
-struct ComputedFlexLayout {
-    float containerWidth = 0.0f;
-    float containerHeight = 0.0f;
-    std::vector<FlexLine> lines;
-};
-
 ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
                                 Flexbox& flexbox,
                                 float containerWidth,
@@ -225,6 +201,8 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
     float resolvedW = containerWidth;
     if (forcedWidth > 0.0f) {
         resolvedW = forcedWidth;
+    } else if (style.hasWidthLength && !style.widthLength.IsAuto()) {
+        resolvedW = style.widthLength.Resolve(containerWidth / scale, 1.0f) * scale;
     } else if (!style.width.empty()) {
         resolvedW = ParseDimension(style.width, containerWidth, containerWidth, scale);
     }
@@ -697,7 +675,14 @@ FlexboxMeasureResult FlexboxPainter::Measure(const FontEngine& fonts,
                                             float forcedWidth,
                                             float forcedHeight) {
     const float scale = std::max(0.5f, pixelScale);
-    if (flexbox.HasMeasureCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+    if (flexbox.HasLayoutCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+        FlexboxMeasureResult cached;
+        cached.width = flexbox.LayoutCache().containerWidth;
+        cached.height = flexbox.LayoutCache().containerHeight;
+        return cached;
+    }
+    if (flexbox.HasMeasureCache(containerWidth, scale, forcedWidth, forcedHeight) &&
+        !flexbox.NeedsLayout()) {
         FlexboxMeasureResult cached;
         flexbox.ReadMeasureCache(cached.width, cached.height);
         return cached;
@@ -707,7 +692,7 @@ FlexboxMeasureResult FlexboxPainter::Measure(const FontEngine& fonts,
     FlexboxMeasureResult result;
     result.width = layout.containerWidth;
     result.height = layout.containerHeight;
-    flexbox.WriteMeasureCache(containerWidth, scale, forcedWidth, forcedHeight, result.width, result.height);
+    flexbox.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, std::move(layout));
     return result;
 }
 
@@ -725,8 +710,14 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
     FlexboxStyle style = flexbox.GetStyle();
     Resolve(style);
 
-    ComputedFlexLayout layout =
-        ComputeLayout(fonts, flexbox, containerWidth, scale, forcedWidth, forcedHeight);
+    ComputedFlexLayout layout;
+    if (flexbox.HasLayoutCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+        layout = flexbox.LayoutCache();
+    } else {
+        layout = ComputeLayout(fonts, flexbox, containerWidth, scale, forcedWidth, forcedHeight);
+        flexbox.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, layout);
+    }
+    flexbox.SetNeedsPaint(false);
 
     const float containerX = originX + style.marginLeft * scale;
     const float containerY = originY + style.marginTop * scale;

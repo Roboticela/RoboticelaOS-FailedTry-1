@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace Robo {
 
@@ -175,6 +176,62 @@ void Flexbox::WriteMeasureCache(float containerWidth, float pixelScale, float fo
 
 void Flexbox::InvalidateMeasureCache() const {
     measureCacheValid_ = false;
+    layoutCache_.valid = false;
+    layoutCache_.layout = ComputedFlexLayout{};
+    needsLayout_ = true;
+    needsPaint_ = true;
+}
+
+bool Flexbox::HasLayoutCache(float containerWidth, float pixelScale, float forcedWidth,
+                             float forcedHeight) const {
+    return layoutCache_.valid && !needsLayout_ &&
+           std::fabs(layoutCache_.key.containerWidth - containerWidth) < 0.5f &&
+           std::fabs(layoutCache_.key.pixelScale - pixelScale) < 0.001f &&
+           std::fabs(layoutCache_.key.forcedWidth - forcedWidth) < 0.5f &&
+           std::fabs(layoutCache_.key.forcedHeight - forcedHeight) < 0.5f;
+}
+
+const ComputedFlexLayout& Flexbox::LayoutCache() const {
+    return layoutCache_.layout;
+}
+
+void Flexbox::StoreLayoutCache(float containerWidth, float pixelScale, float forcedWidth,
+                               float forcedHeight, ComputedFlexLayout layout) const {
+    layoutCache_.layout = std::move(layout);
+    layoutCache_.key.containerWidth = containerWidth;
+    layoutCache_.key.pixelScale = pixelScale;
+    layoutCache_.key.forcedWidth = forcedWidth;
+    layoutCache_.key.forcedHeight = forcedHeight;
+    layoutCache_.valid = true;
+    needsLayout_ = false;
+    measureCacheValid_ = true;
+    measureCacheContainer_ = containerWidth;
+    measureCacheScale_ = pixelScale;
+    measureCacheForcedW_ = forcedWidth;
+    measureCacheForcedH_ = forcedHeight;
+    measureCacheWidth_ = layoutCache_.layout.containerWidth;
+    measureCacheHeight_ = layoutCache_.layout.containerHeight;
+}
+
+bool Flexbox::NeedsLayout() const {
+    return needsLayout_ || !layoutCache_.valid;
+}
+
+void Flexbox::SetNeedsLayout(bool needs) const {
+    needsLayout_ = needs;
+    if (needs) {
+        layoutCache_.valid = false;
+        measureCacheValid_ = false;
+        needsPaint_ = true;
+    }
+}
+
+bool Flexbox::NeedsPaint() const {
+    return needsPaint_;
+}
+
+void Flexbox::SetNeedsPaint(bool needs) const {
+    needsPaint_ = needs;
 }
 
 const std::vector<FlexboxItem>& Flexbox::GetItems() const {

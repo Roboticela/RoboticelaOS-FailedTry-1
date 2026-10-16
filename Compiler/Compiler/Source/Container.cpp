@@ -1,6 +1,7 @@
 #include "Robo/Container.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace Robo {
@@ -28,6 +29,7 @@ ContainerLayout ParseContainerLayout(const std::string& value) {
 void Container::SetStyle(const ContainerStyle& style) {
     style_ = style;
     scrollbar_.SetStyle(style_.scrollbarStyle);
+    InvalidateBodyCache();
 }
 
 const ContainerStyle& Container::GetStyle() const {
@@ -192,6 +194,51 @@ void Container::RefreshVariantDefaults() {
     scrollbar_.SetStyle(style_.scrollbarStyle);
     scrollbar_.ApplyVariantDefaults();
     style_.scrollbarStyle = scrollbar_.GetStyle();
+}
+
+bool Container::HasBodyCache(float availableWidth, float pixelScale, float forcedWidth,
+                             float forcedHeight) const {
+    return bodyCache_.valid && !needsLayout_ &&
+           std::fabs(bodyCache_.availableWidth - availableWidth) < 0.5f &&
+           std::fabs(bodyCache_.pixelScale - pixelScale) < 0.001f &&
+           std::fabs(bodyCache_.forcedWidth - forcedWidth) < 0.5f &&
+           std::fabs(bodyCache_.forcedHeight - forcedHeight) < 0.5f;
+}
+
+const Container::BodyCache& Container::GetBodyCache() const {
+    return bodyCache_;
+}
+
+void Container::StoreBodyCache(BodyCache cache) const {
+    bodyCache_ = std::move(cache);
+    bodyCache_.valid = true;
+    needsLayout_ = false;
+}
+
+void Container::InvalidateBodyCache() const {
+    bodyCache_.valid = false;
+    needsLayout_ = true;
+    needsPaint_ = true;
+}
+
+bool Container::NeedsLayout() const {
+    return needsLayout_ || !bodyCache_.valid;
+}
+
+void Container::SetNeedsLayout(bool needs) const {
+    needsLayout_ = needs;
+    if (needs) {
+        bodyCache_.valid = false;
+        needsPaint_ = true;
+    }
+}
+
+bool Container::NeedsPaint() const {
+    return needsPaint_;
+}
+
+void Container::SetNeedsPaint(bool needs) const {
+    needsPaint_ = needs;
 }
 
 }  // namespace Robo

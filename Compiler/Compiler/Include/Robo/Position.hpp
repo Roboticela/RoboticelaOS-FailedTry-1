@@ -106,6 +106,10 @@ struct PositionStyle {
 
     std::string width = "auto";
     std::string height = "auto";
+    Length widthLength = Length::Auto();
+    Length heightLength = Length::Auto();
+    bool hasWidthLength = false;
+    bool hasHeightLength = false;
     float minWidth = 0.0f;
     float maxWidth = 100000.0f;
     float minHeight = 0.0f;

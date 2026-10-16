@@ -2,6 +2,8 @@
 
 #include "Button.hpp"
 #include "Color.hpp"
+#include "FlexLayout.hpp"
+#include "Length.hpp"
 #include "Selectable.hpp"
 #include "FontStyle.hpp"
 #include "Input.hpp"
@@ -17,6 +19,7 @@
 #include "Text.hpp"
 #include "TextAlign.hpp"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -132,6 +135,10 @@ struct FlexboxStyle {
 
     std::string width = "auto";
     std::string height = "auto";
+    Length widthLength = Length::Auto();
+    Length heightLength = Length::Auto();
+    bool hasWidthLength = false;
+    bool hasHeightLength = false;
     float minWidth = 0.0f;
     float maxWidth = 100000.0f;
     float minHeight = 0.0f;
@@ -196,6 +203,16 @@ public:
                            float width, float height) const;
     void InvalidateMeasureCache() const;
 
+    // Full retained layout for Paint; Measure fills, Paint consumes when key matches.
+    bool HasLayoutCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight) const;
+    const ComputedFlexLayout& LayoutCache() const;
+    void StoreLayoutCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight,
+                          ComputedFlexLayout layout) const;
+    bool NeedsLayout() const;
+    void SetNeedsLayout(bool needs) const;
+    bool NeedsPaint() const;
+    void SetNeedsPaint(bool needs) const;
+
 private:
     FlexboxStyle style_;
     std::vector<FlexboxItem> items_;
@@ -207,6 +224,9 @@ private:
     mutable float measureCacheForcedH_ = -1.0f;
     mutable float measureCacheWidth_ = 0.0f;
     mutable float measureCacheHeight_ = 0.0f;
+    mutable FlexLayoutCache layoutCache_{};
+    mutable bool needsLayout_ = true;
+    mutable bool needsPaint_ = true;
 };
 
 FlexDirection ParseFlexDirection(const std::string& value);

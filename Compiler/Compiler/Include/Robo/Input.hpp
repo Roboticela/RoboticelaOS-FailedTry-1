@@ -2,6 +2,7 @@
 
 #include "Color.hpp"
 #include "FontStyle.hpp"
+#include "Length.hpp"
 #include "Selectable.hpp"
 #include "TextAlign.hpp"
 
@@ -44,6 +45,8 @@ struct InputStyle {
     SelectableMode selectable = SelectableMode::Inherit;
     double minWidth = 200.0;
     std::string width = "100%";
+    Length widthLength = Length::Percent(100.0f);
+    bool hasWidthLength = false;
     TextAlign align = TextAlign::Left;
     int maxLength = 0;
     bool hasCustomTextColor = false;

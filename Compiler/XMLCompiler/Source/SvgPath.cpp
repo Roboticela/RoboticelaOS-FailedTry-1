@@ -825,20 +825,17 @@ std::string EmitCompiledShapes(const std::vector<CompiledShape>& shapes, int ind
         code << Indent(indent + 1) << name << ".opacity = " << FloatCpp(shape.opacity) << ";\n";
         code << Indent(indent + 1) << name << ".fillRule = "
              << (shape.evenOdd ? "Robo::SvgFillRule::EvenOdd" : "Robo::SvgFillRule::NonZero") << ";\n";
-        for (const CompiledCommand& command : shape.commands) {
-            if (command.kind == 0) {
-                code << Indent(indent + 1) << name << ".commands.push_back(Robo::SvgCommand::Move(" << FloatCpp(command.x)
-                     << ", " << FloatCpp(command.y) << "));\n";
-            } else if (command.kind == 1) {
-                code << Indent(indent + 1) << name << ".commands.push_back(Robo::SvgCommand::Line(" << FloatCpp(command.x)
-                     << ", " << FloatCpp(command.y) << "));\n";
-            } else if (command.kind == 2) {
-                code << Indent(indent + 1) << name << ".commands.push_back(Robo::SvgCommand::Cubic(" << FloatCpp(command.c1x)
-                     << ", " << FloatCpp(command.c1y) << ", " << FloatCpp(command.c2x) << ", " << FloatCpp(command.c2y)
-                     << ", " << FloatCpp(command.x) << ", " << FloatCpp(command.y) << "));\n";
-            } else {
-                code << Indent(indent + 1) << name << ".commands.push_back(Robo::SvgCommand::Close());\n";
+        if (!shape.commands.empty()) {
+            code << Indent(indent + 1) << "static const float " << name << "Blob[] = {\n";
+            for (const CompiledCommand& command : shape.commands) {
+                code << Indent(indent + 2) << FloatCpp(static_cast<float>(command.kind)) << ", "
+                     << FloatCpp(command.x) << ", " << FloatCpp(command.y) << ", " << FloatCpp(command.c1x) << ", "
+                     << FloatCpp(command.c1y) << ", " << FloatCpp(command.c2x) << ", " << FloatCpp(command.c2y)
+                     << ",\n";
             }
+            code << Indent(indent + 1) << "};\n";
+            code << Indent(indent + 1) << "Robo::AppendSvgCommandsFromBlob(" << name << ", " << name
+                 << "Blob, sizeof(" << name << "Blob) / sizeof(" << name << "Blob[0]));\n";
         }
         code << Indent(indent + 1) << target << "." << add << "(std::move(" << name << "));\n";
         code << Indent(indent) << "}\n";

@@ -2,8 +2,10 @@
 
 #include "Color.hpp"
 #include "FontStyle.hpp"
+#include "Length.hpp"
 #include "Selectable.hpp"
 #include "TextAlign.hpp"
+#include "TextLayout.hpp"
 #include "TextRun.hpp"
 
 #include <map>
@@ -24,8 +26,13 @@ struct TextStyle {
     double letterSpacing = 0.0;
     double opacity = 1.0;
     SelectableMode selectable = SelectableMode::Inherit;
+    // Legacy string widths (codegen migration); prefer widthLength/maxWidthLength.
     std::string width = "100%";
     std::string maxWidth;
+    Length widthLength = Length::Percent(100.0f);
+    Length maxWidthLength = Length::Auto();
+    bool hasWidthLength = false;
+    bool hasMaxWidthLength = false;
     // Empty token value means the attribute was set to a custom literal.
     std::map<std::string, std::string> tokens;
 };
@@ -42,12 +49,16 @@ public:
     void AddPlain(const std::string& content);
     const std::vector<TextRun>& GetRuns() const;
 
-    // Layout cache: Measure is hot on every Present; reuse when width/scale/content match.
+    // Layout cache: Measure fills retained lines; Paint stamps without re-wrapping.
     bool HasMeasureCache(float containerWidth, float pixelScale) const;
     void ReadMeasureCache(float& width, float& height, float& advanceY) const;
     void WriteMeasureCache(float containerWidth, float pixelScale, float width, float height,
                            float advanceY) const;
     void InvalidateMeasureCache() const;
+
+    TextLayoutCache& LayoutCache() const;
+    bool NeedsLayout() const;
+    void SetNeedsLayout(bool needs) const;
 
 private:
     TextStyle style_;
@@ -58,6 +69,8 @@ private:
     mutable float measureCacheWidth_ = 0.0f;
     mutable float measureCacheHeight_ = 0.0f;
     mutable float measureCacheAdvanceY_ = 0.0f;
+    mutable TextLayoutCache layoutCache_{};
+    mutable bool needsLayout_ = true;
 };
 
 }  // namespace Robo

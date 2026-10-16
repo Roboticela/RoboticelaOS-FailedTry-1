@@ -379,6 +379,20 @@ BodyLayout ResolveBody(const FontEngine& fonts,
                        float scale,
                        float forcedWidth,
                        float forcedHeight) {
+    if (container.HasBodyCache(availableWidth, scale, forcedWidth, forcedHeight)) {
+        const Container::BodyCache& cached = container.GetBodyCache();
+        BodyLayout out;
+        out.width = cached.width;
+        out.height = cached.height;
+        out.innerWidth = cached.innerWidth;
+        out.innerHeight = cached.innerHeight;
+        out.contentExtent = cached.contentExtent;
+        out.viewportExtent = cached.viewportExtent;
+        out.scale = scale;
+        out.vertical = cached.vertical;
+        return out;
+    }
+
     ContainerStyle style = container.GetStyle();
     Resolve(style);
     BodyLayout out;
@@ -396,6 +410,8 @@ BodyLayout ResolveBody(const FontEngine& fonts,
     float resolvedW = availableWidth;
     if (forcedWidth > 0.0f) {
         resolvedW = forcedWidth;
+    } else if (style.hasWidthLength && !style.widthLength.IsAuto()) {
+        resolvedW = style.widthLength.Resolve(availableWidth / scale, 1.0f) * scale;
     } else if (!style.width.empty() && style.width != "auto") {
         resolvedW = ParseDimension(style.width, availableWidth, availableWidth, scale);
     }
@@ -452,6 +468,8 @@ BodyLayout ResolveBody(const FontEngine& fonts,
     float resolvedH = contentH + padT + padB + flowReserve;
     if (forcedHeight > 0.0f) {
         resolvedH = forcedHeight;
+    } else if (style.hasHeightLength && !style.heightLength.IsAuto()) {
+        resolvedH = style.heightLength.Resolve(availableWidth / scale, 1.0f) * scale;
     } else if (!style.height.empty() && style.height != "auto") {
         resolvedH = ParseDimension(style.height, availableWidth, resolvedH, scale);
     }
@@ -477,6 +495,22 @@ BodyLayout ResolveBody(const FontEngine& fonts,
     if (style.viewportExtent > 0.0) {
         out.viewportExtent = static_cast<float>(style.viewportExtent * scale);
     }
+
+    Container::BodyCache cache;
+    cache.availableWidth = availableWidth;
+    cache.pixelScale = scale;
+    cache.forcedWidth = forcedWidth;
+    cache.forcedHeight = forcedHeight;
+    cache.width = out.width;
+    cache.height = out.height;
+    cache.innerWidth = out.innerWidth;
+    cache.innerHeight = out.innerHeight;
+    cache.contentExtent = out.contentExtent;
+    cache.viewportExtent = out.viewportExtent;
+    cache.vertical = out.vertical;
+    cache.valid = true;
+    container.StoreBodyCache(std::move(cache));
+    container.SetNeedsPaint(false);
     return out;
 }
 

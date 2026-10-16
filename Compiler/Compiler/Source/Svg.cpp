@@ -60,6 +60,26 @@ const std::vector<SvgShape>& Svg::GetShapes() const {
     return shapes_;
 }
 
+void AppendSvgCommandsFromBlob(SvgShape& shape, const float* data, std::size_t count) {
+    if (data == nullptr || count == 0) {
+        return;
+    }
+    shape.commands.reserve(shape.commands.size() + count / 7u);
+    for (std::size_t i = 0; i + 6 < count; i += 7) {
+        const int kind = static_cast<int>(data[i]);
+        if (kind == 0) {
+            shape.commands.push_back(SvgCommand::Move(data[i + 1], data[i + 2]));
+        } else if (kind == 1) {
+            shape.commands.push_back(SvgCommand::Line(data[i + 1], data[i + 2]));
+        } else if (kind == 2) {
+            shape.commands.push_back(SvgCommand::Cubic(data[i + 3], data[i + 4], data[i + 5], data[i + 6],
+                                                      data[i + 1], data[i + 2]));
+        } else {
+            shape.commands.push_back(SvgCommand::Close());
+        }
+    }
+}
+
 void Svg::SetBounds(const SvgBounds& bounds) {
     bounds_ = bounds;
 }

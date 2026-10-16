@@ -4,6 +4,7 @@
 
 #include "Robo/Foundation.hpp"
 
+#include <cctype>
 #include <cstdlib>
 #include <iostream>
 #include <set>
@@ -236,8 +237,25 @@ std::string XmlToCpp::BindLength(int indent,
     if (!IsFreeLength(value)) {
         WarnLiteral(element, field, value);
     }
+    // Emit typed Length alongside the legacy string so measure/paint skip parse.
+    std::string lengthExpr = "Robo::Length::Auto()";
+    if (value == "auto" || value.empty()) {
+        lengthExpr = "Robo::Length::Auto()";
+    } else if (!value.empty() && value.back() == '%') {
+        lengthExpr = "Robo::Length::Percent(" + FloatLiteral(value.substr(0, value.size() - 1)) + ")";
+    } else if (value.size() > 3 && value.compare(value.size() - 3, 3, "rem") == 0) {
+        lengthExpr = "Robo::Length::Rem(" + FloatLiteral(value.substr(0, value.size() - 3)) + ")";
+    } else if (value.size() > 2 && value.compare(value.size() - 2, 2, "px") == 0) {
+        lengthExpr = "Robo::Length::Px(" + FloatLiteral(value.substr(0, value.size() - 2)) + ")";
+    } else {
+        lengthExpr = "Robo::Length::Px(" + FloatLiteral(value) + ")";
+    }
+    const std::string lengthField = field + "Length";
+    const std::string hasField = "has" + std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(field[0])))) +
+                                 field.substr(1) + "Length";
     return Indent(indent) + object + ".tokens[\"" + field + "\"] = \"\";\n" + Indent(indent) + object + "." + field +
-           " = \"" + EscapeCpp(value) + "\";\n";
+           " = \"" + EscapeCpp(value) + "\";\n" + Indent(indent) + object + "." + lengthField + " = " + lengthExpr +
+           ";\n" + Indent(indent) + object + "." + hasField + " = true;\n";
 }
 
 std::string XmlToCpp::BindWeight(int indent, const std::string& object, const std::string& value, const std::string& element) const {
@@ -724,26 +742,36 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
         }
 
         if (!lazyPanes.empty()) {
+            // Data-driven pane dispatch table (id -> builder) instead of a long if-chain.
+            code << Indent(indent) << "struct RoboPaneBuilder {\n";
+            code << Indent(indent + 1) << "const char* id;\n";
+            code << Indent(indent + 1) << "void (*build)(Robo::RoboScene&);\n";
+            code << Indent(indent) << "};\n";
+            code << Indent(indent) << "static const RoboPaneBuilder kRoboPaneBuilders[] = {\n";
+            for (const XmlNode* pane : lazyPanes) {
+                const std::string when = pane->attributes.at("when");
+                code << Indent(indent + 1) << "{\"" << EscapeCpp(when) << "\", &BuildPane_" << SanitizePaneId(when)
+                     << "},\n";
+            }
+            code << Indent(indent) << "};\n";
+            code << Indent(indent) << "static const int kRoboPaneBuilderCount = "
+                 << "static_cast<int>(sizeof(kRoboPaneBuilders) / sizeof(kRoboPaneBuilders[0]));\n\n";
             code << Indent(indent) << "static void EnsurePane(Robo::RoboScene& scene, const char* paneId) {\n";
             code << Indent(indent + 1) << "if (paneId == nullptr || paneId[0] == '\\0' || scene.HasPaneContainer(paneId)) {\n";
             code << Indent(indent + 2) << "return;\n";
             code << Indent(indent + 1) << "}\n";
-            for (const XmlNode* pane : lazyPanes) {
-                const std::string when = pane->attributes.at("when");
-                code << Indent(indent + 1) << "{\n";
-                code << Indent(indent + 2) << "const char* want = \"" << EscapeCpp(when) << "\";\n";
-                code << Indent(indent + 2) << "const char* a = want;\n";
-                code << Indent(indent + 2) << "const char* b = paneId;\n";
-                code << Indent(indent + 2) << "while (*a != '\\0' && *a == *b) {\n";
-                code << Indent(indent + 3) << "++a;\n";
-                code << Indent(indent + 3) << "++b;\n";
-                code << Indent(indent + 2) << "}\n";
-                code << Indent(indent + 2) << "if (*a == '\\0' && *b == '\\0') {\n";
-                code << Indent(indent + 3) << "BuildPane_" << SanitizePaneId(when) << "(scene);\n";
-                code << Indent(indent + 3) << "return;\n";
-                code << Indent(indent + 2) << "}\n";
-                code << Indent(indent + 1) << "}\n";
-            }
+            code << Indent(indent + 1) << "for (int i = 0; i < kRoboPaneBuilderCount; ++i) {\n";
+            code << Indent(indent + 2) << "const char* a = kRoboPaneBuilders[i].id;\n";
+            code << Indent(indent + 2) << "const char* b = paneId;\n";
+            code << Indent(indent + 2) << "while (*a != '\\0' && *a == *b) {\n";
+            code << Indent(indent + 3) << "++a;\n";
+            code << Indent(indent + 3) << "++b;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "if (*a == '\\0' && *b == '\\0') {\n";
+            code << Indent(indent + 3) << "kRoboPaneBuilders[i].build(scene);\n";
+            code << Indent(indent + 3) << "return;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 1) << "}\n";
             code << Indent(indent) << "}\n\n";
         }
 
@@ -839,7 +867,7 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             } else if (attribute.first == "width") {
                 code << BindLength(indent + 1, "style", "width", attribute.second, node.name);
             } else if (attribute.first == "maxWidth") {
-                code << Indent(indent + 1) << "style.maxWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindLength(indent + 1, "style", "maxWidth", attribute.second, node.name);
             }
         }
 
@@ -947,7 +975,7 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             } else if (attribute.first == "width") {
                 code << BindLength(indent + 1, "style", "width", attribute.second, node.name);
             } else if (attribute.first == "maxWidth") {
-                code << Indent(indent + 1) << "style.maxWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindLength(indent + 1, "style", "maxWidth", attribute.second, node.name);
             }
         }
         EmitSelectable(code, indent + 1, "style", node);

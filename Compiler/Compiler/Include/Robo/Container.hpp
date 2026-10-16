@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Color.hpp"
+#include "Length.hpp"
 #include "Selectable.hpp"
 #include "Flexbox.hpp"
 #include "Grid.hpp"
+#include "Input.hpp"
 #include "Position.hpp"
 #include "Scrollbar.hpp"
 
+#include <map>
 #include <string>
 
 namespace Robo {
@@ -33,6 +36,10 @@ struct ContainerStyle {
 
     std::string width = "auto";
     std::string height = "auto";
+    Length widthLength = Length::Auto();
+    Length heightLength = Length::Auto();
+    bool hasWidthLength = false;
+    bool hasHeightLength = false;
     float minWidth = 0.0f;
     float maxWidth = 100000.0f;
     float minHeight = 0.0f;
@@ -132,6 +139,30 @@ public:
 
     void RefreshVariantDefaults();
 
+    // Retained body layout: Measure fills; Paint reuses when key matches.
+    struct BodyCache {
+        float availableWidth = -1.0f;
+        float pixelScale = -1.0f;
+        float forcedWidth = -1.0f;
+        float forcedHeight = -1.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+        float innerWidth = 0.0f;
+        float innerHeight = 0.0f;
+        float contentExtent = 0.0f;
+        float viewportExtent = 0.0f;
+        bool vertical = true;
+        bool valid = false;
+    };
+    bool HasBodyCache(float availableWidth, float pixelScale, float forcedWidth, float forcedHeight) const;
+    const BodyCache& GetBodyCache() const;
+    void StoreBodyCache(BodyCache cache) const;
+    void InvalidateBodyCache() const;
+    bool NeedsLayout() const;
+    void SetNeedsLayout(bool needs) const;
+    bool NeedsPaint() const;
+    void SetNeedsPaint(bool needs) const;
+
 private:
     ContainerStyle style_;
     Position content_;
@@ -142,6 +173,9 @@ private:
     std::string shownWhen_;
     double resolvedContentExtent_ = 0.0;
     float pixelScale_ = 1.0f;
+    mutable BodyCache bodyCache_{};
+    mutable bool needsLayout_ = true;
+    mutable bool needsPaint_ = true;
 };
 
 ContainerOrientation ParseContainerOrientation(const std::string& value);
