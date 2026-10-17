@@ -32,11 +32,11 @@ int RoboDefaultCatalogRail(const RoboCatalogEntry* rows, int count);
 int RoboBuildCatalogRails(Sidebar& sidebar, const RoboCatalogEntry* rows, int count, int railStart, int railBudget);
 bool RoboEnsureCatalogChildren(Sidebar& sidebar, int railIndex, const RoboCatalogEntry* rows, int count);
 
-// Shared DevKit / catalog page helpers (keeps generated pages chrome-only).
+// Shared catalog page helpers (keeps generated pages chrome-only).
 Sidebar* RoboFindSidebar(RoboScene& scene);
 void RoboEnsureActivitySidebar(RoboScene& scene);
 int RoboBuildSidebarRailsStep(RoboScene& scene, int railStart, int railBudget);
 void RoboBuildSidebarFromCatalog(RoboScene& scene);
-void RoboApplyDevKitChrome(RoboScene& scene);
+void RoboApplyCatalogChrome(RoboScene& scene);
 
 }  // namespace Robo

@@ -21,7 +21,7 @@ $RoboEspRequired = @(
 )
 
 $RoboEspOptional = @(
-    "DevKit.elf",
+    "TestApp.elf",
     "BACKGROU.MP4"
 )
 

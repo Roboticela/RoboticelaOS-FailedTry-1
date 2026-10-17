@@ -33,7 +33,7 @@ The web and RoboticelaOS implementation must be same and it must be visually als
 
 ## Boot must reach the shell
 - After `RoboDesktopBoot`, the next mandatory milestone is `RoboShellStart` first Present.
-- Optional work (USB probe, disk mount, DevKit) must not run unbounded before that Present, or must be deferred until after it.
+- Optional work (USB probe, disk mount, app load) must not run unbounded before that Present, or must be deferred until after it.
 - Gray `#202838` with a centered cursor and no further paint is a **P0 boot hang**, not an acceptable fallback.
 
 ## Build and media parity

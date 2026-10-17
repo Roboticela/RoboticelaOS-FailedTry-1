@@ -169,6 +169,7 @@ void RoboBootAdvance(RoboDesktop* desktop, RoboWindow* appWindow) {
     }
     RoboAppLoad();
     RoboLauncherScan();
+    RoboShellScanInstalledApps();
     if (RoboLauncherCount() <= 1 || !gShellLive) {
         gRoboLaunchChosen = 1;
     } else {
@@ -235,7 +236,7 @@ extern "C" void RoboKernelMain(RoboBootInfo* info) {
 extern "C" void RoboKernelContinue(RoboBootInfo* info) {
     RoboArchFpuStart();
     RoboFsUseBootFiles(info);
-    RoboDevKitBind(info);
+    RoboAppBind(info);
     RoboMemoryStart(info);
     RoboArchCpuStart();
 

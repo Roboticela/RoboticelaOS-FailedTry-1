@@ -46,10 +46,32 @@ bool RoboMagic(const uint8_t* bytes) {
 }  // namespace
 
 void RoboLauncherScan(void) {
-    gLaunchCount = RoboFsList("Applications", &gLaunchNames[0][0], 48, 8);
+    char listed[8][48]{};
+    const int rawCount = RoboFsList("Applications", &listed[0][0], 48, 8);
+    gLaunchCount = 0;
     gLaunchIndex = 0;
     gLaunchPathReady = false;
     gLaunchPath[0] = 0;
+    // Native programs only — Compiler *.elf apps open from the desktop icon path.
+    for (int index = 0; index < rawCount && gLaunchCount < 8; ++index) {
+        const char* name = listed[index];
+        bool elf = false;
+        for (int ch = 0; name[ch] != 0; ++ch) {
+            if (name[ch] == '.' && (name[ch + 1] == 'e' || name[ch + 1] == 'E') &&
+                (name[ch + 2] == 'l' || name[ch + 2] == 'L') && (name[ch + 3] == 'f' || name[ch + 3] == 'F') &&
+                name[ch + 4] == 0) {
+                elf = true;
+                break;
+            }
+        }
+        if (elf) {
+            continue;
+        }
+        for (int ch = 0; ch < 48; ++ch) {
+            gLaunchNames[gLaunchCount][ch] = name[ch];
+        }
+        gLaunchCount += 1;
+    }
     if (gLaunchCount <= 0) {
         return;
     }

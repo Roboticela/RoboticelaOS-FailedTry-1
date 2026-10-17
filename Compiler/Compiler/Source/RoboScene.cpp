@@ -28,20 +28,13 @@
 #include <cstring>
 #include <functional>
 
-#ifdef ROBO_KERNEL
-int RoboDevKitOpenPageStep(Robo::RoboScene& scene, int step);
-#else
-void BuildDevKitPage(Robo::RoboScene& scene);
-int BuildDevKitPageStep(Robo::RoboScene& scene, int step);
-#endif
-
 namespace Robo {
 
 namespace {
 
-constexpr float DEV_KIT_WIDTH = 1080.0f;
-constexpr float DEV_KIT_HEIGHT = 700.0f;
-constexpr float DEV_KIT_RADIUS = 12.0f;
+constexpr float ROBO_APP_HOST_WIDTH = 1080.0f;
+constexpr float ROBO_APP_HOST_HEIGHT = 700.0f;
+constexpr float ROBO_APP_HOST_RADIUS = 12.0f;
 
 bool InsideRoundedWindow(float localX, float localY, float width, float height, float radius) {
     if (width <= 0.0f || height <= 0.0f) {
@@ -2301,7 +2294,7 @@ void RoboScene::MarkDirtyLocal(float x, float y, float width, float height) {
         dirtyRight_ = std::max(dirtyRight_, right);
         dirtyBottom_ = std::max(dirtyBottom_, bottom);
     }
-    // Never promote DevKit-local damage to a full desktop CaptureChrome paint.
+    // Never promote hosted-app local damage to a full desktop CaptureChrome paint.
 }
 
 void RoboScene::DirtyButton(const Button* button) {
@@ -2361,12 +2354,12 @@ void RoboScene::DirtyRailArrows(const Sidebar& sidebar) {
     }
 }
 
-void RoboScene::DirtyWallpaperAroundDevKit() {
+void RoboScene::DirtyWallpaperAroundApp() {
     float x = 0.0f;
     float y = 0.0f;
     float width = 0.0f;
     float height = 0.0f;
-    DevKitFrame(x, y, width, height);
+    AppHostFrame(x, y, width, height);
     if (paintedWidth_ <= 0 || paintedHeight_ <= 0 || width <= 0.0f || height <= 0.0f) {
         MarkSurfaceDirty();
         return;
@@ -2582,48 +2575,47 @@ float RoboScene::SceneScale() const {
     return 1.0f;
 }
 
-void RoboScene::DevKitFrame(float& x, float& y, float& width, float& height) const {
+void RoboScene::AppHostFrame(float& x, float& y, float& width, float& height) const {
     const float scale = SceneScale();
-    x = devKitX_ * scale;
-    y = devKitY_ * scale;
-    width = devKitW_ * scale;
-    height = devKitH_ * scale;
+    x = appHost_.x * scale;
+    y = appHost_.y * scale;
+    width = appHost_.w * scale;
+    height = appHost_.h * scale;
 }
 
-bool RoboScene::PointerOnDevKit(float x, float y) const {
-    if (!devKitOpen_) {
+bool RoboScene::PointerOnApp(float x, float y) const {
+    if (!appHost_.open) {
         return false;
     }
     float left = 0.0f;
     float top = 0.0f;
     float width = 0.0f;
     float height = 0.0f;
-    DevKitFrame(left, top, width, height);
-    return InsideRoundedWindow(x - left, y - top, width, height, DEV_KIT_RADIUS * SceneScale());
+    AppHostFrame(left, top, width, height);
+    return InsideRoundedWindow(x - left, y - top, width, height, ROBO_APP_HOST_RADIUS * SceneScale());
 }
 
-void RoboScene::DirtyDevKitWindow() {
+void RoboScene::DirtyAppWindow() {
     float x = 0.0f;
     float y = 0.0f;
     float width = 0.0f;
     float height = 0.0f;
-    DevKitFrame(x, y, width, height);
+    AppHostFrame(x, y, width, height);
     MarkDirtyLocal(x, y, width, height);
-    wallpaperAroundDevKit_ = true;
-    devKitPaintDirty_ = true;
+    wallpaperAroundApp_ = true;
+    appHost_.paintDirty = true;
     // Geometry/open/theme: retained surface must be rebuilt.
-    devKitSurfaceValid_ = false;
+    appHost_.surfaceValid = false;
 }
 
-void RoboScene::DirtyDevKitWindowSoft() {
-    float x = 0.0f;
-    float y = 0.0f;
-    float width = 0.0f;
-    float height = 0.0f;
-    DevKitFrame(x, y, width, height);
-    MarkDirtyLocal(x, y, width, height);
-    wallpaperAroundDevKit_ = true;
-    devKitPaintDirty_ = true;
+void RoboScene::DirtyAppWindowSoft() {
+    // Soft: do not open parent damage (that forces wallpaper into the window hole).
+    // Present only the app AABB after Composite; L-bands wait for wallpaper ticks.
+    needsRender_ = true;
+    videoOnly_ = false;
+    wallpaperAroundApp_ = true;
+    appPresentWindowOnly_ = true;
+    appHost_.paintDirty = true;
 }
 
 void RoboScene::PumpPaint() {
@@ -2632,30 +2624,18 @@ void RoboScene::PumpPaint() {
     }
 }
 
-void RoboScene::DirtyDevKitFromNested() {
-    if (devKitScene_ == nullptr) {
-        DirtyDevKitWindow();
+void RoboScene::DirtyAppFromNested() {
+    if (appHost_.scene == nullptr) {
+        DirtyAppWindow();
         return;
     }
-    float x = 0.0f;
-    float y = 0.0f;
-    float width = 0.0f;
-    float height = 0.0f;
-    DevKitFrame(x, y, width, height);
-    // Hover/content: dirty only the nested damage (translated). Nested NeedsRender drives rebuild;
-    // do not force a full retained-surface invalidate on every hover.
-    if (devKitScene_->damageOpen_ && !devKitScene_->fullDirty_) {
-        const float pad = 8.0f;
-        const float left = x + devKitScene_->dirtyLeft_ - pad;
-        const float top = y + devKitScene_->dirtyTop_ - pad;
-        const float right = x + devKitScene_->dirtyRight_ + pad;
-        const float bottom = y + devKitScene_->dirtyBottom_ + pad;
-        MarkDirty(left, top, std::max(1.0f, right - left), std::max(1.0f, bottom - top));
-    } else {
-        MarkDirty(x, y, width, height);
-        if (devKitScene_->fullDirty_) {
-            devKitPaintDirty_ = true;
-        }
+    // Soft only: MarkDirty on the parent opens damageOpen_ and the main Render path
+    // paints wallpaper into the opaque window hole before Composite. Nested Tick/motion
+    // (TestApp infinite shapes) would then flicker every frame. PresentWallpaperAroundApp
+    // with window-only Present keeps the hole intact; nested NeedsRender drives Composite.
+    DirtyAppWindowSoft();
+    if (appHost_.scene->fullDirty_) {
+        appHost_.surfaceValid = false;
     }
 }
 
@@ -2949,136 +2929,201 @@ bool RoboScene::EnsureSelectedRailChildren(Sidebar* owner) {
     return railChildrenFn_(*owner, selected);
 }
 
-void RoboScene::EnsureDevKit() {
-    if (devKitScene_ != nullptr) {
+void RoboScene::SetAppBuildStep(RoboAppBuildStepFn fn) {
+    appBuildStepFn_ = fn;
+}
+
+void RoboScene::EnsureAppHost() {
+    if (appHost_.scene != nullptr) {
         return;
     }
-    devKitScene_ = new RoboScene();
-    if (devKitScene_ == nullptr) {
-        return;
-    }
-    // Build across ticks (micro-step spiral). Zero heavy work on PointerDown.
-    devKitBuildStep_ = 0;
-    DirtyDevKitWindowSoft();
+    appHost_.scene = new RoboScene();
 }
 
-bool RoboScene::DevKitNeedsPaint() const {
-    // While open, desktop/wallpaper may wipe DevKit pixels; composite every frame path that paints.
-    return devKitOpen_;
+bool RoboScene::AppOpen() const {
+    return appHost_.open;
 }
 
-void RoboScene::OpenDevKit() {
-    EnsureDevKit();
-    if (devKitScene_ == nullptr) {
-        return;
-    }
-    devKitOpen_ = true;
-    devKitFocus_ = true;
-    const float scale = SceneScale();
-    if (paintedWidth_ > 0 && paintedHeight_ > 0) {
-        const float availW = static_cast<float>(paintedWidth_) / scale;
-        const float availH = static_cast<float>(paintedHeight_) / scale;
-        devKitW_ = std::min(DEV_KIT_WIDTH, std::max(640.0f, availW - 64.0f));
-        devKitH_ = std::min(DEV_KIT_HEIGHT, std::max(420.0f, availH - 64.0f));
-        devKitX_ = std::max(16.0f, (availW - devKitW_) * 0.5f);
-        devKitY_ = std::max(40.0f, (availH - devKitH_) * 0.5f);
-    } else {
-        devKitW_ = DEV_KIT_WIDTH;
-        devKitH_ = DEV_KIT_HEIGHT;
-    }
-    // Stub window only — chrome/rails/pane fill in Tick with the paint pump.
-    devKitRailFillPending_ = true;
-    DirtyDevKitWindowSoft();
+bool RoboScene::AppNeedsPaint() const {
+    return appHost_.open;
 }
 
-bool RoboScene::ForwardDevKitMove(float x, float y) {
-    if (!devKitOpen_ || devKitScene_ == nullptr || !devKitFocus_ || !PointerOnDevKit(x, y)) {
-        return false;
-    }
-    float left = 0.0f;
-    float top = 0.0f;
-    float width = 0.0f;
-    float height = 0.0f;
-    DevKitFrame(left, top, width, height);
-    devKitScene_->SetModifiers(modifiers_);
-    if (devKitScene_->PointerMove(x - left, y - top)) {
-        DirtyDevKitFromNested();
-        return true;
-    }
-    return false;
-}
-
-bool RoboScene::ForwardDevKitPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks) {
-    if (!devKitOpen_ || devKitScene_ == nullptr || !PointerOnDevKit(x, y)) {
-        return false;
-    }
-    float left = 0.0f;
-    float top = 0.0f;
-    float width = 0.0f;
-    float height = 0.0f;
-    DevKitFrame(left, top, width, height);
-    (void)width;
-    (void)height;
-    devKitScene_->SetModifiers(modifiers_);
-    bool changed = false;
-    if (down) {
-        changed = devKitScene_->PointerDown(x - left, y - top, fromTouch, clicks);
-        // Rail/pane clicks may leave budgeted child fills unfinished.
-        if (changed) {
-            devKitRailFillPending_ = true;
-        }
-    }
-    if (up) {
-        changed = devKitScene_->PointerUp(x - left, y - top) || changed;
-    }
-    if (changed) {
-        DirtyDevKitFromNested();
-    }
-    return true;
-}
-
-bool RoboScene::ForwardDevKitWheel(float x, float y, float deltaX, float deltaY) {
-    if (!devKitOpen_ || devKitScene_ == nullptr || !PointerOnDevKit(x, y)) {
-        return false;
-    }
-    float left = 0.0f;
-    float top = 0.0f;
-    float width = 0.0f;
-    float height = 0.0f;
-    DevKitFrame(left, top, width, height);
-    (void)width;
-    (void)height;
-    if (devKitScene_->Wheel(x - left, y - top, deltaX, deltaY)) {
-        DirtyDevKitFromNested();
-        return true;
-    }
-    return false;
-}
-
-void RoboScene::PaintDevKit() {
-    CompositeDevKit();
-}
-
-void RoboScene::CompositeDevKit() {
-    if (!devKitOpen_ || fonts_ == nullptr || platform_ == nullptr) {
-        return;
-    }
-    EnsureDevKit();
-    if (devKitScene_ == nullptr) {
+void RoboScene::CloseApp() {
+    if (!appHost_.open) {
         return;
     }
     float x = 0.0f;
     float y = 0.0f;
     float width = 0.0f;
     float height = 0.0f;
-    DevKitFrame(x, y, width, height);
+    AppHostFrame(x, y, width, height);
+    appHost_.open = false;
+    appHost_.focus = false;
+    appHost_.buildStep = -1;
+    appHost_.railFillPending = false;
+    appHost_.paintDirty = false;
+    appHost_.surfaceValid = false;
+    appHost_.id[0] = '\0';
+    if (appHost_.scene != nullptr) {
+        appHost_.scene->Clear();
+    }
+    MarkDirty(x, y, width, height);
+    needsRender_ = true;
+}
+
+void RoboScene::InstallAppIcon(const char* label, const char* openId, float x, float y) {
+    if (openId == nullptr || openId[0] == '\0') {
+        return;
+    }
+    const char* text = label != nullptr && label[0] != '\0' ? label : openId;
+    for (SceneItem& item : items_) {
+        if (item.kind != SceneItemKind::SelectionArea) {
+            continue;
+        }
+        for (const SelectionAreaItem& existing : item.selectionArea.Items()) {
+            if (existing.GetOpen() == openId) {
+                return;
+            }
+        }
+        SelectionAreaItem icon;
+        icon.SetLabel(text);
+        icon.SetOpen(openId);
+        icon.SetPosition(x, y);
+        item.selectionArea.AddItem(std::move(icon));
+        DirtySelection(item.selectionArea);
+        needsRender_ = true;
+        return;
+    }
+}
+
+void RoboScene::OpenApp(const char* appId) {
+    if (appId == nullptr || appId[0] == '\0') {
+        return;
+    }
+    EnsureAppHost();
+    if (appHost_.scene == nullptr) {
+        return;
+    }
+    if (appHost_.open && strcmp(appHost_.id, appId) == 0) {
+        appHost_.focus = true;
+        DirtyAppWindowSoft();
+        return;
+    }
+    if (appHost_.open) {
+        appHost_.scene->Clear();
+    }
+    memset(appHost_.id, 0, sizeof(appHost_.id));
+    for (std::size_t i = 0; i + 1u < sizeof(appHost_.id) && appId[i] != '\0'; ++i) {
+        appHost_.id[i] = appId[i];
+    }
+    appHost_.open = true;
+    appHost_.focus = true;
+    appHost_.buildStep = 0;
+    appHost_.railFillPending = true;
+    appHost_.surfaceValid = false;
+    const float scale = SceneScale();
+    if (paintedWidth_ > 0 && paintedHeight_ > 0) {
+        const float availW = static_cast<float>(paintedWidth_) / scale;
+        const float availH = static_cast<float>(paintedHeight_) / scale;
+        appHost_.w = std::min(ROBO_APP_HOST_WIDTH, std::max(640.0f, availW - 64.0f));
+        appHost_.h = std::min(ROBO_APP_HOST_HEIGHT, std::max(420.0f, availH - 64.0f));
+        appHost_.x = std::max(16.0f, (availW - appHost_.w) * 0.5f);
+        appHost_.y = std::max(40.0f, (availH - appHost_.h) * 0.5f);
+    } else {
+        appHost_.w = ROBO_APP_HOST_WIDTH;
+        appHost_.h = ROBO_APP_HOST_HEIGHT;
+    }
+    DirtyAppWindowSoft();
+}
+
+bool RoboScene::ForwardAppMove(float x, float y) {
+    if (!appHost_.open || appHost_.scene == nullptr || !appHost_.focus || !PointerOnApp(x, y)) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    AppHostFrame(left, top, width, height);
+    appHost_.scene->SetModifiers(modifiers_);
+    if (appHost_.scene->PointerMove(x - left, y - top)) {
+        DirtyAppFromNested();
+        return true;
+    }
+    return false;
+}
+
+bool RoboScene::ForwardAppPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks) {
+    if (!appHost_.open || appHost_.scene == nullptr || !PointerOnApp(x, y)) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    AppHostFrame(left, top, width, height);
+    (void)width;
+    (void)height;
+    appHost_.scene->SetModifiers(modifiers_);
+    bool changed = false;
+    if (down) {
+        changed = appHost_.scene->PointerDown(x - left, y - top, fromTouch, clicks);
+        // Rail/pane clicks may leave budgeted child fills unfinished.
+        if (changed) {
+            appHost_.railFillPending = true;
+        }
+    }
+    if (up) {
+        changed = appHost_.scene->PointerUp(x - left, y - top) || changed;
+    }
+    if (changed) {
+        DirtyAppFromNested();
+    }
+    return true;
+}
+
+bool RoboScene::ForwardAppWheel(float x, float y, float deltaX, float deltaY) {
+    if (!appHost_.open || appHost_.scene == nullptr || !PointerOnApp(x, y)) {
+        return false;
+    }
+    float left = 0.0f;
+    float top = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    AppHostFrame(left, top, width, height);
+    (void)width;
+    (void)height;
+    if (appHost_.scene->Wheel(x - left, y - top, deltaX, deltaY)) {
+        DirtyAppFromNested();
+        return true;
+    }
+    return false;
+}
+
+void RoboScene::PaintAppWindow() {
+    CompositeAppWindow();
+}
+
+void RoboScene::CompositeAppWindow() {
+    if (!appHost_.open || fonts_ == nullptr || platform_ == nullptr) {
+        return;
+    }
+    EnsureAppHost();
+    if (appHost_.scene == nullptr) {
+        return;
+    }
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    AppHostFrame(x, y, width, height);
     const bool nestedNeeds =
-        !devKitSurfaceValid_ || devKitPaintDirty_ || devKitScene_->NeedsRender() || devKitScene_->fullDirty_;
-    const bool parentHitsDevKit =
-        fullDirty_ || devKitParentWiped_ ||
+        !appHost_.surfaceValid || appHost_.paintDirty || appHost_.scene->NeedsRender() || appHost_.scene->fullDirty_;
+    const bool parentHitsApp =
+        fullDirty_ || appHost_.parentWiped ||
         (damageOpen_ && dirtyRight_ > x && dirtyLeft_ < x + width && dirtyBottom_ > y && dirtyTop_ < y + height);
     // Skip when neither nested content nor parent damage touches the window.
-    if (!nestedNeeds && !parentHitsDevKit) {
+    if (!nestedNeeds && !parentHitsApp) {
         return;
     }
     const float scale = SceneScale();
@@ -3086,52 +3131,54 @@ void RoboScene::CompositeDevKit() {
     const int surfaceH = std::max(1, static_cast<int>(std::lround(height)));
     HostPlatform host;
     host.Bind(platform_, &frame_, static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
-              DEV_KIT_RADIUS * scale);
+              ROBO_APP_HOST_RADIUS * scale);
     host.SetSurfaceSize(surfaceW, surfaceH);
     host.SetPixelScale(scale);
-    // Parent wiped the window (wallpaper / large damage): restore full retained pixels.
-    const bool wipeRestore = devKitParentWiped_ || (parentHitsDevKit && !nestedNeeds);
+    // Parent painted into the window hole (wallpaper / large damage): restore every pixel.
+    const bool wipeRestore = appHost_.parentWiped || parentHitsApp;
     host.SetForceFullBlit(wipeRestore);
     frame_.PushClipRect(x, y, width, height);
     // Forward shell pump so nested paint/blit cannot freeze the cursor.
-    devKitScene_->SetPaintPump(paintPump_, paintPumpCookie_);
+    appHost_.scene->SetPaintPump(paintPump_, paintPumpCookie_);
     if (nestedNeeds) {
-        const Color page = devKitScene_->GetBackground();
+        const Color page = appHost_.scene->GetBackground();
         // Do not EnsureRailChildren / EnsurePaneContent here — Tick micro-steps own that work.
-        host.SetForceFullBlit(wipeRestore || !devKitSurfaceValid_);
-        if (devKitScene_->items_.empty()) {
+        // Full blit when the hole was wiped or the retained surface is invalid.
+        // Soft/motion damage (no parent hit) uses the nested PresentRect.
+        host.SetForceFullBlit(!appHost_.surfaceValid || wipeRestore || appHost_.scene->fullDirty_);
+        if (appHost_.scene->items_.empty()) {
             // Stub: empty nested scene — fill window so open is visible immediately.
             frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
                             static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
                             page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
             PumpPaint();
         } else {
-            devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+            appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
         }
-        devKitPaintDirty_ = false;
-        devKitSurfaceValid_ = true;
-    } else if (devKitScene_->frame_.GetPixels() != nullptr &&
-               devKitScene_->frame_.GetWidth() == surfaceW &&
-               devKitScene_->frame_.GetHeight() == surfaceH) {
-        devKitScene_->frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
+        appHost_.paintDirty = false;
+        appHost_.surfaceValid = true;
+    } else if (appHost_.scene->frame_.GetPixels() != nullptr &&
+               appHost_.scene->frame_.GetWidth() == surfaceW &&
+               appHost_.scene->frame_.GetHeight() == surfaceH) {
+        appHost_.scene->frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
         host.SetForceFullBlit(true);
-        host.Present(devKitScene_->frame_);
+        host.Present(appHost_.scene->frame_);
     } else {
-        const Color page = devKitScene_->GetBackground();
+        const Color page = appHost_.scene->GetBackground();
         host.SetForceFullBlit(true);
-        if (devKitScene_->items_.empty()) {
+        if (appHost_.scene->items_.empty()) {
             frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
                             static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
                             page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
             PumpPaint();
         } else {
-            devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+            appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
         }
-        devKitPaintDirty_ = false;
-        devKitSurfaceValid_ = true;
+        appHost_.paintDirty = false;
+        appHost_.surfaceValid = true;
     }
     frame_.PopClip();
-    devKitParentWiped_ = false;
+    appHost_.parentWiped = false;
 }
 
 void RoboScene::EnsureFolderIcon() {
@@ -3193,10 +3240,10 @@ bool RoboScene::PresentVideoFrame(IPlatform& platform) {
                                    handle, 1.0f);
         }
     }
-    if (devKitOpen_) {
-        // Full wallpaper paint wiped the DevKit rect — restore retained pixels.
-        devKitParentWiped_ = true;
-        CompositeDevKit();
+    if (appHost_.open) {
+        // Full wallpaper paint wiped the app window rect — restore retained pixels.
+        appHost_.parentWiped = true;
+        CompositeAppWindow();
     }
     if (fonts_ != nullptr && desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
@@ -3312,77 +3359,98 @@ void RoboScene::ApplyChromeRect(FrameBuffer& frame, int x, int y, int width, int
     }
 }
 
-bool RoboScene::PresentWallpaperAroundDevKit(IPlatform& platform) {
+bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
     if (!chromeReady_ || platform_ == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
         return false;
     }
     if (frame_.GetWidth() != paintedWidth_ || frame_.GetHeight() != paintedHeight_) {
         return false;
     }
-    float kitX = 0.0f;
-    float kitY = 0.0f;
-    float kitW = 0.0f;
-    float kitH = 0.0f;
-    DevKitFrame(kitX, kitY, kitW, kitH);
+    float appX = 0.0f;
+    float appY = 0.0f;
+    float appW = 0.0f;
+    float appH = 0.0f;
+    AppHostFrame(appX, appY, appW, appH);
     const int surfaceW = paintedWidth_;
     const int surfaceH = paintedHeight_;
-    const int left = std::max(0, static_cast<int>(std::floor(kitX)));
-    const int top = std::max(0, static_cast<int>(std::floor(kitY)));
-    const int right = std::min(surfaceW, static_cast<int>(std::ceil(kitX + kitW)));
-    const int bottom = std::min(surfaceH, static_cast<int>(std::ceil(kitY + kitH)));
-    if (kitW <= 1.0f || kitH <= 1.0f || right <= left || bottom <= top) {
+    const int left = std::max(0, static_cast<int>(std::floor(appX)));
+    const int top = std::max(0, static_cast<int>(std::floor(appY)));
+    const int right = std::min(surfaceW, static_cast<int>(std::ceil(appX + appW)));
+    const int bottom = std::min(surfaceH, static_cast<int>(std::ceil(appY + appH)));
+    if (appW <= 1.0f || appH <= 1.0f || right <= left || bottom <= top) {
         return PresentVideoFrame(platform);
     }
 
-    auto paintBand = [&](int x, int y, int width, int height) {
-        if (width <= 0 || height <= 0) {
-            return;
-        }
-        BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), surfaceW, surfaceH, x, y, width, height);
-        ApplyChromeRect(frame_, x, y, width, height);
-    };
-    paintBand(0, 0, surfaceW, top);
-    paintBand(0, bottom, surfaceW, surfaceH - bottom);
-    paintBand(0, top, left, bottom - top);
-    paintBand(right, top, surfaceW - right, bottom - top);
+    const bool windowOnly = appPresentWindowOnly_;
+    appPresentWindowOnly_ = false;
 
-    EnsureMenuMark();
-    EnsureFolderIcon();
-    // Live-paint chrome only inside bands so DevKit interior pixels stay retained.
-    if (fonts_ != nullptr && desktop_.IsEnabled()) {
-        const float barScale = paintedScale_ > 0.0f ? paintedScale_ : std::max(0.5f, platform.GetPixelScale());
-        if (desktop_.HasTopBarMenu()) {
-            desktop_.GetTopBarMenu().ApplyTheme(theme_ == Theme::Dark);
-        }
-        const DesktopChrome chrome =
-            DesktopPainter::Layout(static_cast<float>(surfaceW), static_cast<float>(surfaceH), barScale,
-                                   desktop_.HasTopBarMenu(), desktop_.HasAppShell(), !desktop_.Dock().empty());
-        auto paintChromeBand = [&](int x, int y, int width, int height) {
+    if (!windowOnly) {
+        auto paintBand = [&](int x, int y, int width, int height) {
             if (width <= 0 || height <= 0) {
                 return;
             }
-            frame_.PushClipRect(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width),
-                                static_cast<float>(height));
-            DesktopPainter::Paint(frame_, *fonts_, desktop_, chrome, barScale, hoveredDock_);
-            frame_.PopClip();
+            BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), surfaceW, surfaceH, x, y, width, height);
+            ApplyChromeRect(frame_, x, y, width, height);
         };
-        paintChromeBand(0, 0, surfaceW, top);
-        paintChromeBand(0, bottom, surfaceW, surfaceH - bottom);
-        paintChromeBand(0, top, left, bottom - top);
-        paintChromeBand(right, top, surfaceW - right, bottom - top);
+        paintBand(0, 0, surfaceW, top);
+        paintBand(0, bottom, surfaceW, surfaceH - bottom);
+        paintBand(0, top, left, bottom - top);
+        paintBand(right, top, surfaceW - right, bottom - top);
+
+        EnsureMenuMark();
+        EnsureFolderIcon();
+        if (fonts_ != nullptr && desktop_.IsEnabled()) {
+            const float barScale = paintedScale_ > 0.0f ? paintedScale_ : std::max(0.5f, platform.GetPixelScale());
+            if (desktop_.HasTopBarMenu()) {
+                desktop_.GetTopBarMenu().ApplyTheme(theme_ == Theme::Dark);
+            }
+            const DesktopChrome chrome =
+                DesktopPainter::Layout(static_cast<float>(surfaceW), static_cast<float>(surfaceH), barScale,
+                                       desktop_.HasTopBarMenu(), desktop_.HasAppShell(), !desktop_.Dock().empty());
+            auto paintChromeBand = [&](int x, int y, int width, int height) {
+                if (width <= 0 || height <= 0) {
+                    return;
+                }
+                frame_.PushClipRect(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width),
+                                    static_cast<float>(height));
+                DesktopPainter::Paint(frame_, *fonts_, desktop_, chrome, barScale, hoveredDock_);
+                frame_.PopClip();
+            };
+            paintChromeBand(0, 0, surfaceW, top);
+            paintChromeBand(0, bottom, surfaceW, surfaceH - bottom);
+            paintChromeBand(0, top, left, bottom - top);
+            paintChromeBand(right, top, surfaceW - right, bottom - top);
+        }
     }
 
-    // Bands do not cover the DevKit interior — skip wipe-restore unless nested content needs paint.
-    const bool nestedNeeds = devKitPaintDirty_ || !devKitSurfaceValid_ ||
-                             (devKitScene_ != nullptr && (devKitScene_->NeedsRender() || devKitScene_->fullDirty_));
-    if (nestedNeeds) {
-        CompositeDevKit();
+    const bool needComposite =
+        appHost_.open &&
+        (appHost_.paintDirty || !appHost_.surfaceValid ||
+         (appHost_.scene != nullptr && (appHost_.scene->NeedsRender() || appHost_.scene->fullDirty_)));
+    if (needComposite) {
+        CompositeAppWindow();
     }
 
-    // AABB of the L-shaped bands is the full surface for an inset window; Present still
-    // uploads that rect, but paint/chrome/DevKit wipe work above is what we avoided.
-    frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
-    platform.Present(frame_);
+    if (windowOnly) {
+        frame_.SetPresentRect(left, top, right - left, bottom - top);
+        platform.Present(frame_);
+    } else {
+        // Wallpaper tick: Present L-bands only (not a full-surface blit over a stable window).
+        auto presentBand = [&](int x, int y, int width, int height) {
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+            frame_.SetPresentRect(x, y, width, height);
+            platform.Present(frame_);
+        };
+        presentBand(0, 0, surfaceW, top);
+        presentBand(0, bottom, surfaceW, surfaceH - bottom);
+        presentBand(0, top, left, bottom - top);
+        presentBand(right, top, surfaceW - right, bottom - top);
+        if (needComposite) {
+            presentBand(left, top, right - left, bottom - top);
+        }
+    }
     needsRender_ = false;
     fullDirty_ = false;
     damageOpen_ = false;
@@ -3391,12 +3459,12 @@ bool RoboScene::PresentWallpaperAroundDevKit(IPlatform& platform) {
 }
 
 void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding) {
-    if (wallpaperAroundDevKit_ && !fullDirty_ && !damageOpen_ && PresentWallpaperAroundDevKit(platform)) {
-        wallpaperAroundDevKit_ = false;
+    if (wallpaperAroundApp_ && !fullDirty_ && !damageOpen_ && PresentWallpaperAroundApp(platform)) {
+        wallpaperAroundApp_ = false;
         videoOnly_ = false;
         return;
     }
-    wallpaperAroundDevKit_ = false;
+    wallpaperAroundApp_ = false;
     if (videoOnly_ && !fullDirty_ && !damageOpen_ && PresentVideoFrame(platform)) {
         videoOnly_ = false;
         return;
@@ -3863,8 +3931,8 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     if (partial) {
         frame.PopClip();
     }
-    if (devKitOpen_) {
-        CompositeDevKit();
+    if (appHost_.open) {
+        CompositeAppWindow();
     }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
@@ -4729,7 +4797,7 @@ Scrollbar* RoboScene::FindScrollbarNear(float x, float y, float tolerance) {
 }
 
 bool RoboScene::Wheel(float x, float y, float deltaX, float deltaY) {
-    if (ForwardDevKitWheel(x, y, deltaX, deltaY)) {
+    if (ForwardAppWheel(x, y, deltaX, deltaY)) {
         return true;
     }
     if (desktop_.HasContextMenu() && deltaY != 0.0f && desktop_.GetContextMenu().IsVisible() && desktop_.GetContextMenu().Contains(x, y)) {
@@ -5214,7 +5282,7 @@ void RoboScene::ActivateSidebarItem(SidebarItem* item) {
         DirtySidebarItem(item);
         owner->Select(index);
         if (EnsureSelectedRailChildren(owner)) {
-            // Nested DevKit: parent Tick continues budgeted fills.
+            // Nested hosted app: parent Tick continues budgeted fills.
             // Desktop scene: NeedsTick stays warm via sidebar animation / dirty.
         }
         if (activity && same && sidebarVisible_) {
@@ -5345,9 +5413,9 @@ void RoboScene::ToggleSidebar() {
 }
 
 bool RoboScene::KeyDown(const std::string& key, bool shift) {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr) {
-        if (devKitScene_->KeyDown(key, shift)) {
-            DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr) {
+        if (appHost_.scene->KeyDown(key, shift)) {
+            DirtyAppFromNested();
             return true;
         }
     }
@@ -5637,7 +5705,7 @@ bool RoboScene::PointerMove(float x, float y) {
             return true;
         }
     }
-    if (ForwardDevKitMove(x, y)) {
+    if (ForwardAppMove(x, y)) {
         return true;
     }
     if (SelectionArea* area = GesturingSelection()) {
@@ -5859,13 +5927,13 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
     if ((modifiers_ & 2) != 0 && !fromTouch && PointerContext(x, y)) {
         return true;
     }
-    if (devKitOpen_) {
-        if (PointerOnDevKit(x, y)) {
-            devKitFocus_ = true;
-            ForwardDevKitPointer(x, y, true, false, fromTouch, clicks);
+    if (appHost_.open) {
+        if (PointerOnApp(x, y)) {
+            appHost_.focus = true;
+            ForwardAppPointer(x, y, true, false, fromTouch, clicks);
             return true;
         }
-        devKitFocus_ = false;
+        appHost_.focus = false;
     }
     if (desktop_.IsEnabled()) {
         if (desktop_.HasTopBarMenu()) {
@@ -5919,9 +5987,8 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
         }
         area->PointerDown(x, y, fromTouch, clicks, modifiers_);
         const std::string opened = area->ConsumeOpen();
-        if (opened == "DevKit") {
-            OpenDevKit();
-            DirtyDevKitWindowSoft();
+        if (!opened.empty()) {
+            OpenApp(opened.c_str());
         } else {
             DirtySelection(*area);
         }
@@ -6091,7 +6158,7 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
 
 bool RoboScene::PointerUp(float x, float y) {
     bool changed = false;
-    if (ForwardDevKitPointer(x, y, false, true, false, 1)) {
+    if (ForwardAppPointer(x, y, false, true, false, 1)) {
         changed = true;
     }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible() && desktop_.GetContextMenu().Pressed() >= 0) {
@@ -6239,39 +6306,40 @@ bool RoboScene::Tick(double deltaMs) {
     }
     wallpaperClockMs_ += deltaMs;
     bool changed = false;
-    if (devKitOpen_ && devKitScene_ != nullptr && devKitBuildStep_ >= 0) {
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.buildStep >= 0) {
         PumpPaint();
-#ifdef ROBO_KERNEL
-        devKitBuildStep_ = RoboDevKitOpenPageStep(*devKitScene_, devKitBuildStep_);
-#else
-        devKitBuildStep_ = BuildDevKitPageStep(*devKitScene_, devKitBuildStep_);
-#endif
-        PumpPaint();
-        if (devKitBuildStep_ < 0) {
-            devKitRailFillPending_ = true;
+        if (appBuildStepFn_ != nullptr) {
+            appHost_.buildStep = appBuildStepFn_(*appHost_.scene, appHost_.buildStep, appHost_.id);
+        } else {
+            appHost_.buildStep = -1;
         }
-        DirtyDevKitWindowSoft();
+        PumpPaint();
+        if (appHost_.buildStep < 0) {
+            // Catalog apps keep filling rails; inline pages are done after eager micro-steps.
+            appHost_.railFillPending = appHost_.scene->railChildrenFn_ != nullptr;
+        }
+        DirtyAppWindowSoft();
         changed = true;
-    } else if (devKitOpen_ && devKitScene_ != nullptr && devKitRailFillPending_) {
+    } else if (appHost_.open && appHost_.scene != nullptr && appHost_.railFillPending) {
         // Budgeted EnsureRailChildren on the nested scene (≤8 kids/call).
-        for (SceneItem& item : devKitScene_->items_) {
+        for (SceneItem& item : appHost_.scene->items_) {
             if (item.kind != SceneItemKind::Sidebar || !item.sidebar) {
                 continue;
             }
             const int selected = item.sidebar->Selected();
             if (selected < 0 || selected >= static_cast<int>(item.sidebar->Items().size())) {
-                devKitRailFillPending_ = false;
+                appHost_.railFillPending = false;
                 break;
             }
             const std::size_t before =
                 item.sidebar->Items()[static_cast<std::size_t>(selected)].Children().size();
             PumpPaint();
-            devKitRailFillPending_ = devKitScene_->EnsureSelectedRailChildren(item.sidebar.get());
+            appHost_.railFillPending = appHost_.scene->EnsureSelectedRailChildren(item.sidebar.get());
             PumpPaint();
             const std::size_t after =
                 item.sidebar->Items()[static_cast<std::size_t>(selected)].Children().size();
-            if (devKitRailFillPending_ || after != before) {
-                DirtyDevKitWindowSoft();
+            if (appHost_.railFillPending || after != before) {
+                DirtyAppWindowSoft();
                 changed = true;
             }
             break;
@@ -6284,10 +6352,10 @@ bool RoboScene::Tick(double deltaMs) {
         }
     }
     // Cap decode and Present together (~15 FPS) so idle does not burn JPEG decode for dropped frames.
-    // While DevKit is focused, freeze wallpaper under the opaque window so idle can hlt.
+    // While a hosted app is focused, freeze wallpaper under the opaque window so idle can hlt.
     constexpr double ROBO_WALLPAPER_PRESENT_MS = 66.0;
     bool videoAdvanced = false;
-    const bool freezeWallpaper = devKitOpen_ && devKitFocus_;
+    const bool freezeWallpaper = appHost_.open && appHost_.focus;
     if (!freezeWallpaper && desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated()) {
         if (wallpaperClockMs_ >= wallpaperPresentDueMs_) {
             if (desktop_.GetBackgroundSource().Advance(deltaMs + ROBO_WALLPAPER_PRESENT_MS)) {
@@ -6311,8 +6379,8 @@ bool RoboScene::Tick(double deltaMs) {
         }
     };
     VisitSceneScrollbars(items_, ActivePaneId(), visit);
-    if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->Tick(deltaMs)) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.scene->Tick(deltaMs)) {
+        DirtyAppFromNested();
         changed = true;
     }
     for (SceneItem& item : items_) {
@@ -6475,38 +6543,39 @@ bool RoboScene::Tick(double deltaMs) {
     const bool contextOpen = desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible();
     const bool liveOverlay = contextOpen || sidebarAnimating_ || themeMixing_ || GesturingSelection() != nullptr ||
                              TextSelection::ShowsHandles() || TextSelection::IsDragging();
-    // With DevKit open: banded wallpaper Present (no wipe of window interior).
-    // Without DevKit: full PresentVideoFrame path.
+    // With hosted app open: banded wallpaper Present (no wipe of window interior).
+    // Without: full PresentVideoFrame path.
     if (videoAdvanced && !contentMoved && !motionChanged && !liveOverlay && chromeReady_ && !fullDirty_ &&
         !damageOpen_) {
-        if (devKitOpen_) {
-            wallpaperAroundDevKit_ = true;
+        if (appHost_.open) {
+            wallpaperAroundApp_ = true;
+            appPresentWindowOnly_ = false;
             videoOnly_ = false;
         } else {
             videoOnly_ = true;
-            wallpaperAroundDevKit_ = false;
+            wallpaperAroundApp_ = false;
         }
         needsRender_ = true;
     } else if (videoAdvanced && !fullDirty_) {
         videoOnly_ = false;
-        wallpaperAroundDevKit_ = false;
+        wallpaperAroundApp_ = false;
         MarkSurfaceDirty();
     } else if (videoAdvanced) {
         videoOnly_ = false;
-        wallpaperAroundDevKit_ = false;
+        wallpaperAroundApp_ = false;
     }
     return changed;
 }
 
 bool RoboScene::NeedsTick() {
     wallpaperOnly_ = false;
-    if (devKitOpen_ && devKitBuildStep_ >= 0) {
+    if (appHost_.open && appHost_.buildStep >= 0) {
         return true;
     }
-    if (devKitOpen_ && devKitRailFillPending_) {
+    if (appHost_.open && appHost_.railFillPending) {
         return true;
     }
-    if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->NeedsTick()) {
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.scene->NeedsTick()) {
         return true;
     }
     bool needsTick = false;
@@ -6551,7 +6620,7 @@ bool RoboScene::NeedsTick() {
         };
         VisitSceneThemes(items_, activePaneId_, themeVisit);
     }
-    const bool wallpaper = desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() && !(devKitOpen_ && devKitFocus_);
+    const bool wallpaper = desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() && !(appHost_.open && appHost_.focus);
     wallpaperOnly_ = wallpaper && !needsTick;
     if (needsTick) {
         return true;
@@ -6563,7 +6632,7 @@ bool RoboScene::HasFocusedInput() const {
     if (focusedInput_ != nullptr) {
         return true;
     }
-    return devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->HasFocusedInput();
+    return appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->HasFocusedInput();
 }
 
 bool RoboScene::SelectableAt(float x, float y) const {
@@ -6619,8 +6688,8 @@ bool RoboScene::SelectAllText() {
 }
 
 bool RoboScene::KeyInsert(const std::string& utf8) {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyInsert(utf8)) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->KeyInsert(utf8)) {
+        DirtyAppFromNested();
         return true;
     }
     if (!focusedInput_) {
@@ -6634,8 +6703,8 @@ bool RoboScene::KeyInsert(const std::string& utf8) {
 }
 
 bool RoboScene::KeyBackspace() {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyBackspace()) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->KeyBackspace()) {
+        DirtyAppFromNested();
         return true;
     }
     if (!focusedInput_) {
@@ -6649,8 +6718,8 @@ bool RoboScene::KeyBackspace() {
 }
 
 bool RoboScene::KeyDelete() {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyDelete()) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->KeyDelete()) {
+        DirtyAppFromNested();
         return true;
     }
     if (!focusedInput_) {
@@ -6664,8 +6733,8 @@ bool RoboScene::KeyDelete() {
 }
 
 bool RoboScene::KeyLeft() {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyLeft()) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->KeyLeft()) {
+        DirtyAppFromNested();
         return true;
     }
     if (!focusedInput_) {
@@ -6679,8 +6748,8 @@ bool RoboScene::KeyLeft() {
 }
 
 bool RoboScene::KeyRight() {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyRight()) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->KeyRight()) {
+        DirtyAppFromNested();
         return true;
     }
     if (!focusedInput_) {
@@ -6694,8 +6763,8 @@ bool RoboScene::KeyRight() {
 }
 
 bool RoboScene::KeyEscape() {
-    if (devKitOpen_ && devKitFocus_ && devKitScene_ != nullptr && devKitScene_->KeyEscape()) {
-        DirtyDevKitFromNested();
+    if (appHost_.open && appHost_.focus && appHost_.scene != nullptr && appHost_.scene->KeyEscape()) {
+        DirtyAppFromNested();
         return true;
     }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {

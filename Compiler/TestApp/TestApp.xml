@@ -1,0 +1,275 @@
+<Robo padding="0">
+  <Foundation name="TestApp" from="RoboFoundation"/>
+  <FoundationUse name="TestApp"/>
+
+  <TitleBar title="TestApp"/>
+
+  <Sidebar variant="activity">
+    <SidebarItem id="overview" label="Overview" icon="Home" selected="true"/>
+    <SidebarItem id="controls" label="Controls" icon="Search"/>
+    <SidebarItem id="layout" label="Layout" icon="Folder"/>
+    <SidebarItem id="motion" label="Motion" icon="Heart"/>
+  </Sidebar>
+
+  <Heading level="1">TestApp</Heading>
+  <Paragraph>
+    Component gallery for RoboticelaOS. Installed under Applications — open it from the desktop icon.
+  </Paragraph>
+
+  <H2>Text</H2>
+  <Paragraph selectable="true">
+    Paragraphs wrap, align, and share the text engine with headings. This one can be selected and copied.
+  </Paragraph>
+  <Text>
+    <Span fontWeight="600">Span</Span> runs sit inside Text with mixed weight and color.
+  </Text>
+
+  <Separator size="sm"/>
+
+  <H2>Buttons</H2>
+  <Button variant="filled">Continue</Button>
+  <Button variant="tinted">Not now</Button>
+  <Button variant="gray">Secondary</Button>
+  <Button variant="plain">Plain</Button>
+  <Button variant="destructive">Delete</Button>
+  <Button disabled="true">Unavailable</Button>
+  <IconButton icon="Close" label="Close"/>
+  <IconButton icon="Plus" label="Add" variant="primary"/>
+
+  <Separator>or continue with</Separator>
+  <Separator variant="subtle"/>
+  <Separator variant="dashed" tone="brand"/>
+  <Separator variant="dotted"/>
+  <Separator variant="fade"/>
+  <Flexbox direction="row" align="stretch" gap="{space.5}">
+    <Button variant="plain">Archive</Button>
+    <Separator orientation="vertical" flush="true"/>
+    <Button variant="plain">Report</Button>
+  </Flexbox>
+
+  <Separator size="sm"/>
+
+  <H2>Inputs</H2>
+  <Paragraph>Click a field and type. Escape leaves the field.</Paragraph>
+  <Input variant="filled" placeholder="Full name" width="100%" />
+  <Input variant="bordered" placeholder="Email address" width="100%" />
+  <Input variant="plain" placeholder="Search" width="100%" />
+
+  <Separator size="sm"/>
+
+  <H2>Flex</H2>
+  <Flexbox direction="row" justify="space-between" align="center" gap="{space.3}" width="100%">
+    <Button>Left</Button>
+    <Button variant="tinted">Middle</Button>
+    <Button>Right</Button>
+  </Flexbox>
+
+  <Separator size="sm"/>
+
+  <H2>Grid</H2>
+  <Grid columns="1fr 1fr" gap="{space.3}" width="100%">
+    <Button>A</Button>
+    <Button variant="gray">B</Button>
+    <Button variant="tinted">C</Button>
+    <Button>D</Button>
+  </Grid>
+
+  <Separator size="sm"/>
+
+  <H2>Position</H2>
+  <Position width="100%" height="{space.10}" background="{color.text.primary}" cornerRadius="{radius.lg}">
+    <Button left="16" top="16">Top left</Button>
+    <Button right="16" bottom="16" variant="tinted">Bottom right</Button>
+  </Position>
+
+  <Separator size="sm"/>
+
+  <H2>Container</H2>
+  <Paragraph>Wheel, drag, or use the arrow keys. The cursor stays an arrow.</Paragraph>
+  <Container height="{space.10}" gap="{space.3}" padding="{space.4}" background="{color.bg.primary}" cornerRadius="{radius.lg}" borderColor="{color.border.subtle}" borderWidth="1" variant="thin" arrows="true" autoHide="false">
+    <H3>Inside the container</H3>
+    <Paragraph selectable="true">The first row of a clipped, scrolling region.</Paragraph>
+    <Paragraph>Buttons and fields inside stay interactive.</Paragraph>
+    <Button>Tap me</Button>
+    <Input placeholder="A field inside the scroll region" width="100%" />
+    <Paragraph>Keep going. The thumb tracks how much is left.</Paragraph>
+    <Paragraph>Another row, so the region actually overflows.</Paragraph>
+    <Paragraph>Almost at the end of the scroll range.</Paragraph>
+    <Button variant="tinted">Last control</Button>
+  </Container>
+
+  <Separator size="sm"/>
+
+  <H2>Brand</H2>
+  <Flexbox direction="row" align="center" gap="{space.5}">
+    <BrandLogo />
+    <BrandLogo variant="icon" />
+    <BrandLogo variant="text" />
+    <BrandLogo variant="lockup" />
+  </Flexbox>
+
+  <Separator size="sm"/>
+
+  <H2>Theme</H2>
+  <ThemeToggle />
+  <Flexbox direction="row" align="center" wrap="wrap" gap="{space.4}">
+    <ThemeToggle variant="compact" />
+    <ThemeToggle variant="labels" />
+    <ThemeToggle variant="icons" />
+    <ThemeToggle variant="switch" />
+    <ThemeToggle variant="compact" disabled="true" />
+  </Flexbox>
+
+  <Separator size="sm"/>
+
+  <H2>Theme switch</H2>
+  <Keyframes name="shootingStar" duration="2s" easing="linear" iteration="infinite">
+    <Keyframe at="0" x="0" y="0" opacity="1" rotate="45"/>
+    <Keyframe at="1" x="150" y="150" opacity="0" rotate="45"/>
+  </Keyframes>
+  <Keyframes name="shootingStarSlow" duration="3s" easing="linear" iteration="infinite">
+    <Keyframe at="0" x="0" y="0" opacity="1" rotate="45"/>
+    <Keyframe at="1" x="150" y="150" opacity="0" rotate="45"/>
+  </Keyframes>
+  <Keyframes name="meteor" duration="4s" easing="linear" iteration="infinite">
+    <Keyframe at="0" y="0" scale="1" opacity="1"/>
+    <Keyframe at="1" y="150" scale="0.3" opacity="0"/>
+  </Keyframes>
+  <Keyframes name="twinkle" duration="1s" easing="ease-in-out" iteration="infinite">
+    <Keyframe at="0" opacity="0.3" scale="1"/>
+    <Keyframe at="0.5" opacity="1" scale="1.2"/>
+    <Keyframe at="1" opacity="0.3" scale="1"/>
+  </Keyframes>
+  <Keyframes name="auroraWave" duration="8s" easing="linear" iteration="infinite">
+    <Keyframe at="0" x="-84.375"/>
+    <Keyframe at="1" x="84.375"/>
+  </Keyframes>
+  <Keyframes name="cometMove" duration="4s" easing="linear" iteration="infinite">
+    <Keyframe at="0" x="0" y="0" opacity="0" scale="1" rotate="-45"/>
+    <Keyframe at="0.1" x="20" y="20" opacity="1" scale="0.92" rotate="-45"/>
+    <Keyframe at="0.9" x="180" y="180" opacity="1" scale="0.28" rotate="-45"/>
+    <Keyframe at="1" x="200" y="200" opacity="0" scale="0.2" rotate="-45"/>
+  </Keyframes>
+  <Keyframes name="cometMoveSlow" duration="6s" easing="linear" iteration="infinite">
+    <Keyframe at="0" x="0" y="0" opacity="0" scale="1" rotate="-45"/>
+    <Keyframe at="0.1" x="20" y="20" opacity="1" scale="0.92" rotate="-45"/>
+    <Keyframe at="0.9" x="180" y="180" opacity="1" scale="0.28" rotate="-45"/>
+    <Keyframe at="1" x="200" y="200" opacity="0" scale="0.2" rotate="-45"/>
+  </Keyframes>
+  <Shape kind="rect" width="168.75" height="75" radius="187.5" fill="#3D7EAE" fillEnd="#5490C0" darkFill="#1D1F2C" darkFillEnd="#2D3142" clip="true" toggle="theme" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)">
+    <Shape x="9.36" bottom="-18.75" darkBottom="-121.86" width="37.5" height="37.5" hoverWithin="true" hoverX="15" hoverScale="1.02" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)">
+      <Shape kind="ellipse" x="110.64" y="-76.86" width="63.72" height="63.72" fill="#AACADF"/>
+      <Shape kind="ellipse" x="120" y="-18.75" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="125.64" y="-65.61" width="63.72" height="63.72" fill="#F3FDFF"/>
+      <Shape kind="ellipse" x="101.25" y="-13.11" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="135" y="-9.36" width="37.5" height="37.5" fill="#F3FDFF"/>
+      <Shape kind="ellipse" x="78.75" y="0" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="108.75" y="-1.86" width="37.5" height="37.5" fill="#F3FDFF"/>
+      <Shape kind="ellipse" x="60" y="-9.36" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="88.11" y="9.36" width="37.5" height="37.5" fill="#F3FDFF"/>
+      <Shape kind="ellipse" x="37.5" y="-1.86" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="65.61" y="0" width="37.5" height="37.5" fill="#F3FDFF"/>
+      <Shape kind="ellipse" x="15" y="-3.75" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="43.11" y="11.25" width="37.5" height="37.5" fill="#F3FDFF"/>
+      <Shape kind="ellipse" x="-9.36" y="-9.36" width="37.5" height="37.5" fill="#AACADF"/>
+      <Shape kind="ellipse" x="28.11" y="9.36" width="37.5" height="37.5" fill="#F3FDFF"/>
+      <Shape kind="ellipse" width="37.5" height="37.5" fill="#F3FDFF"/>
+    </Shape>
+    <Shape kind="path" x="9.36" y="-75" darkY="21.75" width="82.5" height="31.51" fill="#FFFFFF" viewBox="0 0 144 55" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)" path="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688ZM31 23.3545C32.1114 23.2995 33.0551 22.8503 33.8313 22.0069C34.6075 21.1635 34.9956 20.1642 34.9956 19C34.9956 20.1642 35.3837 21.1635 36.1599 22.0069C36.9361 22.8503 37.8798 23.2903 39 23.3545C38.2679 23.3911 37.5976 23.602 36.9802 24.0053C36.3716 24.3995 35.8864 24.9312 35.5248 25.5913C35.172 26.2513 34.9956 26.9572 34.9956 27.7273C34.9956 26.563 34.6075 25.5546 33.8313 24.7112C33.0551 23.8587 32.1114 23.4095 31 23.3545ZM0 36.3545C1.11136 36.2995 2.05513 35.8503 2.83131 35.0069C3.6075 34.1635 3.99559 33.1642 3.99559 32C3.99559 33.1642 4.38368 34.1635 5.15987 35.0069C5.93605 35.8503 6.87982 36.2903 8 36.3545C7.26792 36.3911 6.59757 36.602 5.98015 37.0053C5.37155 37.3995 4.88644 37.9312 4.52481 38.5913C4.172 39.2513 3.99559 39.9572 3.99559 40.7273C3.99559 39.563 3.6075 38.5546 2.83131 37.7112C2.05513 36.8587 1.11136 36.4095 0 36.3545ZM56.8313 24.0069C56.0551 24.8503 55.1114 25.2995 54 25.3545C55.1114 25.4095 56.0551 25.8587 56.8313 26.7112C57.6075 27.5546 57.9956 28.563 57.9956 29.7273C57.9956 28.9572 58.172 28.2513 58.5248 27.5913C58.8864 26.9312 59.3716 26.3995 59.9802 26.0053C60.5976 25.602 61.2679 25.3911 62 25.3545C60.8798 25.2903 59.9361 24.8503 59.1599 24.0069C58.3837 23.1635 57.9956 22.1642 57.9956 21C57.9956 22.1642 57.6075 23.1635 56.8313 24.0069ZM81 25.3545C82.1114 25.2995 83.0551 24.8503 83.8313 24.0069C84.6075 23.1635 84.9956 22.1642 84.9956 21C84.9956 22.1642 85.3837 23.1635 86.1599 24.0069C86.9361 24.8503 87.8798 25.2903 89 25.3545C88.2679 25.3911 87.5976 25.602 86.9802 26.0053C86.3716 26.3995 85.8864 26.9312 85.5248 27.5913C85.172 28.2513 84.9956 28.9572 84.9956 29.7273C84.9956 28.563 84.6075 27.5546 83.8313 26.7112C83.0551 25.8587 82.1114 25.4095 81 25.3545ZM136 36.3545C137.111 36.2995 138.055 35.8503 138.831 35.0069C139.607 34.1635 139.996 33.1642 139.996 32C139.996 33.1642 140.384 34.1635 141.16 35.0069C141.936 35.8503 142.88 36.2903 144 36.3545C143.268 36.3911 142.598 36.602 141.98 37.0053C141.372 37.3995 140.886 37.9312 140.525 38.5913C140.172 39.2513 139.996 39.9572 139.996 40.7273C139.996 39.563 139.607 38.5546 138.831 37.7112C138.055 36.8587 137.111 36.4095 136 36.3545ZM101.831 49.0069C101.055 49.8503 100.111 50.2995 99 50.3545C100.111 50.4095 101.055 50.8587 101.831 51.7112C102.607 52.5546 102.996 53.563 102.996 54.7273C102.996 53.9572 103.172 53.2513 103.525 52.5913C103.886 51.9312 104.372 51.3995 104.98 51.0053C105.598 50.602 106.268 50.3911 107 50.3545C105.88 50.2903 104.936 49.8503 104.16 49.0069C103.384 48.1635 102.996 47.1642 102.996 46C102.996 47.1642 102.607 48.1635 101.831 49.0069Z"/>
+    <Shape x="-13.125" darkX="80.625" y="-13.125" width="101.25" height="101.25" hoverX="5.61" darkHoverX="-5.61" transition="0.3s cubic-bezier(0, -0.02, 0.35, 1.17)">
+      <Shape kind="ellipse" x="-37.5" y="-37.5" width="176.25" height="176.25" hole="101.25" fill="#FFFFFF1A"/>
+      <Shape kind="ellipse" x="-18.75" y="-18.75" width="138.75" height="138.75" hole="101.25" fill="#FFFFFF1A"/>
+      <Shape kind="ellipse" width="101.25" height="101.25" fill="#FFFFFF14"/>
+      <Shape kind="ellipse" width="101.25" height="101.25" fill="#FFFFFF14"/>
+      <Shape kind="ellipse" x="20.61" y="22.5" width="68" height="68" fill="#00000022"/>
+      <Shape kind="ellipse" x="18.75" y="20.61" width="66" height="66" fill="#00000018"/>
+      <Shape kind="ellipse" x="18.75" y="18.75" width="63.75" height="63.75" fill="#ECCA2F" clip="true" hoverScale="1.1" hoverRotate="5" transition="0.3s ease">
+        <Shape kind="ellipse" y="1.86" width="63.75" height="63.75" fill="#A1872A"/>
+        <Shape kind="ellipse" width="63.75" height="61.89" fill="#ECCA2F"/>
+        <Shape kind="ellipse" x="-1.86" y="-1.86" width="63.75" height="63.75" fill="#FEFFEF" opacity="0.61"/>
+        <Shape kind="ellipse" x="1.86" y="1.86" width="60.03" height="58.17" fill="#ECCA2F"/>
+        <Shape kind="ellipse" x="63.75" darkX="0" width="63.75" height="63.75" fill="#C4C9D1" clip="true" hoverRotate="15" transition="0.3s ease">
+          <Shape kind="ellipse" y="1.86" width="63.75" height="63.75" fill="#969696"/>
+          <Shape kind="ellipse" width="63.75" height="61.89" fill="#C4C9D1"/>
+          <Shape kind="ellipse" x="-1.86" y="-1.86" width="63.75" height="63.75" fill="#FEFFEF" opacity="0.61"/>
+          <Shape kind="ellipse" x="1.86" y="1.86" width="60.03" height="58.17" fill="#C4C9D1"/>
+          <Shape kind="ellipse" x="9.36" y="22.5" width="22.5" height="22.5" fill="#959DB1" hoverFill="#7A7F8C" hoverWithin="true"/>
+          <Shape kind="ellipse" x="41.25" y="28.11" width="11.25" height="11.25" fill="#959DB1" hoverFill="#7A7F8C" hoverWithin="true"/>
+          <Shape kind="ellipse" x="24.36" y="9.36" width="7.5" height="7.5" fill="#959DB1" hoverFill="#7A7F8C" hoverWithin="true"/>
+        </Shape>
+      </Shape>
+    </Shape>
+    <Shape kind="ellipse" x="-16.875" y="15" width="2" height="2" fill="#FFFFFF" opacity="0" darkOpacity="1" animation="shootingStar" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)"/>
+    <Shape kind="ellipse" x="-16.875" y="26.25" width="1" height="1" fill="#FFFFFF" opacity="0" darkOpacity="1" animation="shootingStarSlow" animationDelay="1s" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)"/>
+    <Shape kind="ellipse" x="84.375" y="-7.5" width="3" height="3" fill="#FFD700" opacity="0" darkOpacity="1" animation="meteor" animationDelay="2s" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)"/>
+    <Shape width="168.75" height="75" opacity="0" darkOpacity="1" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)">
+      <Shape kind="ellipse" x="33.75" y="15" width="2" height="2" fill="#FFFFFF" animation="twinkle"/>
+      <Shape kind="ellipse" x="92.81" y="22.5" width="2" height="2" fill="#FFFFFF" animation="twinkle" animationDelay="0.3s"/>
+      <Shape kind="ellipse" x="135" y="30" width="2" height="2" fill="#FFFFFF" animation="twinkle" animationDelay="0.6s"/>
+      <Shape kind="ellipse" x="50.63" y="45" width="2" height="2" fill="#FFFFFF" animation="twinkle" animationDelay="0.9s"/>
+      <Shape kind="ellipse" x="109.69" y="52.5" width="2" height="2" fill="#FFFFFF" animation="twinkle" animationDelay="1.2s"/>
+    </Shape>
+    <Shape kind="rect" y="-20" width="168.75" height="20" fill="#00FFFF" fillEnd="#8000FF" gradient="horizontal" opacity="0" darkOpacity="1" animation="auroraWave" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)"/>
+    <Shape width="168.75" height="75" opacity="0" darkOpacity="1" transition="0.5s cubic-bezier(0, -0.02, 0.4, 1.25)">
+      <Shape kind="ellipse" x="-16.875" y="22.5" width="2" height="2" fill="#FFFFFF" animation="cometMove"/>
+      <Shape kind="ellipse" x="-16.875" y="37.5" width="2" height="2" fill="#FFFFFF" animation="cometMoveSlow" animationDelay="2s"/>
+    </Shape>
+  </Shape>
+
+  <Separator size="sm"/>
+
+  <H2>Theme icon</H2>
+  <Flexbox direction="row" align="center" wrap="wrap" gap="{space.4}">
+    <ThemeIconToggle />
+    <ThemeIconToggle variant="subtle" />
+    <ThemeIconToggle variant="outline" />
+    <ThemeIconToggle variant="pair" />
+    <ThemeIconToggle variant="segmented" />
+    <ThemeIconToggle variant="split" />
+    <ThemeIconToggle variant="pair" size="sm" />
+    <ThemeIconToggle variant="pair" disabled="true" />
+  </Flexbox>
+
+  <Separator size="sm"/>
+
+  <H2>Icons</H2>
+  <Paragraph>Pack icons resize and recolor. Their paths stay in the pack.</Paragraph>
+  <Flexbox direction="row" align="center" gap="{space.4}">
+    <Search size="28" color="{color.brand.primary}" />
+    <Plus size="28" color="{color.text.primary}" />
+    <Check size="28" color="{color.success}" />
+    <Close size="28" color="{color.danger}" />
+    <Home size="28" />
+    <Heart size="28" color="{color.danger}" />
+    <FlagFrance width="{space.6}" height="{space.5}" />
+    <FlagJapan width="{space.6}" height="{space.5}" />
+    <FlagGermany width="{space.6}" height="{space.5}" />
+  </Flexbox>
+
+  <Separator size="sm"/>
+
+  <H2>SVG</H2>
+  <Paragraph>This graphic is written in the page XML.</Paragraph>
+  <svg width="{space.10}" height="{space.8}" viewBox="0 0 220 88">
+    <rect x="2" y="8" width="216" height="72" rx="14" fill="{color.bg.secondary}" stroke="{color.border.default}" stroke-width="2"/>
+    <circle cx="44" cy="44" r="18" fill="{color.brand.primary}"/>
+    <path d="M80 32 H196" fill="none" stroke="{color.text.primary}" stroke-width="4"/>
+    <path d="M80 46 H168" fill="none" stroke="{color.text.tertiary}" stroke-width="4"/>
+    <path d="M80 60 H140" fill="none" stroke="{color.border.strong}" stroke-width="4"/>
+  </svg>
+
+  <Separator size="sm"/>
+
+  <H2>Horizontal</H2>
+  <Paragraph>Swipe sideways, drag the thumb, or press Left and Right.</Paragraph>
+  <Container orientation="horizontal" height="{space.9}" width="100%" gap="{space.3}" padding="{space.4}" background="{color.bg.primary}" cornerRadius="{radius.lg}" borderColor="{color.border.subtle}" borderWidth="1" arrows="true" autoHide="false">
+    <Button>Alpha</Button>
+    <Button variant="tinted">Beta</Button>
+    <Button variant="gray">Gamma</Button>
+    <Button>Delta</Button>
+    <Button variant="tinted">Epsilon</Button>
+    <Button>Zeta</Button>
+    <Button variant="gray">Eta</Button>
+    <Button>Theta</Button>
+  </Container>
+</Robo>

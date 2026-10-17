@@ -21,10 +21,14 @@ EM_JS(void, JsSetPageBackground, (int red, int green, int blue), {
 });
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <string>
 
 void BuildPage(Robo::RoboScene& scene);
+#if defined(ROBO_WEB_DESKTOP)
+int BuildTestAppPageStep(Robo::RoboScene& scene, int step);
+#endif
 
 namespace {
 
@@ -36,6 +40,19 @@ bool gPresentQueued = false;
 int gWidth = 0;
 int gHeight = 0;
 float gPixelScale = 1.0f;
+
+int RoboWebAppBuildStep(Robo::RoboScene& scene, int step, const char* appId) {
+#if defined(ROBO_WEB_DESKTOP)
+    if (appId != nullptr && (std::strcmp(appId, "TestApp") == 0 || std::strcmp(appId, "TESTAPP") == 0)) {
+        return BuildTestAppPageStep(scene, step);
+    }
+#else
+    (void)scene;
+    (void)step;
+    (void)appId;
+#endif
+    return -1;
+}
 
 void Render(int width, int height, float pixelScale);
 
@@ -77,7 +94,12 @@ bool EnsureApp() {
     Robo::RoboIconPackLoad(*gPlatform);
     Robo::RoboCatalogLoad(*gPlatform);
     Robo::RoboPaneLoad(*gPlatform);
+    gScene.SetAppBuildStep(RoboWebAppBuildStep);
     BuildPage(gScene);
+#if defined(ROBO_WEB_DESKTOP)
+    // Same as OS: TestApp is installed, not listed in Desktop.xml.
+    gScene.InstallAppIcon("TestApp", "TestApp", 24.0f, 24.0f);
+#endif
     gReady = true;
     return true;
 }

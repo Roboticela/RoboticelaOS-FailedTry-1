@@ -164,7 +164,16 @@ public:
     void DamageRect(float x, float y, float width, float height);
     void GetLastPresentRect(int& x, int& y, int& width, int& height) const;
 
-    // Dynamic catalog apps (DevKit): load one pane / rail panel on demand.
+    // Hosted compiler app: BuildPageStep registered by shell/Web (id from desktop open=).
+    using RoboAppBuildStepFn = int (*)(RoboScene& scene, int step, const char* appId);
+    void SetAppBuildStep(RoboAppBuildStepFn fn);
+    void OpenApp(const char* appId);
+    void CloseApp();
+    bool AppOpen() const;
+    // Desktop icon from an installed app (not Desktop.xml). No-op if openId already present.
+    void InstallAppIcon(const char* label, const char* openId, float x, float y);
+
+    // Dynamic catalog panes: load one pane / rail panel on demand.
     using PaneEnsureFn = void (*)(RoboScene& scene, const char* paneId);
     // Returns true when more children remain (budgeted fill; call again next tick).
     using RailChildrenFn = bool (*)(Sidebar& sidebar, int railIndex);
@@ -256,13 +265,13 @@ private:
     void DirtyScrollbar(const Scrollbar* scrollbar);
     void DirtySidebarItem(const SidebarItem* item);
     void DirtyRailArrows(const Sidebar& sidebar);
-    void DirtyWallpaperAroundDevKit();
+    void DirtyWallpaperAroundApp();
     void DirtySelectionVisual();
     void DirtyThemeBounds(float x, float y, float width, float height);
     bool PaneIsActive(const Container& container) const;
     bool CanPaintPartial(float paintScale, int width, int height) const;
     bool PresentVideoFrame(IPlatform& platform);
-    bool PresentWallpaperAroundDevKit(IPlatform& platform);
+    bool PresentWallpaperAroundApp(IPlatform& platform);
     bool ChromeFits(std::size_t bytes, std::size_t maskBytes) const;
     void CaptureChrome();
     void ApplyChrome(FrameBuffer& frame);
@@ -270,20 +279,19 @@ private:
     void EnsureMenuMark();
     void EnsureFolderIcon();
     float SceneScale() const;
-    void DevKitFrame(float& x, float& y, float& width, float& height) const;
-    bool PointerOnDevKit(float x, float y) const;
-    void EnsureDevKit();
-    void DirtyDevKitWindow();
-    void DirtyDevKitWindowSoft();
-    void DirtyDevKitFromNested();
-    void OpenDevKit();
+    void AppHostFrame(float& x, float& y, float& width, float& height) const;
+    bool PointerOnApp(float x, float y) const;
+    void EnsureAppHost();
+    void DirtyAppWindow();
+    void DirtyAppWindowSoft();
+    void DirtyAppFromNested();
     void PumpPaint();
-    void PaintDevKit();
-    void CompositeDevKit();
-    bool DevKitNeedsPaint() const;
-    bool ForwardDevKitPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks);
-    bool ForwardDevKitMove(float x, float y);
-    bool ForwardDevKitWheel(float x, float y, float deltaX, float deltaY);
+    void PaintAppWindow();
+    void CompositeAppWindow();
+    bool AppNeedsPaint() const;
+    bool ForwardAppPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks);
+    bool ForwardAppMove(float x, float y);
+    bool ForwardAppWheel(float x, float y, float deltaX, float deltaY);
     void ConfigurePageBars();
     void PullPageScroll();
     void PullSidebarScroll(const Scrollbar* bar);
@@ -346,23 +354,30 @@ private:
     bool fullDirty_ = true;
     bool frameReady_ = false;
     bool videoOnly_ = false;
-    bool wallpaperAroundDevKit_ = false;
+    bool wallpaperAroundApp_ = false;
+    // Soft/build: Present app AABB only. Wallpaper tick: Present L-bands (+ window if dirty).
+    bool appPresentWindowOnly_ = false;
     bool chromeReady_ = false;
     bool menuMarkTried_ = false;
     bool folderIconTried_ = false;
     Svg folderIcon_;
-    bool devKitOpen_ = false;
-    bool devKitFocus_ = false;
-    float devKitX_ = 48.0f;
-    float devKitY_ = 48.0f;
-    float devKitW_ = 1080.0f;
-    float devKitH_ = 700.0f;
-    RoboScene* devKitScene_ = nullptr;
-    int devKitBuildStep_ = -1;
-    bool devKitRailFillPending_ = false;
-    bool devKitPaintDirty_ = false;
-    bool devKitSurfaceValid_ = false;
-    bool devKitParentWiped_ = false;
+    struct RoboAppHost {
+        bool open = false;
+        bool focus = false;
+        float x = 48.0f;
+        float y = 48.0f;
+        float w = 1080.0f;
+        float h = 700.0f;
+        RoboScene* scene = nullptr;
+        int buildStep = -1;
+        bool railFillPending = false;
+        bool paintDirty = false;
+        bool surfaceValid = false;
+        bool parentWiped = false;
+        char id[48]{};
+    };
+    RoboAppHost appHost_{};
+    RoboAppBuildStepFn appBuildStepFn_ = nullptr;
     PaneEnsureFn paneEnsureFn_ = nullptr;
     RailChildrenFn railChildrenFn_ = nullptr;
     double wallpaperPresentDueMs_ = 0.0;

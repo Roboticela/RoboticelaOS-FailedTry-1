@@ -101,7 +101,7 @@ float ReadFloat(const std::uint8_t* data, std::uint32_t size, std::uint32_t offs
     if (offset + 4u > size) {
         return value;
     }
-    std::memcpy(&value, data + offset, 4u);
+    memcpy(&value, data + offset, 4u);
     return value;
 }
 
@@ -109,7 +109,7 @@ std::string ReadText(const std::uint8_t* data, std::uint32_t size, std::uint32_t
     if (length == 0 || offset + length > size) {
         return {};
     }
-    return std::string(reinterpret_cast<const char*>(data + offset), reinterpret_cast<const char*>(data + offset + length));
+    return std::string(reinterpret_cast<const char*>(data + offset), static_cast<std::size_t>(length));
 }
 
 const IconRef* FindIcon(const char* name) {
@@ -206,7 +206,7 @@ bool FillFromRef(Icon& icon, const IconRef& ref) {
         }
         if (commandCount > 0) {
             std::vector<float> blob(static_cast<std::size_t>(commandCount) * 7u);
-            std::memcpy(blob.data(), data + cursor, blobBytes);
+            memcpy(blob.data(), data + cursor, blobBytes);
             AppendSvgCommandsFromBlob(shape, blob.data(), blob.size());
         }
         cursor += blobBytes;

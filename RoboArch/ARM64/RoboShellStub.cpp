@@ -1,7 +1,7 @@
 #include "RoboShell.hpp"
 #include "RoboBootInfo.hpp"
 
-void RoboDevKitBind(const RoboBootInfo* info) {
+void RoboAppBind(const RoboBootInfo* info) {
     (void)info;
 }
 
@@ -57,6 +57,12 @@ void RoboShellAdvanceClock(uint32_t deltaMs) {
 void RoboShellOfferLauncher(void) {
     extern volatile uint8_t gRoboLaunchChosen;
     gRoboLaunchChosen = 1;
+}
+
+void RoboShellScanInstalledApps(void) {
+}
+
+void RoboShellPumpPaint(void) {
 }
 
 void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {

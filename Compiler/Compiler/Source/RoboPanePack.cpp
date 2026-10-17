@@ -105,9 +105,9 @@ std::string TokenOf(const char* value) {
     if (value == nullptr) {
         return {};
     }
-    const std::size_t length = std::strlen(value);
+    const std::size_t length = strlen(value);
     if (length >= 2 && value[0] == '{' && value[length - 1] == '}') {
-        return std::string(value + 1, value + length - 1);
+        return std::string(value + 1, length - 2);
     }
     return {};
 }
@@ -123,10 +123,10 @@ void ApplyLength(std::map<std::string, std::string>& tokens, const char* field, 
         return;
     }
     legacy = value;
-    if (std::strcmp(value, "auto") == 0 || value[0] == '\0') {
+    if (strcmp(value, "auto") == 0 || value[0] == '\0') {
         length = Length::Auto();
     } else {
-        const std::size_t lengthBytes = std::strlen(value);
+        const std::size_t lengthBytes = strlen(value);
         if (lengthBytes > 0 && value[lengthBytes - 1] == '%') {
             length = Length::Percent(static_cast<float>(std::atof(value)));
         } else {

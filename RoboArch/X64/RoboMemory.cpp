@@ -59,7 +59,7 @@ uint64_t RoboComputeMapBytes(const RoboBootInfo* info) {
         }
     };
     raise(ROBO_KERNEL_LOAD_ADDRESS + ROBO_KERNEL_BYTES);
-    raise(ROBO_DEVKIT_LOAD_ADDRESS + ROBO_DEVKIT_BYTES);
+    raise(ROBO_APP_LOAD_ADDRESS + ROBO_APP_BYTES);
     if (info != nullptr) {
         if (info->frameBufferBase != 0 && info->height != 0 && info->stride != 0) {
             raise(info->frameBufferBase + static_cast<uint64_t>(info->height) * info->stride);
@@ -103,7 +103,7 @@ void RoboAddForbidden(RoboSpan* spans, uint32_t* count, uint64_t base, uint64_t 
 uint32_t RoboBuildForbidden(const RoboBootInfo* info, uint64_t stack, RoboSpan* spans) {
     uint32_t count = 0;
     RoboAddForbidden(spans, &count, ROBO_KERNEL_LOAD_ADDRESS, ROBO_KERNEL_LOAD_ADDRESS + ROBO_KERNEL_BYTES);
-    RoboAddForbidden(spans, &count, ROBO_DEVKIT_LOAD_ADDRESS, ROBO_DEVKIT_LOAD_ADDRESS + ROBO_DEVKIT_BYTES);
+    RoboAddForbidden(spans, &count, ROBO_APP_LOAD_ADDRESS, ROBO_APP_LOAD_ADDRESS + ROBO_APP_BYTES);
     if (gHeapCarve != nullptr) {
         RoboAddForbidden(spans, &count, reinterpret_cast<uint64_t>(gHeapCarve), gHeapCarveEnd);
     }

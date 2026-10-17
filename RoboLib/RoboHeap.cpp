@@ -95,7 +95,7 @@ extern "C" void* malloc(size_t bytes) {
         block = block->next;
     }
     (void)previous;
-    // Never halt the machine on OOM — a heavy app (DevKit) must not freeze the desktop.
+    // Never halt the machine on OOM — a heavy app must not freeze the desktop.
     return nullptr;
 }
 

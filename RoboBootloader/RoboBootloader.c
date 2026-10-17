@@ -181,51 +181,6 @@ static void RoboBootFileName(char* dest, const char* name) {
 
 static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t imageSize);
 
-static void RoboLoadDevKit(EfiBootServices* boot, EfiFileProtocol* root, uint16_t* path, const char* name, RoboBootInfo* info) {
-    if (info->fileCount >= ROBO_BOOT_FILE_MAX) {
-        return;
-    }
-    EfiFileProtocol* file = 0;
-    if (root->open(root, &file, path, 1, 0) != ROBO_EFI_SUCCESS || file == 0) {
-        return;
-    }
-    uint8_t infoBytes[256];
-    uint64_t infoSize = sizeof(infoBytes);
-    if (file->getInfo(file, &gFileInfoGuid, &infoSize, infoBytes) != ROBO_EFI_SUCCESS) {
-        file->close(file);
-        return;
-    }
-    uint64_t fileSize = ((EfiFileInfo*)infoBytes)->fileSize;
-    if (fileSize == 0 || fileSize > ROBO_BOOT_FILE_BYTES) {
-        file->close(file);
-        return;
-    }
-    void* image = 0;
-    if (boot->allocatePool(ROBO_EFI_LOADER_DATA, fileSize, &image) != ROBO_EFI_SUCCESS || image == 0) {
-        file->close(file);
-        return;
-    }
-    if (!RoboReadWhole(file, (uint8_t*)image, fileSize)) {
-        boot->freePool(image);
-        file->close(file);
-        return;
-    }
-    file->close(file);
-    uint64_t entry = RoboLoadKernel(boot, (uint8_t*)image, fileSize);
-    boot->freePool(image);
-    if (entry == 0) {
-        return;
-    }
-    RoboBootFile* slot = &info->files[info->fileCount];
-    RoboBootFileName(slot->name, name);
-    slot->size = (uint32_t)fileSize;
-    slot->reserved = 0;
-    /* Host reads RoboDevKitExports at the DevKit load base, not the ELF entry. */
-    slot->address = ROBO_DEVKIT_LOAD_ADDRESS;
-    (void)entry;
-    info->fileCount += 1u;
-}
-
 static int RoboRangesOverlap(uint64_t a, uint64_t aBytes, uint64_t b, uint64_t bBytes) {
     if (aBytes == 0 || bBytes == 0) {
         return 0;
@@ -248,7 +203,7 @@ static int RoboAddressInMappedRam(uint64_t address, uint64_t bytes) {
     if (RoboRangesOverlap(address, bytes, ROBO_KERNEL_LOAD_ADDRESS, ROBO_KERNEL_BYTES)) {
         return 0;
     }
-    if (RoboRangesOverlap(address, bytes, ROBO_DEVKIT_LOAD_ADDRESS, ROBO_DEVKIT_BYTES)) {
+    if (RoboRangesOverlap(address, bytes, ROBO_APP_LOAD_ADDRESS, ROBO_APP_BYTES)) {
         return 0;
     }
     return 1;
@@ -348,7 +303,7 @@ static uint64_t RoboLoadKernel(EfiBootServices* boot, uint8_t* image, uint64_t i
     if (header->phOff + (uint64_t)header->phNum * header->phEntSize > imageSize || header->phEntSize < sizeof(Elf64Phdr)) {
         return 0;
     }
-    /* One contiguous page span covers overlapping PT_LOAD tails (DevKit .text/.rodata share a page). */
+    /* One contiguous page span covers overlapping PT_LOAD tails (.text/.rodata share a page). */
     uint64_t mapStart = ~0ull;
     uint64_t mapEnd = 0;
     uint16_t index = 0;
@@ -539,9 +494,6 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     static uint16_t reelPath[] = u"\\BACKGROU.RJP";
     static uint16_t logoPath[] = u"\\ROBOLOGO.SVG";
     static uint16_t emptyPath[] = u"\\EMPTYFOL.SVG";
-    static uint16_t devKitPath[] = u"\\DevKit.elf";
-    /* Claim DevKit's fixed VMA before other held files can land on it. */
-    RoboLoadDevKit(boot, root, devKitPath, "DEVKIT.ELF", &info);
     RoboLoadBootFile(boot, root, regularPath, "INTERR.TTF", &info);
     RoboLoadBootFile(boot, root, mediumPath, "INTERM.TTF", &info);
     RoboLoadBootFile(boot, root, semiPath, "INTERS.TTF", &info);

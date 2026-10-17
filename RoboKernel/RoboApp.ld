@@ -1,12 +1,12 @@
-ENTRY(RoboDevKitBuild)
+ENTRY(RoboAppBuild)
 
 SECTIONS
 {
     . = 0x10000000;
 
-    .devkit_exports : ALIGN(16)
+    .robo_app_exports : ALIGN(16)
     {
-        KEEP(*(.devkit_exports))
+        KEEP(*(.robo_app_exports))
     }
 
     .text : ALIGN(16)

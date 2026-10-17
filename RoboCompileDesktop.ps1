@@ -56,15 +56,21 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-$devKitXml = Join-Path $compiler "DevKit\DevKit.xml"
-$devKitGenerated = Join-Path $toolDir "DevKitPage.cpp"
-if (-not (Test-Path $devKitXml)) {
-    Write-Error "Compiler\DevKit\DevKit.xml is missing."
+$testAppXml = Join-Path $compiler "TestApp\TestApp.xml"
+$testAppGenerated = Join-Path $toolDir "TestAppPage.cpp"
+if (-not (Test-Path $testAppXml)) {
+    Write-Error "Compiler\TestApp\TestApp.xml is missing."
 }
-& $toolExe $devKitXml $devKitGenerated $assets
+& $toolExe $testAppXml $testAppGenerated $assets
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
+$testAppText = [IO.File]::ReadAllText($testAppGenerated)
+$testAppText = $testAppText.Replace("void BuildPage(", "void BuildTestAppPage(")
+$testAppText = $testAppText.Replace("BuildPage(scene)", "BuildTestAppPage(scene)")
+$testAppText = $testAppText.Replace("int BuildPageStep(", "int BuildTestAppPageStep(")
+[IO.File]::WriteAllText($testAppGenerated, $testAppText)
+
 # Full compiler icon libraries stay under Compiler\Assets (source .pack + full .PAK for the toolkit).
 & $toolExe --pack (Join-Path $assets "RoboIcons.pack") (Join-Path $assets "ROBOICON.PAK")
 if ($LASTEXITCODE -ne 0) {
@@ -74,37 +80,26 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-# App packs land in Build: only icons referenced by Desktop/DevKit XML, plus catalog + panes.
+# Desktop + TestApp packs land in Build; empty catalog/pane packs keep ESP loaders happy.
 $iconPak = Join-Path $toolDir "ROBOICON.PAK"
 $countryPak = Join-Path $toolDir "ROBOCTRY.PAK"
 $catalogPak = Join-Path $toolDir "ROBOCAT.PAK"
 $panePak = Join-Path $toolDir "ROBOPANE.PAK"
-& $toolExe --pack-used (Join-Path $assets "RoboIcons.pack") $iconPak $pageXml $devKitXml
+& $toolExe --pack-used (Join-Path $assets "RoboIcons.pack") $iconPak $pageXml $testAppXml
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-& $toolExe --pack-used (Join-Path $assets "RoboCountry.pack") $countryPak $pageXml $devKitXml
+& $toolExe --pack-used (Join-Path $assets "RoboCountry.pack") $countryPak $pageXml $testAppXml
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-& $toolExe --catalog $devKitXml $catalogPak
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
-}
-& $toolExe --panes $devKitXml $panePak $assets
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
-}
-$devKitText = [IO.File]::ReadAllText($devKitGenerated)
-$devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
-$devKitText = $devKitText.Replace("BuildPage(scene)", "BuildDevKitPage(scene)")
-$devKitText = $devKitText.Replace("int BuildPageStep(", "int BuildDevKitPageStep(")
-[IO.File]::WriteAllText($devKitGenerated, $devKitText)
+[IO.File]::WriteAllBytes($catalogPak, [byte[]](0x52, 0x43, 0x41, 0x54, 0x31, 0, 0, 0, 0, 0, 0, 0))
+[IO.File]::WriteAllBytes($panePak, [byte[]](0x52, 0x50, 0x41, 0x4E, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
 $sources = @(Get-ChildItem (Join-Path $compiler "Compiler\Source") -Filter *.cpp | ForEach-Object { $_.FullName })
 $sources += @(
     $generated,
-    $devKitGenerated,
+    $testAppGenerated,
     (Join-Path $compiler "RoboPlatforms\RoboticelaOS\RoboticelaOSPlatform.cpp")
 )
 

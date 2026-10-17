@@ -8,7 +8,7 @@ namespace Robo {
 
 namespace {
 
-const char* PRODUCT_NAME = "DevKit";
+const char* PRODUCT_NAME = "RoboticelaOS";
 const char* COMPANY_NAME = "Roboticela";
 
 void AddLine(std::vector<SvgCommand>& commands, float x, float y) {

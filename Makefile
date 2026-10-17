@@ -35,9 +35,8 @@ SHELL_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-p
 	-ICompiler/RoboPlatforms/RoboticelaOS -IRoboInclude -IRoboGPU -IRoboDesktop -IRoboInput -IRoboArch/X64
 COMPILER_CPPS := $(wildcard Compiler/Compiler/Source/*.cpp)
 SHELL_OBJS := $(patsubst Compiler/Compiler/Source/%.cpp,$(SHELL_DIR)/%.o,$(COMPILER_CPPS)) \
-	$(SHELL_DIR)/DesktopPage.o $(SHELL_DIR)/RoboDevKitHost.o $(SHELL_DIR)/RoboticelaOSPlatform.o $(SHELL_DIR)/RoboShell.o \
+	$(SHELL_DIR)/DesktopPage.o $(SHELL_DIR)/RoboAppHost.o $(SHELL_DIR)/RoboticelaOSPlatform.o $(SHELL_DIR)/RoboShell.o \
 	$(SHELL_DIR)/RoboVideo.o $(SHELL_DIR)/RoboHeap.o $(SHELL_DIR)/RoboStd.o $(SHELL_DIR)/RoboDebug.o
-DEVKIT_OBJS := $(SHELL_DIR)/DevKitPage.o $(SHELL_DIR)/RoboDevKitEntry.o
 BLIT_CFLAGS := -std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector \
 	-fno-asynchronous-unwind-tables -fno-unwind-tables -mno-red-zone \
 	-fno-pic -fno-pie -fno-builtin -msse2 -mfpmath=sse -O2 -Wall -Wextra -Wno-unused-parameter \
@@ -61,7 +60,7 @@ ARM_SHELL_CFLAGS := $(ARM_CFLAGS) -fno-threadsafe-statics -nostdinc++ -DROBO_KER
 	-IRoboLib/Include -ICompiler/Compiler/Include -ICompiler/Compiler/ThirdParty \
 	-ICompiler/RoboPlatforms/RoboticelaOS
 ARM_SHELL_OBJS := $(patsubst Compiler/Compiler/Source/%.cpp,$(ARM_SHELL_DIR)/%.o,$(COMPILER_CPPS)) \
-	$(ARM_SHELL_DIR)/DesktopPage.o $(ARM_SHELL_DIR)/RoboDevKitHost.o $(ARM_SHELL_DIR)/RoboticelaOSPlatform.o \
+	$(ARM_SHELL_DIR)/DesktopPage.o $(ARM_SHELL_DIR)/RoboAppHost.o $(ARM_SHELL_DIR)/RoboticelaOSPlatform.o \
 	$(ARM_SHELL_DIR)/RoboShell.o $(ARM_SHELL_DIR)/RoboVideo.o $(ARM_SHELL_DIR)/RoboStd.o $(ARM_SHELL_DIR)/RoboDebug.o
 ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.o \
 	$(ARM_OBJ)/RoboDesktop.o $(ARM_OBJ)/RoboInput.o $(ARM_OBJ)/RoboFS.o \
@@ -74,7 +73,9 @@ ARM_OBJS := $(ARM_OBJ)/RoboKernel.o $(ARM_OBJ)/RoboSupport.o $(ARM_OBJ)/RoboGPU.
 
 .PHONY: all clean
 
-all: $(BOOT)/BOOTX64.EFI $(ESP)/RoboKernel.elf $(ESP)/DevKit.elf $(ESP)/RoboApp.bin $(BOOT_ARM)/BOOTAA64.EFI $(ESP_ARM)/RoboKernel.elf $(ESP_ARM)/RoboApp.bin $(BUILD)/RoboDisk.img
+TESTAPP_OBJS := $(SHELL_DIR)/TestAppPage.o $(SHELL_DIR)/RoboAppEntry.o
+
+all: $(BOOT)/BOOTX64.EFI $(ESP)/RoboKernel.elf $(ESP)/TestApp.elf $(ESP)/RoboApp.bin $(BOOT_ARM)/BOOTAA64.EFI $(ESP_ARM)/RoboKernel.elf $(ESP_ARM)/RoboApp.bin $(BUILD)/RoboDisk.img
 
 $(BOOT)/BOOTX64.EFI: $(OBJ)/RoboBootloader.o
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(BOOT)' | Out-Null"
@@ -191,7 +192,7 @@ $(BUILD)/App/ARM.bin: RoboApp/RoboAppMain.cpp RoboApp/RoboApp.ld RoboInclude/Rob
 	$(LLD) -m aarch64elf -nostdlib -static -T RoboApp/RoboApp.ld -o $(BUILD)/App/RoboAppARM.elf $(BUILD)/App/RoboAppARM.o
 	llvm-objcopy -O binary $(BUILD)/App/RoboAppARM.elf $(BUILD)/App/ARM.bin
 
-$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin $(BUILD)/App/X64.bin $(BUILD)/App/ARM.bin \
+$(BUILD)/RoboDisk.img: $(BUILD)/RoboImage.exe $(ESP)/RoboApp.bin $(ESP)/TestApp.elf $(BUILD)/App/X64.bin $(BUILD)/App/ARM.bin \
 	$(ESP)/INTERR.TTF $(ESP)/INTERM.TTF $(ESP)/INTERS.TTF $(ESP)/INTERB.TTF $(ESP)/INTERI.TTF \
 	$(ESP)/DESKTOP.BIN $(ESP)/BACKGROU.RJP $(ESP)/ROBOLOGO.SVG $(ESP)/EMPTYFOL.SVG
 	$(BUILD)/RoboImage.exe $(BUILD)/RoboDisk.img $(ESP)
@@ -204,21 +205,21 @@ $(SHELL_DIR)/DesktopPage.o: Build/Desktop/DesktopPage.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Build/Desktop/DesktopPage.cpp -o $(SHELL_DIR)/DesktopPage.o
 
-$(SHELL_DIR)/DevKitPage.o: Build/Desktop/DevKitPage.cpp
+$(SHELL_DIR)/RoboAppHost.o: RoboKernel/RoboAppHost.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
-	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Build/Desktop/DevKitPage.cpp -o $(SHELL_DIR)/DevKitPage.o
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboAppHost.cpp -o $(SHELL_DIR)/RoboAppHost.o
 
-$(SHELL_DIR)/RoboDevKitEntry.o: RoboKernel/RoboDevKitEntry.cpp
+$(SHELL_DIR)/TestAppPage.o: Build/Desktop/TestAppPage.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
-	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboDevKitEntry.cpp -o $(SHELL_DIR)/RoboDevKitEntry.o
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Build/Desktop/TestAppPage.cpp -o $(SHELL_DIR)/TestAppPage.o
 
-$(SHELL_DIR)/RoboDevKitHost.o: RoboKernel/RoboDevKitHost.cpp
+$(SHELL_DIR)/RoboAppEntry.o: RoboKernel/RoboAppEntry.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
-	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboDevKitHost.cpp -o $(SHELL_DIR)/RoboDevKitHost.o
+	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboAppEntry.cpp -o $(SHELL_DIR)/RoboAppEntry.o
 
-$(ESP)/DevKit.elf: $(DEVKIT_OBJS) $(ESP)/RoboKernel.elf RoboKernel/RoboDevKit.ld
+$(ESP)/TestApp.elf: $(TESTAPP_OBJS) $(ESP)/RoboKernel.elf RoboKernel/RoboApp.ld
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(ESP)' | Out-Null"
-	$(LLD) -nostdlib -static -T RoboKernel/RoboDevKit.ld --just-symbols=$(ESP)/RoboKernel.elf -o $(ESP)/DevKit.elf $(DEVKIT_OBJS)
+	$(LLD) -nostdlib -static -T RoboKernel/RoboApp.ld --just-symbols=$(ESP)/RoboKernel.elf -o $(ESP)/TestApp.elf $(TESTAPP_OBJS)
 
 $(SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
@@ -340,8 +341,8 @@ $(ARM_SHELL_DIR)/DesktopPage.o: Build/Desktop/DesktopPage.cpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(ARM_SHELL_DIR)' | Out-Null"
 	$(CLANG) $(ARM_TARGET) $(ARM_SHELL_CFLAGS) -c Build/Desktop/DesktopPage.cpp -o $(ARM_SHELL_DIR)/DesktopPage.o
 
-$(ARM_SHELL_DIR)/RoboDevKitHost.o: RoboKernel/RoboDevKitHost.cpp
-	$(CLANG) $(ARM_TARGET) $(ARM_SHELL_CFLAGS) -c RoboKernel/RoboDevKitHost.cpp -o $(ARM_SHELL_DIR)/RoboDevKitHost.o
+$(ARM_SHELL_DIR)/RoboAppHost.o: RoboKernel/RoboAppHost.cpp
+	$(CLANG) $(ARM_TARGET) $(ARM_SHELL_CFLAGS) -c RoboKernel/RoboAppHost.cpp -o $(ARM_SHELL_DIR)/RoboAppHost.o
 
 $(ARM_SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp
 	$(CLANG) $(ARM_TARGET) $(ARM_SHELL_CFLAGS) -c Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp -o $(ARM_SHELL_DIR)/RoboticelaOSPlatform.o

@@ -158,37 +158,6 @@ int RoboShellClicks(int32_t x, int32_t y) {
     return clicks;
 }
 
-void RoboShellTrackCursor(void* cookie) {
-    (void)cookie;
-    if (gDesktop == nullptr) {
-        return;
-    }
-    for (int32_t count = 0; count < 32; ++count) {
-        int32_t dx = 0;
-        int32_t dy = 0;
-        uint8_t pressed = 0;
-        uint8_t changed = 0;
-#if defined(__aarch64__)
-        (void)dx;
-        (void)dy;
-        (void)pressed;
-        (void)changed;
-        return;
-#else
-        if (!RoboPS2MouseReadPacket(&dx, &dy, &pressed, &changed)) {
-            return;
-        }
-#endif
-        if (dx != 0 || dy != 0) {
-            RoboDesktopMoveCursor(gDesktop, dx, dy);
-            gCursorMovedDuringPaint = true;
-        }
-        if (changed != 0) {
-            gClickDuringPaint = pressed != 0 ? 1 : 2;
-        }
-    }
-}
-
 bool RoboLoadFace(Robo::FontFaceId face, const char* name) {
     uint8_t* file = static_cast<uint8_t*>(malloc(160u * 1024u));
     if (file == nullptr) {
@@ -246,7 +215,42 @@ const char* RoboKeyName(uint16_t code, char* printable) {
     return nullptr;
 }
 
+void RoboShellTrackCursor(void* cookie) {
+    (void)cookie;
+    if (gDesktop == nullptr) {
+        return;
+    }
+    for (int32_t count = 0; count < 32; ++count) {
+        int32_t dx = 0;
+        int32_t dy = 0;
+        uint8_t pressed = 0;
+        uint8_t changed = 0;
+#if defined(__aarch64__)
+        (void)dx;
+        (void)dy;
+        (void)pressed;
+        (void)changed;
+        return;
+#else
+        if (!RoboPS2MouseReadPacket(&dx, &dy, &pressed, &changed)) {
+            return;
+        }
+#endif
+        if (dx != 0 || dy != 0) {
+            RoboDesktopMoveCursor(gDesktop, dx, dy);
+            gCursorMovedDuringPaint = true;
+        }
+        if (changed != 0) {
+            gClickDuringPaint = pressed != 0 ? 1 : 2;
+        }
+    }
+}
+
 }  // namespace
+
+void RoboShellPumpPaint(void) {
+    RoboShellTrackCursor(nullptr);
+}
 
 bool RoboShellKeepCursor(void* cookie, int x, int y, const uint8_t* pixel) {
     return RoboDesktopKeepCursor(static_cast<RoboDesktop*>(cookie), x, y, pixel);
@@ -301,6 +305,7 @@ bool RoboShellStart(RoboDesktop* desktop) {
     Robo::RoboIconPackLoad(*gPlatform);
     Robo::RoboCatalogLoad(*gPlatform);
     Robo::RoboPaneLoad(*gPlatform);
+    gScene->SetAppBuildStep(RoboAppBuildStep);
     BuildPage(*gScene);
     gRoboShellGuard = 1;
     gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
@@ -485,6 +490,13 @@ void RoboShellOfferLauncher(void) {
     }
     gScene->SetLauncherPick(RoboPickLauncher);
     gScene->OpenLauncher(RoboLauncherName(0), 48, RoboLauncherCount());
+}
+
+void RoboShellScanInstalledApps(void) {
+    if (gScene == nullptr) {
+        return;
+    }
+    RoboAppInstallDesktopIcons(*gScene);
 }
 
 void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {

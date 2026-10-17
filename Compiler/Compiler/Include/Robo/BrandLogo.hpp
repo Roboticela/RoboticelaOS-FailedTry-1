@@ -6,7 +6,7 @@
 
 namespace Robo {
 
-// The DevKit mark from the reference brand logo.
+// Brand mark from the reference logo.
 // mark and icon are the glyph. text adds the product name.
 // lockup adds the company name and the product name.
 enum class BrandLogoVariant {

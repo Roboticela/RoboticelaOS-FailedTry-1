@@ -347,12 +347,12 @@ void RoboBuildSidebarFromCatalog(RoboScene& scene) {
     }
 }
 
-void RoboApplyDevKitChrome(RoboScene& scene) {
+void RoboApplyCatalogChrome(RoboScene& scene) {
     scene.SetPagePadding(0.0f);
-    Foundation foundationDevKit = Foundation::CopyOf("RoboFoundation");
-    foundationDevKit.SetName("DevKit");
-    Foundation::Register(foundationDevKit);
-    scene.SetFoundation("DevKit");
+    Foundation foundationApp = Foundation::CopyOf("RoboFoundation");
+    foundationApp.SetName("App");
+    Foundation::Register(foundationApp);
+    scene.SetFoundation("App");
 }
 
 }  // namespace Robo

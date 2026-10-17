@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("Demo", "DevKit", "Desktop")]
+    [ValidateSet("Demo", "Desktop")]
     [string]$App = "Demo"
 )
 
@@ -154,10 +154,7 @@ function Invoke-XmlCompile {
     $pageXml = Join-Path $Root "Demo.xml"
     $pageCppName = "DemoPage.cpp"
     $assetDirectory = $null
-    if ($App -eq "DevKit") {
-        $pageXml = Join-Path $Root "DevKit\DevKit.xml"
-        $pageCppName = "DevKitPage.cpp"
-    } elseif ($App -eq "Desktop") {
+    if ($App -eq "Desktop") {
         $pageXml = Join-Path (Split-Path -Parent $Root) "RoboDesktop\Desktop.xml"
         $pageCppName = "DesktopPage.cpp"
         $assetDirectory = Join-Path $Root "Assets"
@@ -223,23 +220,23 @@ exit /b %ERRORLEVEL%
     Write-Host "Built: $pageCpp"
 
     if ($App -eq "Desktop") {
-        $devKitXml = Join-Path $Root "DevKit\DevKit.xml"
-        $devKitCpp = Join-Path $generatedDir "DevKitPage.cpp"
-        if (-not (Test-Path $devKitXml)) {
-            throw "DevKit\DevKit.xml is missing"
+        $testAppXml = Join-Path $Root "TestApp\TestApp.xml"
+        $testAppCpp = Join-Path $generatedDir "TestAppPage.cpp"
+        if (-not (Test-Path $testAppXml)) {
+            throw "TestApp\TestApp.xml is missing"
         }
-        & $toolExe $devKitXml $devKitCpp $assetDirectory
+        & $toolExe $testAppXml $testAppCpp $assetDirectory
         if ($LASTEXITCODE -ne 0) {
-            throw "XmlCompile failed to compile $devKitXml"
+            throw "XmlCompile failed to compile $testAppXml"
         }
-        $devKitText = [IO.File]::ReadAllText($devKitCpp)
-        $devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
-        $devKitText = $devKitText.Replace("BuildPage(scene)", "BuildDevKitPage(scene)")
-        $devKitText = $devKitText.Replace("int BuildPageStep(", "int BuildDevKitPageStep(")
-        [IO.File]::WriteAllText($devKitCpp, $devKitText)
-        Write-Host "Built: $devKitCpp"
+        $testAppText = [IO.File]::ReadAllText($testAppCpp)
+        $testAppText = $testAppText.Replace("void BuildPage(", "void BuildTestAppPage(")
+        $testAppText = $testAppText.Replace("BuildPage(scene)", "BuildTestAppPage(scene)")
+        $testAppText = $testAppText.Replace("int BuildPageStep(", "int BuildTestAppPageStep(")
+        [IO.File]::WriteAllText($testAppCpp, $testAppText)
+        Write-Host "Built: $testAppCpp"
 
-        # Full compiler libraries stay in Assets; app packs (used icons + catalog + panes) go to Build.
+        # Full compiler libraries stay in Assets; desktop + TestApp packs go to Build.
         & $toolExe --pack (Join-Path $assetDirectory "RoboIcons.pack") (Join-Path $assetDirectory "ROBOICON.PAK")
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write ROBOICON.PAK"
@@ -256,33 +253,24 @@ exit /b %ERRORLEVEL%
         $countryPak = Join-Path $generatedDir "ROBOCTRY.PAK"
         $catalogPak = Join-Path $generatedDir "ROBOCAT.PAK"
         $panePak = Join-Path $generatedDir "ROBOPANE.PAK"
-        & $toolExe --pack-used (Join-Path $assetDirectory "RoboIcons.pack") $iconPak $desktopXml $devKitXml
+        & $toolExe --pack-used (Join-Path $assetDirectory "RoboIcons.pack") $iconPak $desktopXml $testAppXml
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write used ROBOICON.PAK"
         }
-        & $toolExe --pack-used (Join-Path $assetDirectory "RoboCountry.pack") $countryPak $desktopXml $devKitXml
+        & $toolExe --pack-used (Join-Path $assetDirectory "RoboCountry.pack") $countryPak $desktopXml $testAppXml
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write used ROBOCTRY.PAK"
         }
-        & $toolExe --catalog $devKitXml $catalogPak
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to write ROBOCAT.PAK"
-        }
-        & $toolExe --panes $devKitXml $panePak $assetDirectory
-        if ($LASTEXITCODE -ne 0) {
-            throw "Failed to write ROBOPANE.PAK"
-        }
-        Write-Host "Built app packs in ${generatedDir}: ROBOICON.PAK ROBOCTRY.PAK ROBOCAT.PAK ROBOPANE.PAK"
+        [IO.File]::WriteAllBytes($catalogPak, [byte[]](0x52, 0x43, 0x41, 0x54, 0x31, 0, 0, 0, 0, 0, 0, 0))
+        [IO.File]::WriteAllBytes($panePak, [byte[]](0x52, 0x50, 0x41, 0x4E, 0x31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        Write-Host "Built desktop packs in ${generatedDir}: ROBOICON.PAK ROBOCTRY.PAK ROBOCAT.PAK ROBOPANE.PAK"
     }
 }
 
 function Invoke-WebBuild {
     $outputDir = $BuildWeb
     $pageCppName = "DemoPage.cpp"
-    if ($App -eq "DevKit") {
-        $outputDir = Join-Path $Root "Build\DevKit"
-        $pageCppName = "DevKitPage.cpp"
-    } elseif ($App -eq "Desktop") {
+    if ($App -eq "Desktop") {
         $outputDir = Join-Path $Root "Build\Desktop"
         $pageCppName = "DesktopPage.cpp"
     }
@@ -293,7 +281,7 @@ function Invoke-WebBuild {
         (Join-Path $Root "Build\Generated\$pageCppName")
     )
     if ($App -eq "Desktop") {
-        $sources += (Join-Path $Root "Build\Generated\DevKitPage.cpp")
+        $sources += (Join-Path $Root "Build\Generated\TestAppPage.cpp")
     }
     $sources += @(
         (Join-Path $Root "RoboPlatforms\Web\WebPlatform.cpp"),
@@ -342,7 +330,11 @@ function Invoke-WebBuild {
         "--bind"
     ) + (Get-IncludeArgs "em") + @(
         "-I$(Join-Path $Root 'RoboPlatforms\Web')"
-    ) + $sources + $preloadArgs + @(
+    )
+    if ($App -eq "Desktop") {
+        $emccArgs += "-DROBO_WEB_DESKTOP=1"
+    }
+    $emccArgs += $sources + $preloadArgs + @(
         "-sMODULARIZE=1",
         "-sEXPORT_NAME=CreateRoboModule",
         "-sALLOW_MEMORY_GROWTH=1",
@@ -359,10 +351,7 @@ function Invoke-WebBuild {
 
     $assetUrl = "/Build/Web/"
     $publicDir = Join-Path $Root "Demo"
-    if ($App -eq "DevKit") {
-        $assetUrl = "/Build/DevKit/"
-        $publicDir = Join-Path $Root "devkit"
-    } elseif ($App -eq "Desktop") {
+    if ($App -eq "Desktop") {
         $assetUrl = "/Build/Desktop/"
         $publicDir = Join-Path $Root "Desktop"
     }
@@ -372,9 +361,6 @@ function Invoke-WebBuild {
         throw "Index.html was not written"
     }
     & node $writer --out $publicDir --title $App --asset $assetUrl
-    if ($App -eq "DevKit") {
-        & node $writer --out (Join-Path $publicDir "syntax") --title "Syntax" --asset $assetUrl
-    }
     if ($LASTEXITCODE -ne 0) {
         throw "Index.html was not written"
     }
@@ -418,8 +404,6 @@ Invoke-WebBuild
 Write-Step "Build complete"
 if ($App -eq "Desktop") {
     Write-Host "Desktop: ..\RunDesktop.ps1"
-} elseif ($App -eq "DevKit") {
-    Write-Host "DevKit: .\RunDevKit.ps1"
 } else {
     Write-Host "Demo: .\RunDemo.ps1"
 }

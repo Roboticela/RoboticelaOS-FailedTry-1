@@ -872,6 +872,19 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
                 continue;
             }
             if (child.name == "Sidebar" || child.name == "Pane") {
+                // Inline items in the page XML: emit the Sidebar as eager UI.
+                // Empty Sidebar + ROBOCAT.PAK remains the pack-driven catalog path.
+                bool hasInlineItems = false;
+                for (const XmlNode& item : child.children) {
+                    if (IsPaneItem(item.name)) {
+                        hasInlineItems = true;
+                        break;
+                    }
+                }
+                if (hasInlineItems) {
+                    eagerNodes.push_back(&child);
+                    continue;
+                }
                 sidebarNode = &child;
                 if (child.attributes.count("variant") != 0) {
                     sidebarVariant = child.attributes.at("variant");
@@ -927,42 +940,40 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
         }
 
         bool desktopChrome = false;
-        bool devKitChrome = false;
+        bool catalogChrome = false;
         {
             bool hasDesktopFoundation = false;
             bool hasDesktopUse = false;
-            bool hasDevKitFoundation = false;
-            bool hasDevKitUse = false;
+            bool hasAppFoundation = false;
+            bool hasAppUse = false;
             for (const XmlNode& child : node.children) {
                 if (child.name == "Foundation" && child.attributes.count("name") != 0 &&
                     child.attributes.count("from") != 0 && child.attributes.at("from") == "RoboFoundation" &&
                     child.children.empty()) {
                     if (child.attributes.at("name") == "Desktop") {
                         hasDesktopFoundation = true;
-                    }
-                    if (child.attributes.at("name") == "DevKit") {
-                        hasDevKitFoundation = true;
+                    } else {
+                        hasAppFoundation = true;
                     }
                 }
                 if (child.name == "FoundationUse" && child.attributes.count("name") != 0) {
                     if (child.attributes.at("name") == "Desktop") {
                         hasDesktopUse = true;
-                    }
-                    if (child.attributes.at("name") == "DevKit") {
-                        hasDevKitUse = true;
+                    } else {
+                        hasAppUse = true;
                     }
                 }
             }
             desktopChrome = catalog.empty() && lazyPanes.empty() && hasDesktopFoundation && hasDesktopUse;
-            devKitChrome = !catalog.empty() && hasDevKitFoundation && hasDevKitUse;
+            catalogChrome = !catalog.empty() && hasAppFoundation && hasAppUse;
         }
 
         code << Indent(indent) << "// Generated from Robo XML (catalog + lazy panes)\n";
         code << Indent(indent) << "void BuildPage(Robo::RoboScene& scene) {\n";
         if (desktopChrome) {
             code << Indent(indent + 1) << "Robo::RoboApplyDesktopChrome(scene);\n";
-        } else if (devKitChrome) {
-            code << Indent(indent + 1) << "Robo::RoboApplyDevKitChrome(scene);\n";
+        } else if (catalogChrome) {
+            code << Indent(indent + 1) << "Robo::RoboApplyCatalogChrome(scene);\n";
         } else {
             if (node.attributes.count("padding") != 0) {
                 code << Indent(indent + 1) << "scene.SetPagePadding(" << FloatLiteral(node.attributes.at("padding"))
@@ -1001,13 +1012,14 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
         const bool hasRails = !catalog.empty();
         const bool hasPaneHook = !lazyPanes.empty();
         const bool hasPaneBuild = !defaultPaneId.empty();
-        code << Indent(indent) << "// Micro-steps: 0=chrome, 100+n=rails, 200=hooks, 300=pane. One budget per tick.\n";
+        code << Indent(indent)
+             << "// Micro-steps: 0=chrome, 1..N=eager parts (one/tick), 100+n=rails, 200=hooks, 300=pane.\n";
         code << Indent(indent) << "int BuildPageStep(Robo::RoboScene& scene, int step) {\n";
         code << Indent(indent + 1) << "if (step == 0) {\n";
         if (desktopChrome) {
             code << Indent(indent + 2) << "Robo::RoboApplyDesktopChrome(scene);\n";
-        } else if (devKitChrome) {
-            code << Indent(indent + 2) << "Robo::RoboApplyDevKitChrome(scene);\n";
+        } else if (catalogChrome) {
+            code << Indent(indent + 2) << "Robo::RoboApplyCatalogChrome(scene);\n";
         } else {
             if (node.attributes.count("padding") != 0) {
                 code << Indent(indent + 2) << "scene.SetPagePadding(" << FloatLiteral(node.attributes.at("padding"))
@@ -1029,10 +1041,9 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
                 code << ConvertNode(child, indent + 2);
             }
         }
-        for (int i = 0; i < eagerPart; ++i) {
-            code << Indent(indent + 2) << "BuildEagerPart" << i << "(scene);\n";
-        }
-        if (hasRails) {
+        if (eagerPart > 0) {
+            code << Indent(indent + 2) << "return 1;\n";
+        } else if (hasRails) {
             code << Indent(indent + 2) << "return 100;\n";
         } else if (hasPaneHook || hasPaneBuild) {
             code << Indent(indent + 2) << "return 200;\n";
@@ -1040,6 +1051,26 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             code << Indent(indent + 2) << "return -1;\n";
         }
         code << Indent(indent + 1) << "}\n";
+        if (eagerPart > 0) {
+            code << Indent(indent + 1) << "if (step >= 1 && step <= " << eagerPart << ") {\n";
+            code << Indent(indent + 2) << "switch (step) {\n";
+            for (int i = 0; i < eagerPart; ++i) {
+                code << Indent(indent + 3) << "case " << (i + 1) << ": BuildEagerPart" << i << "(scene); break;\n";
+            }
+            code << Indent(indent + 3) << "default: break;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "if (step < " << eagerPart << ") {\n";
+            code << Indent(indent + 3) << "return step + 1;\n";
+            code << Indent(indent + 2) << "}\n";
+            if (hasRails) {
+                code << Indent(indent + 2) << "return 100;\n";
+            } else if (hasPaneHook || hasPaneBuild) {
+                code << Indent(indent + 2) << "return 200;\n";
+            } else {
+                code << Indent(indent + 2) << "return -1;\n";
+            }
+            code << Indent(indent + 1) << "}\n";
+        }
         if (hasRails) {
             code << Indent(indent + 1) << "if (step >= 100 && step < 200) {\n";
             code << Indent(indent + 2) << "const int railStart = step - 100;\n";
@@ -4373,17 +4404,38 @@ std::string XmlToCpp::Convert(const std::string& xml, const std::string& assetDi
     if (pageHasDesktop && !pageHasCatalog && !pageHasPanes) {
         code << "#include \"Robo/RoboScene.hpp\"\n";
         code << "#include \"Robo/RoboPageTables.hpp\"\n\n";
-    } else if (pageHasCatalog || pageHasPanes) {
-        code << "#include \"Robo/RoboScene.hpp\"\n";
-        code << "#include \"Robo/TitleBar.hpp\"\n";
-        code << "#include \"Robo/Sidebar.hpp\"\n";
-        code << "#include \"Robo/RoboCatalog.hpp\"\n";
-        if (pageHasPanes) {
-            code << "#include \"Robo/RoboPanePack.hpp\"\n";
+    } else if ((pageHasCatalog || pageHasPanes) && !pageHasDesktop) {
+        // Pack-driven catalog/pane pages keep a thin include set. Pages that also
+        // emit eager controls (inline Sidebar + gallery content) need full headers.
+        bool needsFullHeaders = false;
+        std::function<void(const XmlNode&)> probe = [&](const XmlNode& node) {
+            if (node.name == "Heading" || node.name == "H1" || node.name == "H2" || node.name == "H3" ||
+                node.name == "Paragraph" || node.name == "P" || node.name == "Button" || node.name == "Input" ||
+                node.name == "Flexbox" || node.name == "Flex" || node.name == "Grid" || node.name == "Container" ||
+                node.name == "BrandLogo" || node.name == "ThemeToggle" || node.name == "ThemeIconToggle" ||
+                node.name == "Shape" || node.name == "MotionShape" || node.name == "Separator") {
+                needsFullHeaders = true;
+            }
+            for (const XmlNode& child : node.children) {
+                probe(child);
+            }
+        };
+        probe(root);
+        if (!needsFullHeaders) {
+            code << "#include \"Robo/RoboScene.hpp\"\n";
+            code << "#include \"Robo/TitleBar.hpp\"\n";
+            code << "#include \"Robo/Sidebar.hpp\"\n";
+            code << "#include \"Robo/RoboCatalog.hpp\"\n";
+            if (pageHasPanes) {
+                code << "#include \"Robo/RoboPanePack.hpp\"\n";
+            }
+            (void)pageHasTitleBar;
+            code << "#include \"Robo/RoboPageTables.hpp\"\n\n";
+        } else {
+            goto full_headers;
         }
-        (void)pageHasTitleBar;
-        code << "#include \"Robo/RoboPageTables.hpp\"\n\n";
     } else {
+full_headers:
         code << "#include \"Robo/Text.hpp\"\n";
         code << "#include \"Robo/Foundation.hpp\"\n";
         code << "#include \"Robo/Svg.hpp\"\n";

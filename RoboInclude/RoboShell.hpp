@@ -9,13 +9,13 @@ bool RoboShellStart(RoboDesktop* desktop);
 #ifdef __cplusplus
 extern "C"
 #endif
-void RoboDevKitBind(const RoboBootInfo* info);
+void RoboAppBind(const RoboBootInfo* info);
 #ifdef __cplusplus
 namespace Robo {
 class RoboScene;
 }
-void RoboDevKitOpenPage(Robo::RoboScene& scene);
-int RoboDevKitOpenPageStep(Robo::RoboScene& scene, int step);
+int RoboAppBuildStep(Robo::RoboScene& scene, int step, const char* appId);
+void RoboAppInstallDesktopIcons(Robo::RoboScene& scene);
 #endif
 void RoboShellPointerMove(int32_t x, int32_t y);
 void RoboShellPointerDown(int32_t x, int32_t y, bool fromTouch);
@@ -30,3 +30,5 @@ void RoboShellSetBackground(const char* path);
 void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height);
 void RoboShellAdvanceClock(uint32_t deltaMs);
 void RoboShellOfferLauncher(void);
+void RoboShellScanInstalledApps(void);
+void RoboShellPumpPaint(void);
