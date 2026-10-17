@@ -111,10 +111,23 @@ public:
         float textHeight = 0.0f;
         bool valid = false;
     };
+    struct CaretCache {
+        float maxTextWidth = -1.0f;
+        float pixelScale = -1.0f;
+        std::size_t caretIndex = 0;
+        std::string value;
+        std::string visible;
+        float caretOffset = 0.0f;
+        bool valid = false;
+    };
     bool HasMeasureCache(float containerWidth, float pixelScale) const;
     const MeasureCache& GetMeasureCache() const;
     void StoreMeasureCache(MeasureCache cache) const;
     void InvalidateMeasureCache() const;
+    bool HasCaretCache(float maxTextWidth, float pixelScale) const;
+    const CaretCache& GetCaretCache() const;
+    void StoreCaretCache(CaretCache cache) const;
+    void InvalidateCaretCache() const;
 
 private:
     std::string value_;
@@ -124,6 +137,7 @@ private:
     InputBounds bounds_;
     std::size_t caretIndex_ = 0;
     mutable MeasureCache measureCache_{};
+    mutable CaretCache caretCache_{};
 };
 
 InputVariant ParseInputVariant(const std::string& value);

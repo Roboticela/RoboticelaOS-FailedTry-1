@@ -1,4 +1,5 @@
 #include "Robo/FlexboxPainter.hpp"
+#include "Robo/PropLength.hpp"
 #include "Robo/Foundation.hpp"
 #include "Robo/SvgPainter.hpp"
 #include "Robo/TextSelection.hpp"
@@ -25,31 +26,7 @@ namespace Robo {
 namespace {
 
 float ParseDimension(const std::string& value, float parentSize, float fallback, float scale = 1.0f) {
-    if (value.empty() || value == "auto") {
-        return fallback;
-    }
-    if (value.size() > 1 && value.back() == '%') {
-        const float percent = static_cast<float>(std::atof(value.c_str()));
-        return parentSize * (percent / 100.0f);
-    }
-    if (value.size() > 3 && value.compare(value.size() - 3, 3, "rem") == 0) {
-        return static_cast<float>(std::atof(value.c_str()) * 16.0f) * scale;
-    }
-    if (value.size() > 2 && value.compare(value.size() - 2, 2, "px") == 0) {
-        return static_cast<float>(std::atof(value.c_str())) * scale;
-    }
-    return static_cast<float>(std::atof(value.c_str())) * scale;
-}
-
-float ResolvePropLength(bool hasLength, const Length& length, const std::string& legacy, float parentSize,
-                        float fallback, float scale) {
-    if (hasLength && !length.IsAuto()) {
-        return length.Resolve(parentSize / scale, 1.0f) * scale;
-    }
-    if (!legacy.empty() && legacy != "auto") {
-        return ParseDimension(legacy, parentSize, fallback, scale);
-    }
-    return fallback;
+    return ParsePropDimension(value, parentSize, fallback, scale);
 }
 
 void FillRoundedRect(FrameBuffer& buffer,
@@ -239,8 +216,8 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
         MeasuredFlexChild child;
         child.itemIndex = i;
 
-        const bool hasExplicitWidth = !item.props.width.empty();
-        const bool hasExplicitHeight = !item.props.height.empty();
+        const bool hasExplicitWidth = PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width);
+        const bool hasExplicitHeight = PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height);
 
         switch (item.kind) {
             case FlexItemKind::Text: {
@@ -248,15 +225,15 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
                     ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW,
                                         innerW, scale)
                     : (isRow ? 100000.0f : innerW);
-                TextMeasureResult measured = TextPainter::Measure(fonts, item.text, availW, scale);
+                TextMeasureResult measured = TextPainter::Measure(fonts, *item.text, availW, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::Svg: {
-                SvgMeasureResult measured = SvgPainter::Measure(item.svg, scale);
-                child.baseWidth = hasExplicitWidth ? ParseDimension(item.props.width, innerW, measured.width, scale) : measured.width;
-                child.baseHeight = hasExplicitHeight ? ParseDimension(item.props.height, innerW, measured.height, scale) : measured.height;
+                SvgMeasureResult measured = SvgPainter::Measure(*item.svg, scale);
+                child.baseWidth = hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, measured.width, scale) : measured.width;
+                child.baseHeight = hasExplicitHeight ? ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, innerW, measured.height, scale) : measured.height;
                 break;
             }
             case FlexItemKind::BrandLogo: {
@@ -309,29 +286,29 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
                 break;
             }
             case FlexItemKind::Button: {
-                ButtonMeasureResult measured = ButtonPainter::Measure(fonts, item.button, scale);
+                ButtonMeasureResult measured = ButtonPainter::Measure(fonts, *item.button, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::Input: {
-                const InputStyle& inputStyle = item.input.GetStyle();
+                const InputStyle& inputStyle = item.input->GetStyle();
                 float intrinsicWidth = static_cast<float>(inputStyle.minWidth) * scale;
                 if (hasExplicitWidth) {
-                    intrinsicWidth = ParseDimension(item.props.width, innerW, intrinsicWidth, scale);
+                    intrinsicWidth = ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, intrinsicWidth, scale);
                 } else if (item.props.flexGrow > 0.0f) {
                     intrinsicWidth = std::min(intrinsicWidth, 120.0f * scale);
                 }
-                InputMeasureResult measured = InputPainter::Measure(fonts, item.input, intrinsicWidth, scale);
+                InputMeasureResult measured = InputPainter::Measure(fonts, *item.input, intrinsicWidth, scale);
                 child.baseWidth = intrinsicWidth;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::Scrollbar: {
                 const float availW = hasExplicitWidth
-                    ? ParseDimension(item.props.width, innerW, innerW, scale)
+                    ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale)
                     : innerW;
-                ScrollbarMeasureResult measured = ScrollbarPainter::Measure(item.scrollbar, availW, scale);
+                ScrollbarMeasureResult measured = ScrollbarPainter::Measure(*item.scrollbar, availW, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
@@ -339,10 +316,10 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
             case FlexItemKind::Container: {
                 if (item.container) {
                     const float availW = hasExplicitWidth
-                        ? ParseDimension(item.props.width, innerW, innerW, scale)
+                        ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale)
                         : innerW;
                     const float forcedH = hasExplicitHeight
-                        ? ParseDimension(item.props.height, 0.0f, -1.0f, scale)
+                        ? ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, 0.0f, -1.0f, scale)
                         : -1.0f;
                     ContainerMeasureResult measured =
                         ContainerPainter::Measure(fonts, *item.container, availW, scale, -1.0f, forcedH);
@@ -354,7 +331,7 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
             case FlexItemKind::Flexbox: {
                 if (item.flexbox) {
                     const float availW = hasExplicitWidth
-                        ? ParseDimension(item.props.width, innerW, innerW, scale)
+                        ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale)
                         : innerW;
                     FlexboxMeasureResult measured =
                         FlexboxPainter::Measure(fonts, *item.flexbox, availW, scale);
@@ -366,24 +343,24 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
         }
 
         if (hasExplicitWidth) {
-            child.baseWidth = ParseDimension(item.props.width, innerW, child.baseWidth, scale);
+            child.baseWidth = ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, child.baseWidth, scale);
         }
         if (hasExplicitHeight) {
-            const float specifiedH = ParseDimension(item.props.height, 0.0f, child.baseHeight, scale);
+            const float specifiedH = ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, 0.0f, child.baseHeight, scale);
             child.baseHeight = std::max(specifiedH, child.baseHeight);
         }
 
-        if (!item.props.minWidth.empty()) {
-            child.baseWidth = std::max(child.baseWidth, ParseDimension(item.props.minWidth, innerW, 0.0f, scale));
+        if (PropHasWidth(item.props.hasMinWidthLength, item.props.minWidthLength, item.props.minWidth)) {
+            child.baseWidth = std::max(child.baseWidth, ResolvePropLength(item.props.hasMinWidthLength, item.props.minWidthLength, item.props.minWidth, innerW, 0.0f, scale));
         }
-        if (!item.props.maxWidth.empty()) {
-            child.baseWidth = std::min(child.baseWidth, ParseDimension(item.props.maxWidth, innerW, 100000.0f, scale));
+        if (PropHasWidth(item.props.hasMaxWidthLength, item.props.maxWidthLength, item.props.maxWidth)) {
+            child.baseWidth = std::min(child.baseWidth, ResolvePropLength(item.props.hasMaxWidthLength, item.props.maxWidthLength, item.props.maxWidth, innerW, 100000.0f, scale));
         }
-        if (!item.props.minHeight.empty()) {
-            child.baseHeight = std::max(child.baseHeight, ParseDimension(item.props.minHeight, 0.0f, 0.0f, scale));
+        if (PropHasHeight(item.props.hasMinHeightLength, item.props.minHeightLength, item.props.minHeight)) {
+            child.baseHeight = std::max(child.baseHeight, ResolvePropLength(item.props.hasMinHeightLength, item.props.minHeightLength, item.props.minHeight, 0.0f, 0.0f, scale));
         }
-        if (!item.props.maxHeight.empty()) {
-            child.baseHeight = std::min(child.baseHeight, ParseDimension(item.props.maxHeight, 0.0f, 100000.0f, scale));
+        if (PropHasHeight(item.props.hasMaxHeightLength, item.props.maxHeightLength, item.props.maxHeight)) {
+            child.baseHeight = std::min(child.baseHeight, ResolvePropLength(item.props.hasMaxHeightLength, item.props.maxHeightLength, item.props.maxHeight, 0.0f, 100000.0f, scale));
         }
 
         if (isRow) {
@@ -463,7 +440,7 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
                     const float growAmount = freeMain * (props.flexGrow / totalGrow);
                     child.allocatedMain = child.baseMain + growAmount;
                     if (!props.maxWidth.empty()) {
-                        const float maxW = ParseDimension(props.maxWidth, innerW, 100000.0f, scale);
+                        const float maxW = ResolvePropLength(props.hasMaxWidthLength, props.maxWidthLength, props.maxWidth, innerW, 100000.0f, scale);
                         child.allocatedMain = std::min(child.allocatedMain, maxW);
                     }
                 }
@@ -476,7 +453,7 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
                         (-freeMain) * (props.flexShrink * child.baseMain / totalShrink);
                     float minLimit = 20.0f * scale;
                     if (!props.minWidth.empty()) {
-                        minLimit = ParseDimension(props.minWidth, innerW, minLimit, scale);
+                        minLimit = ResolvePropLength(props.hasMinWidthLength, props.minWidthLength, props.minWidth, innerW, minLimit, scale);
                     }
                     child.allocatedMain = std::max(minLimit, child.baseMain - shrinkAmount);
                 }
@@ -774,11 +751,11 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
 
             switch (item.kind) {
                 case FlexItemKind::Text: {
-                    TextPainter::Paint(buffer, fonts, item.text, childX, childY, childW, scale);
+                    TextPainter::Paint(buffer, fonts, *item.text, childX, childY, childW, scale);
                     break;
                 }
                 case FlexItemKind::Svg: {
-                    SvgPainter::Paint(buffer, item.svg, childX, childY, childW, scale);
+                    SvgPainter::Paint(buffer, *item.svg, childX, childY, childW, scale);
                     break;
                 }
                 case FlexItemKind::BrandLogo: {
@@ -816,7 +793,7 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
                 case FlexItemKind::Button: {
                     ButtonPainter::Paint(buffer,
                                          fonts,
-                                         item.button,
+                                         *item.button,
                                          childX,
                                          childY,
                                          childW,
@@ -828,7 +805,7 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
                 case FlexItemKind::Input: {
                     InputPainter::Paint(buffer,
                                         fonts,
-                                        item.input,
+                                        *item.input,
                                         childX,
                                         childY,
                                         childW,
@@ -839,9 +816,9 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
                 }
                 case FlexItemKind::Scrollbar: {
                     const bool vertical =
-                        item.scrollbar.GetOrientation() == ScrollbarOrientation::Vertical;
+                        item.scrollbar->GetOrientation() == ScrollbarOrientation::Vertical;
                     ScrollbarPainter::Paint(buffer,
-                                            item.scrollbar,
+                                            *item.scrollbar,
                                             childX,
                                             childY,
                                             childW,

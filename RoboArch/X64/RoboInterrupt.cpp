@@ -1,4 +1,5 @@
 #include "RoboArch.hpp"
+#include "RoboCpu.hpp"
 #include "RoboPS2Keyboard.hpp"
 #include "RoboPS2Mouse.hpp"
 #include "RoboSchedule.hpp"
@@ -20,9 +21,6 @@ constexpr uint8_t ROBO_IRQ_TIMER = 0x20;
 constexpr uint8_t ROBO_IRQ_KEYBOARD = 0x21;
 constexpr uint8_t ROBO_IRQ_MOUSE = 0x2C;
 constexpr uint8_t ROBO_PIC_MASTER_MASK = 0xF8;
-constexpr uint32_t ROBO_APIC_BASE_MSR = 0x1B;
-constexpr uint16_t ROBO_IMCR_INDEX = 0x22;
-constexpr uint16_t ROBO_IMCR_DATA = 0x23;
 constexpr uint16_t ROBO_IDT_GATE = 0x8E;
 
 struct RoboInterruptFrame {
@@ -65,16 +63,6 @@ void RoboPicEndMaster(void) {
 void RoboPicEndSlave(void) {
     RoboPortOut8(ROBO_PIC_SLAVE_COMMAND, ROBO_PIC_EOI);
     RoboPortOut8(ROBO_PIC_MASTER_COMMAND, ROBO_PIC_EOI);
-}
-
-void RoboApicDisable(void) {
-    uint32_t low = 0;
-    uint32_t high = 0;
-    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(ROBO_APIC_BASE_MSR));
-    low &= ~(1u << 11);
-    __asm__ volatile("wrmsr" : : "a"(low), "d"(high), "c"(ROBO_APIC_BASE_MSR));
-    RoboPortOut8(ROBO_IMCR_INDEX, 0x70);
-    RoboPortOut8(ROBO_IMCR_DATA, 0x00);
 }
 
 void RoboPicStart(void) {

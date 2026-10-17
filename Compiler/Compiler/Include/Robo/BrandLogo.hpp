@@ -33,11 +33,29 @@ public:
 
     Svg Mark() const;
 
+    struct MeasureCache {
+        float pixelScale = -1.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+        float advanceY = 0.0f;
+        float markWidth = 0.0f;
+        float markHeight = 0.0f;
+        float titleWidth = 0.0f;
+        float spaceWidth = 0.0f;
+        float subtitleWidth = 0.0f;
+        bool valid = false;
+    };
+    bool HasMeasureCache(float pixelScale) const;
+    const MeasureCache& GetMeasureCache() const;
+    void StoreMeasureCache(MeasureCache cache) const;
+    void InvalidateMeasureCache() const;
+
 private:
     float size_ = 20.0f;
     BrandLogoVariant variant_ = BrandLogoVariant::Mark;
     std::string primary_;
     std::string secondary_;
+    mutable MeasureCache measureCache_{};
 };
 
 BrandLogoVariant ParseBrandLogoVariant(const std::string& value);

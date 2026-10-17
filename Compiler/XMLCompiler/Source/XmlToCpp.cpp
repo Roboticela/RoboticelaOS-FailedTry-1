@@ -1683,13 +1683,21 @@ void XmlToCpp::EmitFlexChild(std::ostringstream& code, const XmlNode& child, int
                 code << BindPropsLength(indent + 1, "props", "height", attribute.second);
             }
         } else if (attribute.first == "minWidth") {
-            code << Indent(indent + 1) << "props.minWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "minWidth", attribute.second);
+            }
         } else if (attribute.first == "maxWidth") {
-            code << Indent(indent + 1) << "props.maxWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "maxWidth", attribute.second);
+            }
         } else if (attribute.first == "minHeight") {
-            code << Indent(indent + 1) << "props.minHeight = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "minHeight", attribute.second);
+            }
         } else if (attribute.first == "maxHeight") {
-            code << Indent(indent + 1) << "props.maxHeight = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "maxHeight", attribute.second);
+            }
         } else if (attribute.first == "margin") {
             code << Indent(indent + 1) << "props.marginTop = " << attribute.second << ";\n";
             code << Indent(indent + 1) << "props.marginBottom = " << attribute.second << ";\n";
@@ -2024,13 +2032,21 @@ void XmlToCpp::EmitGridChild(std::ostringstream& code, const XmlNode& child, int
                 code << BindPropsLength(indent + 1, "props", "height", attribute.second);
             }
         } else if (attribute.first == "minWidth") {
-            code << Indent(indent + 1) << "props.minWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "minWidth", attribute.second);
+            }
         } else if (attribute.first == "maxWidth") {
-            code << Indent(indent + 1) << "props.maxWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "maxWidth", attribute.second);
+            }
         } else if (attribute.first == "minHeight") {
-            code << Indent(indent + 1) << "props.minHeight = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "minHeight", attribute.second);
+            }
         } else if (attribute.first == "maxHeight") {
-            code << Indent(indent + 1) << "props.maxHeight = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "maxHeight", attribute.second);
+            }
         } else if (attribute.first == "margin") {
             code << Indent(indent + 1) << "props.marginTop = " << attribute.second << ";\n";
             code << Indent(indent + 1) << "props.marginBottom = " << attribute.second << ";\n";
@@ -2329,13 +2345,21 @@ void XmlToCpp::EmitPositionChild(std::ostringstream& code, const XmlNode& child,
                 code << BindPropsLength(indent + 1, "props", "height", attribute.second);
             }
         } else if (attribute.first == "minWidth") {
-            code << Indent(indent + 1) << "props.minWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "minWidth", attribute.second);
+            }
         } else if (attribute.first == "maxWidth") {
-            code << Indent(indent + 1) << "props.maxWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "maxWidth", attribute.second);
+            }
         } else if (attribute.first == "minHeight") {
-            code << Indent(indent + 1) << "props.minHeight = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "minHeight", attribute.second);
+            }
         } else if (attribute.first == "maxHeight") {
-            code << Indent(indent + 1) << "props.maxHeight = \"" << EscapeCpp(attribute.second) << "\";\n";
+            if (ExtractToken(attribute.second).empty()) {
+                code << BindPropsLength(indent + 1, "props", "maxHeight", attribute.second);
+            }
         } else if (attribute.first == "mode" || attribute.first == "position") {
             code << Indent(indent + 1) << "props.mode = Robo::ParsePositionMode(\"" << EscapeCpp(attribute.second) << "\");\n";
         } else if (attribute.first == "anchor") {

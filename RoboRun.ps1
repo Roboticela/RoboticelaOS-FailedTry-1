@@ -81,11 +81,12 @@ Assert-RoboEspAssets -EspRoot $esp -Required $RoboEspRequired
 
 $smp = [Math]::Min(4, [Math]::Max(1, [Environment]::ProcessorCount))
 $espPath = $esp -replace '\\', '/'
+# qemu64 (not max): WHPX + OVMF #GPs in PlatformPei with -cpu max and never paints.
 Write-Host "Starting QEMU with the Windows hypervisor (smp $smp)"
 $arguments = @(
     "-accel", "whpx",
     "-accel", "tcg",
-    "-cpu", "max,svm=off",
+    "-cpu", "qemu64,svm=off",
     "-machine", "pc",
     "-m", "2048",
     "-smp", "$smp",

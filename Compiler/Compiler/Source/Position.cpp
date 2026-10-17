@@ -95,7 +95,7 @@ void Position::AddText(Text text, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Text;
     item.props = props;
-    item.text = std::move(text);
+    item.text = std::make_shared<Text>(std::move(text));
     items_.push_back(std::move(item));
 }
 
@@ -103,7 +103,7 @@ void Position::AddSvg(Svg svg, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Svg;
     item.props = props;
-    item.svg = std::move(svg);
+    item.svg = std::make_shared<Svg>(std::move(svg));
     items_.push_back(std::move(item));
 }
 
@@ -175,7 +175,7 @@ void Position::AddButton(Button button, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Button;
     item.props = props;
-    item.button = std::move(button);
+    item.button = std::make_shared<Button>(std::move(button));
     items_.push_back(std::move(item));
 }
 
@@ -183,7 +183,7 @@ void Position::AddInput(Input input, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Input;
     item.props = props;
-    item.input = std::move(input);
+    item.input = std::make_shared<Input>(std::move(input));
     items_.push_back(std::move(item));
 }
 
@@ -191,7 +191,7 @@ void Position::AddScrollbar(Scrollbar scrollbar, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::Scrollbar;
     item.props = props;
-    item.scrollbar = std::move(scrollbar);
+    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
     items_.push_back(std::move(item));
 }
 

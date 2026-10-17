@@ -271,7 +271,13 @@ SeparatorPaintResult SeparatorPainter::Paint(FrameBuffer& buffer,
         const float fontSize = Css(LabelCss(separator), scale);
         const FontFaceId face = fonts.ResolveFace(FontWeight::Medium, FontStyleKind::Normal);
         const float letterSpacing = 0.0f;
-        float textWidth = fonts.MeasureWidth(label, fontSize, face, letterSpacing);
+        float textWidth = 0.0f;
+        if (separator.HasLabelCache(fontSize)) {
+            textWidth = separator.LabelCacheWidth();
+        } else {
+            textWidth = fonts.MeasureWidth(label, fontSize, face, letterSpacing);
+            separator.StoreLabelCache(fontSize, textWidth);
+        }
         const float ascent = fonts.GetAscent(fontSize, face);
         const float descent = fonts.GetDescent(fontSize, face);
         const float textHeight = std::max(fontSize, ascent + descent);

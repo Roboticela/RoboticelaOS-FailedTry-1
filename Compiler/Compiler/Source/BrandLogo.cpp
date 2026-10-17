@@ -1,6 +1,8 @@
 #include "Robo/BrandLogo.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 namespace Robo {
 
@@ -43,6 +45,7 @@ SvgShape Stroke(std::vector<SvgCommand> commands, const char* hex) {
 
 void BrandLogo::SetSize(float size) {
     size_ = size;
+    InvalidateMeasureCache();
 }
 
 float BrandLogo::GetSize() const {
@@ -51,6 +54,7 @@ float BrandLogo::GetSize() const {
 
 void BrandLogo::SetVariant(BrandLogoVariant variant) {
     variant_ = variant;
+    InvalidateMeasureCache();
 }
 
 BrandLogoVariant BrandLogo::GetVariant() const {
@@ -59,10 +63,12 @@ BrandLogoVariant BrandLogo::GetVariant() const {
 
 void BrandLogo::SetPrimary(const std::string& primary) {
     primary_ = primary;
+    InvalidateMeasureCache();
 }
 
 void BrandLogo::SetSecondary(const std::string& secondary) {
     secondary_ = secondary;
+    InvalidateMeasureCache();
 }
 
 const std::string& BrandLogo::Title() const {
@@ -113,6 +119,23 @@ Svg BrandLogo::Mark() const {
     AddLine(right, 14.0f, 16.0f);
     svg.AddShape(Stroke(std::move(right), "#10B981"));
     return svg;
+}
+
+bool BrandLogo::HasMeasureCache(float pixelScale) const {
+    return measureCache_.valid && std::fabs(measureCache_.pixelScale - pixelScale) < 0.001f;
+}
+
+const BrandLogo::MeasureCache& BrandLogo::GetMeasureCache() const {
+    return measureCache_;
+}
+
+void BrandLogo::StoreMeasureCache(MeasureCache cache) const {
+    measureCache_ = std::move(cache);
+    measureCache_.valid = true;
+}
+
+void BrandLogo::InvalidateMeasureCache() const {
+    measureCache_.valid = false;
 }
 
 BrandLogoVariant ParseBrandLogoVariant(const std::string& value) {

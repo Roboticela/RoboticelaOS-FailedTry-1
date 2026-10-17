@@ -111,13 +111,13 @@ class Flexbox;
 struct FlexboxItem {
     FlexItemKind kind = FlexItemKind::Text;
     FlexItemProps props;
-    Text text;
-    Button button;
-    Input input;
-    Scrollbar scrollbar;
+    std::shared_ptr<Text> text;
+    std::shared_ptr<Button> button;
+    std::shared_ptr<Input> input;
+    std::shared_ptr<Scrollbar> scrollbar;
     std::shared_ptr<Container> container;
     std::shared_ptr<Flexbox> flexbox;
-    Svg svg;
+    std::shared_ptr<Svg> svg;
     std::shared_ptr<BrandLogo> brandLogo;
     std::shared_ptr<Robo::TitleBar> titleBar;
     std::shared_ptr<Robo::Sidebar> sidebar;

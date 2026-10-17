@@ -1,9 +1,12 @@
 #include "Robo/Separator.hpp"
 
+#include <cmath>
+
 namespace Robo {
 
 void Separator::SetLabel(const std::string& label) {
     label_ = label;
+    InvalidateLabelCache();
 }
 
 const std::string& Separator::GetLabel() const {
@@ -72,6 +75,24 @@ void Separator::SetDisabled(bool disabled) {
 
 bool Separator::IsDisabled() const {
     return disabled_;
+}
+
+bool Separator::HasLabelCache(float fontSize) const {
+    return labelCache_.valid && std::fabs(labelCache_.fontSize - fontSize) < 0.001f;
+}
+
+float Separator::LabelCacheWidth() const {
+    return labelCache_.width;
+}
+
+void Separator::StoreLabelCache(float fontSize, float width) const {
+    labelCache_.fontSize = fontSize;
+    labelCache_.width = width;
+    labelCache_.valid = true;
+}
+
+void Separator::InvalidateLabelCache() const {
+    labelCache_.valid = false;
 }
 
 SeparatorVariant ParseSeparatorVariant(const std::string& value) {

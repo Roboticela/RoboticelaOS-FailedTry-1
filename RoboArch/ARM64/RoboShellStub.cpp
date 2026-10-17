@@ -56,3 +56,26 @@ void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {
     (void)width;
     (void)height;
 }
+
+bool RoboShellNeedsTick() {
+    return false;
+}
+
+void RoboShellLastPresentRect(int32_t* x, int32_t* y, int32_t* width, int32_t* height) {
+    if (x != nullptr) {
+        *x = 0;
+    }
+    if (y != nullptr) {
+        *y = 0;
+    }
+    if (width != nullptr) {
+        *width = 0;
+    }
+    if (height != nullptr) {
+        *height = 0;
+    }
+}
+
+extern "C" void RoboDebugLine(const char* text) {
+    (void)text;
+}

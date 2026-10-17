@@ -1,10 +1,14 @@
 #include "RoboCpu.hpp"
 
+#include "RoboArch.hpp"
 #include "RoboMemory.hpp"
 
 namespace {
 
 constexpr uint64_t ROBO_APIC_BASE = 0xFEE00000ull;
+constexpr uint32_t ROBO_APIC_BASE_MSR = 0x1B;
+constexpr uint16_t ROBO_IMCR_INDEX = 0x22;
+constexpr uint16_t ROBO_IMCR_DATA = 0x23;
 constexpr uint32_t ROBO_APIC_ID = 0x20;
 constexpr uint32_t ROBO_APIC_ICR_LOW = 0x300;
 constexpr uint32_t ROBO_APIC_ICR_HIGH = 0x310;
@@ -27,15 +31,26 @@ uint32_t RoboApicRead(uint32_t offset) {
 
 void RoboCpuPause(void) {
     // Short INIT/SIPI gap; multi-million spins here stuck the painter after first Present.
-    for (uint32_t count = 0; count < 20000u; ++count) {
+    for (uint32_t count = 0; count < 2000u; ++count) {
         __asm__ volatile("pause");
     }
+}
+
+void RoboApicEnable(void) {
+    uint32_t low = 0;
+    uint32_t high = 0;
+    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(ROBO_APIC_BASE_MSR));
+    // Bit 11 = APIC global enable. Clear x2APIC (bit 10) so MMIO ICR works.
+    low |= 1u << 11;
+    low &= ~(1u << 10);
+    __asm__ volatile("wrmsr" : : "a"(low), "d"(high), "c"(ROBO_APIC_BASE_MSR));
 }
 
 void RoboApicIpi(uint32_t apicId, uint32_t command) {
     RoboApicWrite(ROBO_APIC_ICR_HIGH, apicId << 24);
     RoboApicWrite(ROBO_APIC_ICR_LOW, command);
-    for (uint32_t count = 0; count < 100000u; ++count) {
+    // Bound tightly: a disabled or missing APIC must not stall the BSP after Present.
+    for (uint32_t count = 0; count < 5000u; ++count) {
         if ((RoboApicRead(ROBO_APIC_ICR_LOW) & (1u << 12)) == 0) {
             return;
         }
@@ -244,20 +259,33 @@ extern "C" __attribute__((naked)) void RoboContextSwitch(uint64_t*, uint64_t, ui
         "ret\n");
 }
 
+void RoboApicDisable(void) {
+    uint32_t low = 0;
+    uint32_t high = 0;
+    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(ROBO_APIC_BASE_MSR));
+    low &= ~(1u << 11);
+    __asm__ volatile("wrmsr" : : "a"(low), "d"(high), "c"(ROBO_APIC_BASE_MSR));
+    RoboPortOut8(ROBO_IMCR_INDEX, 0x70);
+    RoboPortOut8(ROBO_IMCR_DATA, 0x00);
+}
+
 void RoboCpuJoin(void) {
+    // InterruptsStart disables the local APIC for PIC routing; re-enable only for INIT/SIPI.
+    RoboApicEnable();
     RoboMemoryMarkUncached(ROBO_APIC_BASE, 4096);
     uint8_t* dest = reinterpret_cast<uint8_t*>(ROBO_AP_TRAMPOLINE);
     for (uint32_t index = 0; index < sizeof(gRoboApTrampoline); ++index) {
         dest[index] = gRoboApTrampoline[index];
     }
     uint32_t bsp = RoboApicRead(ROBO_APIC_ID) >> 24;
+    uint32_t misses = 0;
     for (uint32_t apicId = 0; apicId < ROBO_CPU_LIMIT; ++apicId) {
         if (apicId == bsp) {
             continue;
         }
         // Stop once enough APs joined; do not burn the BSP on empty APIC IDs.
         if (gRoboCpuReady >= ROBO_CPU_LIMIT) {
-            return;
+            break;
         }
         uint64_t stackTop = 0;
         if (gRoboCpuReady >= 1u && gRoboCpuReady <= 3u) {
@@ -265,7 +293,7 @@ void RoboCpuJoin(void) {
         } else {
             uint64_t stack = RoboPageAlloc();
             if (stack == 0) {
-                return;
+                break;
             }
             stackTop = stack + 4096ull - 8ull;
         }
@@ -278,7 +306,7 @@ void RoboCpuJoin(void) {
         RoboApicIpi(apicId, 0x00004608u);
         RoboCpuPause();
         RoboApicIpi(apicId, 0x00004608u);
-        for (uint32_t spin = 0; spin < 50000u; ++spin) {
+        for (uint32_t spin = 0; spin < 8000u; ++spin) {
             if (gRoboCpuReady != before) {
                 break;
             }
@@ -286,7 +314,15 @@ void RoboCpuJoin(void) {
         }
         // Missing APIC id: try the next one so sparse AP lists still join workers.
         if (gRoboCpuReady == before) {
+            misses += 1;
+            // No AP answered two probes: stay single-core rather than stall the shell.
+            if (misses >= 2u) {
+                break;
+            }
             continue;
         }
+        misses = 0;
     }
+    // Restore PIC ownership so timer/keyboard/mouse IRQs wake the idle loop.
+    RoboApicDisable();
 }

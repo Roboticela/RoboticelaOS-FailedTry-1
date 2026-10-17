@@ -89,7 +89,7 @@ void Grid::AddText(Text text, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Text;
     item.props = props;
-    item.text = std::move(text);
+    item.text = std::make_shared<Text>(std::move(text));
     items_.push_back(std::move(item));
 }
 
@@ -97,7 +97,7 @@ void Grid::AddSvg(Svg svg, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Svg;
     item.props = props;
-    item.svg = std::move(svg);
+    item.svg = std::make_shared<Svg>(std::move(svg));
     items_.push_back(std::move(item));
 }
 
@@ -169,7 +169,7 @@ void Grid::AddButton(Button button, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Button;
     item.props = props;
-    item.button = std::move(button);
+    item.button = std::make_shared<Button>(std::move(button));
     items_.push_back(std::move(item));
 }
 
@@ -177,7 +177,7 @@ void Grid::AddInput(Input input, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Input;
     item.props = props;
-    item.input = std::move(input);
+    item.input = std::make_shared<Input>(std::move(input));
     items_.push_back(std::move(item));
 }
 
@@ -185,7 +185,7 @@ void Grid::AddScrollbar(Scrollbar scrollbar, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Scrollbar;
     item.props = props;
-    item.scrollbar = std::move(scrollbar);
+    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
     items_.push_back(std::move(item));
 }
 

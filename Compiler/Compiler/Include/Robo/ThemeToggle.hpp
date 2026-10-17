@@ -48,6 +48,21 @@ public:
     bool NeedsMotion() const;
     float ThemeMix() const;
 
+    struct LayoutCache {
+        float availableWidth = -1.0f;
+        float pixelScale = -1.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+        float lightText = 0.0f;
+        float darkText = 0.0f;
+        bool hasText = false;
+        bool valid = false;
+    };
+    bool HasLayoutCache(float availableWidth, float pixelScale) const;
+    const LayoutCache& GetLayoutCache() const;
+    void StoreLayoutCache(LayoutCache cache) const;
+    void InvalidateLayoutCache() const;
+
 private:
     ThemeToggleVariant variant_ = ThemeToggleVariant::Default;
     bool disabled_ = false;
@@ -61,6 +76,7 @@ private:
     ThemeToggleBounds light_;
     ThemeToggleBounds dark_;
     ThemeToggleBounds track_;
+    mutable LayoutCache layoutCache_{};
 };
 
 ThemeToggleVariant ParseThemeToggleVariant(const std::string& value);

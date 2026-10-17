@@ -1,4 +1,5 @@
 #include "Robo/ContainerPainter.hpp"
+#include "Robo/PropLength.hpp"
 #include "Robo/Foundation.hpp"
 #include "Robo/TextSelection.hpp"
 #include "Robo/BrandLogoPainter.hpp"
@@ -177,13 +178,13 @@ void MeasureChild(const FontEngine& fonts,
 
     switch (item.kind) {
         case PositionItemKind::Text: {
-            const TextMeasureResult res = TextPainter::Measure(fonts, item.text, innerAvailW, scale);
+            const TextMeasureResult res = TextPainter::Measure(fonts, *item.text, innerAvailW, scale);
             outWidth = res.width;
             outHeight = res.height;
             break;
         }
         case PositionItemKind::Svg: {
-            const SvgMeasureResult res = SvgPainter::Measure(item.svg, scale);
+            const SvgMeasureResult res = SvgPainter::Measure(*item.svg, scale);
             outWidth = res.width;
             outHeight = res.height;
             break;
@@ -236,24 +237,25 @@ void MeasureChild(const FontEngine& fonts,
             break;
         }
         case PositionItemKind::Button: {
-            const ButtonMeasureResult res = ButtonPainter::Measure(fonts, item.button, scale);
+            const ButtonMeasureResult res = ButtonPainter::Measure(fonts, *item.button, scale);
             outWidth = res.width;
             outHeight = res.height;
             break;
         }
         case PositionItemKind::Input: {
-            const InputStyle& inputStyle = item.input.GetStyle();
+            const InputStyle& inputStyle = item.input->GetStyle();
             float intrinsicWidth = static_cast<float>(inputStyle.minWidth) * scale;
-            if (!item.props.width.empty() && item.props.width != "auto") {
-                intrinsicWidth = ParseDimension(item.props.width, innerAvailW, intrinsicWidth, scale);
+            if (PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width)) {
+                intrinsicWidth = ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width,
+                                                   innerAvailW, intrinsicWidth, scale);
             }
-            const InputMeasureResult res = InputPainter::Measure(fonts, item.input, intrinsicWidth, scale);
+            const InputMeasureResult res = InputPainter::Measure(fonts, *item.input, intrinsicWidth, scale);
             outWidth = intrinsicWidth;
             outHeight = res.height;
             break;
         }
         case PositionItemKind::Scrollbar: {
-            const ScrollbarMeasureResult res = ScrollbarPainter::Measure(item.scrollbar, innerAvailW, scale);
+            const ScrollbarMeasureResult res = ScrollbarPainter::Measure(*item.scrollbar, innerAvailW, scale);
             outWidth = res.width;
             outHeight = res.height;
             break;
@@ -293,11 +295,14 @@ void MeasureChild(const FontEngine& fonts,
         }
     }
 
-    if (!item.props.width.empty() && item.props.width != "auto") {
-        outWidth = ParseDimension(item.props.width, innerAvailW, outWidth, scale);
+    if (PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width)) {
+        outWidth = ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerAvailW,
+                                     outWidth, scale);
     }
-    if (!item.props.height.empty() && item.props.height != "auto") {
-        outHeight = std::max(ParseDimension(item.props.height, 0.0f, outHeight, scale), outHeight);
+    if (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height)) {
+        outHeight = std::max(ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height,
+                                              0.0f, outHeight, scale),
+                             outHeight);
     }
 }
 
@@ -330,11 +335,16 @@ float StackChildren(const FontEngine& fonts,
                               item.kind == PositionItemKind::Grid || item.kind == PositionItemKind::Position;
         if (stretchy) {
             if (vertical) {
-                if (item.props.width.empty() || item.props.width == "auto") {
-                    item.props.width = std::to_string(innerAvailW / scale) + "px";
+                if (!PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width)) {
+                    item.props.widthLength = Length::Px(innerAvailW / scale);
+                    item.props.hasWidthLength = true;
+                    item.props.width.clear();
                 }
-            } else if (crossExtent > 0.0f && (item.props.height.empty() || item.props.height == "auto")) {
-                item.props.height = std::to_string(crossExtent / scale) + "px";
+            } else if (crossExtent > 0.0f &&
+                       !PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height)) {
+                item.props.heightLength = Length::Px(crossExtent / scale);
+                item.props.hasHeightLength = true;
+                item.props.height.clear();
             }
         }
 

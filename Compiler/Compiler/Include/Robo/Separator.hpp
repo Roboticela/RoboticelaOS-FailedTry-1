@@ -67,6 +67,16 @@ public:
     void SetDisabled(bool disabled);
     bool IsDisabled() const;
 
+    struct LabelCache {
+        float fontSize = -1.0f;
+        float width = 0.0f;
+        bool valid = false;
+    };
+    bool HasLabelCache(float fontSize) const;
+    float LabelCacheWidth() const;
+    void StoreLabelCache(float fontSize, float width) const;
+    void InvalidateLabelCache() const;
+
 private:
     std::string label_;
     SeparatorVariant variant_ = SeparatorVariant::Solid;
@@ -77,6 +87,7 @@ private:
     bool inset_ = false;
     bool flush_ = false;
     bool disabled_ = false;
+    mutable LabelCache labelCache_{};
 };
 
 SeparatorVariant ParseSeparatorVariant(const std::string& value);

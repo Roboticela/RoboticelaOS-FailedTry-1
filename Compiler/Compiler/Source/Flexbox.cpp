@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <utility>
 
 namespace Robo {
@@ -29,7 +30,7 @@ FlexboxStyle& Flexbox::GetStyle() {
 void Flexbox::AddText(Text text, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Text;
-    item.text = std::move(text);
+    item.text = std::make_shared<Text>(std::move(text));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -37,7 +38,7 @@ void Flexbox::AddText(Text text, const FlexItemProps& props) {
 void Flexbox::AddSvg(Svg svg, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Svg;
-    item.svg = std::move(svg);
+    item.svg = std::make_shared<Svg>(std::move(svg));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -109,7 +110,7 @@ void Flexbox::AddMotionShape(MotionShape shape, const FlexItemProps& props) {
 void Flexbox::AddButton(Button button, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Button;
-    item.button = std::move(button);
+    item.button = std::make_shared<Button>(std::move(button));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -117,7 +118,7 @@ void Flexbox::AddButton(Button button, const FlexItemProps& props) {
 void Flexbox::AddInput(Input input, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Input;
-    item.input = std::move(input);
+    item.input = std::make_shared<Input>(std::move(input));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -125,7 +126,7 @@ void Flexbox::AddInput(Input input, const FlexItemProps& props) {
 void Flexbox::AddScrollbar(Scrollbar scrollbar, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Scrollbar;
-    item.scrollbar = std::move(scrollbar);
+    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
     item.props = props;
     items_.push_back(std::move(item));
 }

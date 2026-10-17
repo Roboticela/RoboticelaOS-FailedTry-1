@@ -4,6 +4,7 @@
 #include "Robo/Motion.hpp"
 
 #include <cmath>
+#include <utility>
 
 namespace Robo {
 
@@ -13,6 +14,7 @@ bool ThemeToggleBounds::Contains(float pointX, float pointY) const {
 
 void ThemeToggle::SetVariant(ThemeToggleVariant variant) {
     variant_ = variant;
+    InvalidateLayoutCache();
 }
 
 ThemeToggleVariant ThemeToggle::GetVariant() const {
@@ -87,6 +89,24 @@ bool ThemeToggle::NeedsMotion() const {
 
 float ThemeToggle::ThemeMix() const {
     return mix_;
+}
+
+bool ThemeToggle::HasLayoutCache(float availableWidth, float pixelScale) const {
+    return layoutCache_.valid && std::fabs(layoutCache_.availableWidth - availableWidth) < 0.5f &&
+           std::fabs(layoutCache_.pixelScale - pixelScale) < 0.001f;
+}
+
+const ThemeToggle::LayoutCache& ThemeToggle::GetLayoutCache() const {
+    return layoutCache_;
+}
+
+void ThemeToggle::StoreLayoutCache(LayoutCache cache) const {
+    layoutCache_ = std::move(cache);
+    layoutCache_.valid = true;
+}
+
+void ThemeToggle::InvalidateLayoutCache() const {
+    layoutCache_.valid = false;
 }
 
 ThemeToggleVariant ParseThemeToggleVariant(const std::string& value) {

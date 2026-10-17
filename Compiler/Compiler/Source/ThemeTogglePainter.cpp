@@ -72,8 +72,17 @@ ToggleLayout LayoutOf(const FontEngine& fonts, const ThemeToggle& toggle, float 
     const bool showIcon = variant != ThemeToggleVariant::Labels && !switchOnly;
     const bool compactTrack = !stacked;
     const float iconCss = stacked ? 18.0f : 16.0f;
-    const float lightText = showLabel ? LabelWidth(fonts, "Light", scale) : 0.0f;
-    const float darkText = showLabel ? LabelWidth(fonts, "Dark", scale) : 0.0f;
+    float lightText = 0.0f;
+    float darkText = 0.0f;
+    if (showLabel) {
+        if (toggle.HasLayoutCache(availableWidth, scale) && toggle.GetLayoutCache().hasText) {
+            lightText = toggle.GetLayoutCache().lightText;
+            darkText = toggle.GetLayoutCache().darkText;
+        } else {
+            lightText = LabelWidth(fonts, "Light", scale);
+            darkText = LabelWidth(fonts, "Dark", scale);
+        }
+    }
     const float icon = showIcon ? Css(iconCss, scale) : 0.0f;
     const float rowGap = (showIcon && showLabel) ? Css(4.0f, scale) : 0.0f;
 
@@ -316,7 +325,26 @@ ThemeToggleMeasureResult ThemeTogglePainter::Measure(const FontEngine& fonts,
                                                      float availableWidth,
                                                      float pixelScale) {
     const float scale = std::max(0.5f, pixelScale);
+    if (toggle.HasLayoutCache(availableWidth, scale) && toggle.GetLayoutCache().width > 0.0f) {
+        const ThemeToggle::LayoutCache& cached = toggle.GetLayoutCache();
+        ThemeToggleMeasureResult result;
+        result.width = cached.width;
+        result.height = cached.height;
+        result.advanceY = cached.height + Css(12.0f, scale);
+        return result;
+    }
     const ToggleLayout layout = LayoutOf(fonts, toggle, availableWidth, scale);
+    ThemeToggle::LayoutCache cache;
+    cache.availableWidth = availableWidth;
+    cache.pixelScale = scale;
+    cache.width = layout.width;
+    cache.height = layout.height;
+    cache.hasText = layout.showLabel;
+    if (layout.showLabel) {
+        cache.lightText = LabelWidth(fonts, "Light", scale);
+        cache.darkText = LabelWidth(fonts, "Dark", scale);
+    }
+    toggle.StoreLayoutCache(std::move(cache));
     ThemeToggleMeasureResult result;
     result.width = layout.width;
     result.height = layout.height;

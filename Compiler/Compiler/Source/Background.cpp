@@ -1133,7 +1133,16 @@ bool Background::ShowVideoFrame(int index) {
     }
 #ifdef ROBO_KERNEL
     if (!frames_[0].empty() && RoboVideoCollect(index, frames_[0].data(), static_cast<uint32_t>(frames_[0].size()))) {
+        RoboVideoRequest(index + 1);
         return true;
+    }
+    // No AP workers: keep the last frame. BSP JPEG every tick freezes input after Present.
+    if (RoboVideoOnline() == 0u) {
+        if (!frames_[0].empty()) {
+            RoboVideoArm(video_.data(), static_cast<uint32_t>(video_.size()), videoFrames_, width_, height_);
+            RoboVideoRequest(index + 1);
+            return true;
+        }
     }
 #endif
     if (!RoboDecodeJpeg(video_.data() + start, static_cast<std::size_t>(end - start), frames_[0], width, height)) {

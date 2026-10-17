@@ -111,6 +111,7 @@ const InputBounds& Input::GetBounds() const {
 void Input::SetCaretIndex(std::size_t index) {
     caretIndex_ = std::min(index, value_.size());
     ClampCaret();
+    InvalidateCaretCache();
 }
 
 std::size_t Input::GetCaretIndex() const {
@@ -309,6 +310,26 @@ void Input::StoreMeasureCache(MeasureCache cache) const {
 
 void Input::InvalidateMeasureCache() const {
     measureCache_.valid = false;
+    InvalidateCaretCache();
+}
+
+bool Input::HasCaretCache(float maxTextWidth, float pixelScale) const {
+    return caretCache_.valid && caretCache_.value == value_ && caretCache_.caretIndex == caretIndex_ &&
+           std::fabs(caretCache_.maxTextWidth - maxTextWidth) < 0.5f &&
+           std::fabs(caretCache_.pixelScale - pixelScale) < 0.001f;
+}
+
+const Input::CaretCache& Input::GetCaretCache() const {
+    return caretCache_;
+}
+
+void Input::StoreCaretCache(CaretCache cache) const {
+    caretCache_ = std::move(cache);
+    caretCache_.valid = true;
+}
+
+void Input::InvalidateCaretCache() const {
+    caretCache_.valid = false;
 }
 
 InputVariant ParseInputVariant(const std::string& value) {

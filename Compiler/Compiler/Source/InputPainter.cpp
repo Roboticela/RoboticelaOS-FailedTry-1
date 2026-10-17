@@ -302,12 +302,34 @@ InputPaintResult InputPainter::Paint(FrameBuffer& buffer,
 
     float caretX = textX;
     if (!display.empty()) {
-        std::string visible = display;
-        float textWidth = fonts.MeasureWidth(visible, fontSize, faceId, letterSpacing);
-        if (textWidth > maxTextWidth && !showPlaceholder) {
-            while (!visible.empty() && textWidth > maxTextWidth) {
-                visible = visible.substr(1);
-                textWidth = fonts.MeasureWidth(visible, fontSize, faceId, letterSpacing);
+        std::string visible;
+        float caretOffset = 0.0f;
+        if (!showPlaceholder && input.HasCaretCache(maxTextWidth, scale)) {
+            const Input::CaretCache& cached = input.GetCaretCache();
+            visible = cached.visible;
+            caretOffset = cached.caretOffset;
+        } else {
+            visible = display;
+            float textWidth = fonts.MeasureWidth(visible, fontSize, faceId, letterSpacing);
+            if (textWidth > maxTextWidth && !showPlaceholder) {
+                while (!visible.empty() && textWidth > maxTextWidth) {
+                    visible = visible.substr(1);
+                    textWidth = fonts.MeasureWidth(visible, fontSize, faceId, letterSpacing);
+                }
+            }
+            if (!showPlaceholder) {
+                const std::size_t caret = input.GetCaretIndex();
+                const std::string before = value.substr(0, std::min(caret, value.size()));
+                float beforeWidth = fonts.MeasureWidth(before, fontSize, faceId, letterSpacing);
+                caretOffset = beforeWidth > maxTextWidth ? maxTextWidth : beforeWidth;
+                Input::CaretCache cache;
+                cache.maxTextWidth = maxTextWidth;
+                cache.pixelScale = scale;
+                cache.caretIndex = caret;
+                cache.value = value;
+                cache.visible = visible;
+                cache.caretOffset = caretOffset;
+                input.StoreCaretCache(std::move(cache));
             }
         }
 
@@ -322,16 +344,7 @@ InputPaintResult InputPainter::Paint(FrameBuffer& buffer,
                          letterSpacing);
 
         if (!showPlaceholder) {
-            const std::size_t caret = input.GetCaretIndex();
-            const std::string before = value.substr(0, std::min(caret, value.size()));
-            float beforeWidth = fonts.MeasureWidth(before, fontSize, faceId, letterSpacing);
-            if (beforeWidth > maxTextWidth) {
-                const float overflow = beforeWidth - maxTextWidth;
-                caretX = textX + maxTextWidth;
-                (void)overflow;
-            } else {
-                caretX = textX + beforeWidth;
-            }
+            caretX = textX + caretOffset;
         }
     }
 

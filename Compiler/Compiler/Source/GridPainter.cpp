@@ -1,4 +1,5 @@
 #include "Robo/GridPainter.hpp"
+#include "Robo/PropLength.hpp"
 #include "Robo/Foundation.hpp"
 #include "Robo/TextSelection.hpp"
 #include "Robo/ContainerPainter.hpp"
@@ -306,21 +307,21 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
         }
 
         // Measure item intrinsic sizes
-        const bool hasExplicitWidth = !item.props.width.empty();
-        const bool hasExplicitHeight = !item.props.height.empty();
+        const bool hasExplicitWidth = PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width);
+        const bool hasExplicitHeight = PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height);
 
         switch (item.kind) {
             case GridItemKind::Text: {
-                const float availW = hasExplicitWidth ? ParseDimension(item.props.width, innerW, innerW, scale) : innerW;
-                TextMeasureResult measured = TextPainter::Measure(fonts, item.text, availW, scale);
+                const float availW = hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale) : innerW;
+                TextMeasureResult measured = TextPainter::Measure(fonts, *item.text, availW, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::Svg: {
-                SvgMeasureResult measured = SvgPainter::Measure(item.svg, scale);
-                child.measuredWidth = hasExplicitWidth ? ParseDimension(item.props.width, innerW, measured.width, scale) : measured.width;
-                child.measuredHeight = hasExplicitHeight ? ParseDimension(item.props.height, innerW, measured.height, scale) : measured.height;
+                SvgMeasureResult measured = SvgPainter::Measure(*item.svg, scale);
+                child.measuredWidth = hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, measured.width, scale) : measured.width;
+                child.measuredHeight = hasExplicitHeight ? ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, innerW, measured.height, scale) : measured.height;
                 break;
             }
             case GridItemKind::TitleBar: {
@@ -371,38 +372,38 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
                 break;
             }
             case GridItemKind::Button: {
-                ButtonMeasureResult measured = ButtonPainter::Measure(fonts, item.button, scale);
+                ButtonMeasureResult measured = ButtonPainter::Measure(fonts, *item.button, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::Input: {
-                const InputStyle& inputStyle = item.input.GetStyle();
+                const InputStyle& inputStyle = item.input->GetStyle();
                 float intrinsicWidth = static_cast<float>(inputStyle.minWidth) * scale;
-                if (!item.props.minWidth.empty()) {
-                    intrinsicWidth = ParseDimension(item.props.minWidth, innerW, intrinsicWidth, scale);
+                if (PropHasWidth(item.props.hasMinWidthLength, item.props.minWidthLength, item.props.minWidth)) {
+                    intrinsicWidth = ResolvePropLength(item.props.hasMinWidthLength, item.props.minWidthLength, item.props.minWidth, innerW, intrinsicWidth, scale);
                 }
                 if (hasExplicitWidth) {
-                    intrinsicWidth = ParseDimension(item.props.width, innerW, intrinsicWidth, scale);
+                    intrinsicWidth = ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, intrinsicWidth, scale);
                 }
-                InputMeasureResult measured = InputPainter::Measure(fonts, item.input, intrinsicWidth, scale);
+                InputMeasureResult measured = InputPainter::Measure(fonts, *item.input, intrinsicWidth, scale);
                 child.measuredWidth = intrinsicWidth;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::Scrollbar: {
                 const float availW =
-                    hasExplicitWidth ? ParseDimension(item.props.width, innerW, innerW, scale) : innerW;
-                ScrollbarMeasureResult measured = ScrollbarPainter::Measure(item.scrollbar, availW, scale);
+                    hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale) : innerW;
+                ScrollbarMeasureResult measured = ScrollbarPainter::Measure(*item.scrollbar, availW, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::Container: {
                 if (item.container) {
-                    const float availW = hasExplicitWidth ? ParseDimension(item.props.width, innerW, innerW, scale) : innerW;
-                    const float forcedH = (!item.props.height.empty() && item.props.height != "auto")
-                        ? ParseDimension(item.props.height, 0.0f, -1.0f, scale) : -1.0f;
+                    const float availW = hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale) : innerW;
+                    const float forcedH = (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height) && item.props.height != "auto")
+                        ? ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, 0.0f, -1.0f, scale) : -1.0f;
                     ContainerMeasureResult measured =
                         ContainerPainter::Measure(fonts, *item.container, availW, scale, -1.0f, forcedH);
                     child.measuredWidth = measured.width;
@@ -412,9 +413,9 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
             }
             case GridItemKind::Flexbox: {
                 if (item.flexbox) {
-                    const float availW = hasExplicitWidth ? ParseDimension(item.props.width, innerW, innerW, scale) : innerW;
-                    const float forcedH = (!item.props.height.empty() && item.props.height != "auto")
-                        ? ParseDimension(item.props.height, 0.0f, -1.0f, scale) : -1.0f;
+                    const float availW = hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale) : innerW;
+                    const float forcedH = (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height) && item.props.height != "auto")
+                        ? ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, 0.0f, -1.0f, scale) : -1.0f;
                     FlexboxMeasureResult measured =
                         FlexboxPainter::Measure(fonts, *item.flexbox, availW, scale, -1.0f, forcedH);
                     child.measuredWidth = measured.width;
@@ -424,9 +425,9 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
             }
             case GridItemKind::Grid: {
                 if (item.grid) {
-                    const float availW = hasExplicitWidth ? ParseDimension(item.props.width, innerW, innerW, scale) : innerW;
-                    const float forcedH = (!item.props.height.empty() && item.props.height != "auto")
-                        ? ParseDimension(item.props.height, 0.0f, -1.0f, scale) : -1.0f;
+                    const float availW = hasExplicitWidth ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, innerW, scale) : innerW;
+                    const float forcedH = (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height) && item.props.height != "auto")
+                        ? ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, 0.0f, -1.0f, scale) : -1.0f;
                     GridMeasureResult measured =
                         GridPainter::Measure(fonts, *item.grid, availW, scale, -1.0f, forcedH);
                     child.measuredWidth = measured.width;
@@ -437,22 +438,22 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
         }
 
         if (hasExplicitWidth) {
-            child.measuredWidth = ParseDimension(item.props.width, innerW, child.measuredWidth, scale);
+            child.measuredWidth = ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW, child.measuredWidth, scale);
         }
         if (hasExplicitHeight) {
-            child.measuredHeight = ParseDimension(item.props.height, 0.0f, child.measuredHeight, scale);
+            child.measuredHeight = ResolvePropLength(item.props.hasHeightLength, item.props.heightLength, item.props.height, 0.0f, child.measuredHeight, scale);
         }
-        if (!item.props.minWidth.empty()) {
-            child.measuredWidth = std::max(child.measuredWidth, ParseDimension(item.props.minWidth, innerW, 0.0f, scale));
+        if (PropHasWidth(item.props.hasMinWidthLength, item.props.minWidthLength, item.props.minWidth)) {
+            child.measuredWidth = std::max(child.measuredWidth, ResolvePropLength(item.props.hasMinWidthLength, item.props.minWidthLength, item.props.minWidth, innerW, 0.0f, scale));
         }
-        if (!item.props.maxWidth.empty()) {
-            child.measuredWidth = std::min(child.measuredWidth, ParseDimension(item.props.maxWidth, innerW, 100000.0f, scale));
+        if (PropHasWidth(item.props.hasMaxWidthLength, item.props.maxWidthLength, item.props.maxWidth)) {
+            child.measuredWidth = std::min(child.measuredWidth, ResolvePropLength(item.props.hasMaxWidthLength, item.props.maxWidthLength, item.props.maxWidth, innerW, 100000.0f, scale));
         }
-        if (!item.props.minHeight.empty()) {
-            child.measuredHeight = std::max(child.measuredHeight, ParseDimension(item.props.minHeight, 0.0f, 0.0f, scale));
+        if (PropHasHeight(item.props.hasMinHeightLength, item.props.minHeightLength, item.props.minHeight)) {
+            child.measuredHeight = std::max(child.measuredHeight, ResolvePropLength(item.props.hasMinHeightLength, item.props.minHeightLength, item.props.minHeight, 0.0f, 0.0f, scale));
         }
-        if (!item.props.maxHeight.empty()) {
-            child.measuredHeight = std::min(child.measuredHeight, ParseDimension(item.props.maxHeight, 0.0f, 100000.0f, scale));
+        if (PropHasHeight(item.props.hasMaxHeightLength, item.props.maxHeightLength, item.props.maxHeight)) {
+            child.measuredHeight = std::min(child.measuredHeight, ResolvePropLength(item.props.hasMaxHeightLength, item.props.maxHeightLength, item.props.maxHeight, 0.0f, 100000.0f, scale));
         }
 
         placedChildren.push_back(child);
@@ -599,14 +600,14 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
             itemW = std::min(cellW, child.measuredWidth);
         }
         if (items[child.itemIndex].kind == GridItemKind::Scrollbar &&
-            items[child.itemIndex].scrollbar.GetOrientation() == ScrollbarOrientation::Vertical) {
+            items[child.itemIndex].scrollbar->GetOrientation() == ScrollbarOrientation::Vertical) {
             itemW = std::min(cellW, child.measuredWidth);
         }
-        if (!props.maxWidth.empty()) {
-            itemW = std::min(itemW, ParseDimension(props.maxWidth, innerW, itemW, scale));
+        if (PropHasWidth(props.hasMaxWidthLength, props.maxWidthLength, props.maxWidth)) {
+            itemW = std::min(itemW, ResolvePropLength(props.hasMaxWidthLength, props.maxWidthLength, props.maxWidth, innerW, itemW, scale));
         }
-        if (!props.minWidth.empty()) {
-            itemW = std::max(itemW, ParseDimension(props.minWidth, innerW, itemW, scale));
+        if (PropHasWidth(props.hasMinWidthLength, props.minWidthLength, props.minWidth)) {
+            itemW = std::max(itemW, ResolvePropLength(props.hasMinWidthLength, props.minWidthLength, props.minWidth, innerW, itemW, scale));
         }
 
         float itemX = cellX;
@@ -623,14 +624,14 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
             itemH = std::min(cellH, child.measuredHeight);
         }
         if (items[child.itemIndex].kind == GridItemKind::Scrollbar &&
-            items[child.itemIndex].scrollbar.GetOrientation() == ScrollbarOrientation::Horizontal) {
+            items[child.itemIndex].scrollbar->GetOrientation() == ScrollbarOrientation::Horizontal) {
             itemH = std::min(cellH, child.measuredHeight);
         }
-        if (!props.maxHeight.empty()) {
-            itemH = std::min(itemH, ParseDimension(props.maxHeight, 0.0f, itemH, scale));
+        if (PropHasHeight(props.hasMaxHeightLength, props.maxHeightLength, props.maxHeight)) {
+            itemH = std::min(itemH, ResolvePropLength(props.hasMaxHeightLength, props.maxHeightLength, props.maxHeight, 0.0f, itemH, scale));
         }
-        if (!props.minHeight.empty()) {
-            itemH = std::max(itemH, ParseDimension(props.minHeight, 0.0f, itemH, scale));
+        if (PropHasHeight(props.hasMinHeightLength, props.minHeightLength, props.minHeight)) {
+            itemH = std::max(itemH, ResolvePropLength(props.hasMinHeightLength, props.minHeightLength, props.minHeight, 0.0f, itemH, scale));
         }
 
         float itemY = cellY;
@@ -742,11 +743,11 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
 
         switch (item.kind) {
             case GridItemKind::Text: {
-                TextPainter::Paint(buffer, fonts, item.text, childX, childY, childW, scale);
+                TextPainter::Paint(buffer, fonts, *item.text, childX, childY, childW, scale);
                 break;
             }
             case GridItemKind::Svg: {
-                SvgPainter::Paint(buffer, item.svg, childX, childY, childW, scale);
+                SvgPainter::Paint(buffer, *item.svg, childX, childY, childW, scale);
                 break;
             }
             case GridItemKind::BrandLogo: {
@@ -784,7 +785,7 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
             case GridItemKind::Button: {
                 ButtonPainter::Paint(buffer,
                                      fonts,
-                                     item.button,
+                                     *item.button,
                                      childX,
                                      childY,
                                      childW,
@@ -796,7 +797,7 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
             case GridItemKind::Input: {
                 InputPainter::Paint(buffer,
                                     fonts,
-                                    item.input,
+                                    *item.input,
                                     childX,
                                     childY,
                                     childW,
@@ -807,9 +808,9 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
             }
             case GridItemKind::Scrollbar: {
                 const bool vertical =
-                    item.scrollbar.GetOrientation() == ScrollbarOrientation::Vertical;
+                    item.scrollbar->GetOrientation() == ScrollbarOrientation::Vertical;
                 ScrollbarPainter::Paint(buffer,
-                                        item.scrollbar,
+                                        *item.scrollbar,
                                         childX,
                                         childY,
                                         childW,
@@ -820,8 +821,8 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
             }
             case GridItemKind::Container: {
                 if (item.container) {
-                    const float cw = (!item.props.width.empty() && item.props.width != "auto") ? childW : -1.0f;
-                    const float ch = (!item.props.height.empty() && item.props.height != "auto") ? childH : -1.0f;
+                    const float cw = (PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width) && item.props.width != "auto") ? childW : -1.0f;
+                    const float ch = (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height) && item.props.height != "auto") ? childH : -1.0f;
                     ContainerPainter::Paint(buffer,
                                             fonts,
                                             *item.container,
@@ -836,8 +837,8 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
             }
             case GridItemKind::Flexbox: {
                 if (item.flexbox) {
-                    const float fw = (!item.props.width.empty() && item.props.width != "auto") ? childW : -1.0f;
-                    const float fh = (!item.props.height.empty() && item.props.height != "auto") ? childH : -1.0f;
+                    const float fw = (PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width) && item.props.width != "auto") ? childW : -1.0f;
+                    const float fh = (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height) && item.props.height != "auto") ? childH : -1.0f;
                     FlexboxPainter::Paint(buffer,
                                           fonts,
                                           *item.flexbox,
@@ -852,8 +853,8 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
             }
             case GridItemKind::Grid: {
                 if (item.grid) {
-                    const float gw = (!item.props.width.empty() && item.props.width != "auto") ? childW : -1.0f;
-                    const float gh = (!item.props.height.empty() && item.props.height != "auto") ? childH : -1.0f;
+                    const float gw = (PropHasWidth(item.props.hasWidthLength, item.props.widthLength, item.props.width) && item.props.width != "auto") ? childW : -1.0f;
+                    const float gh = (PropHasHeight(item.props.hasHeightLength, item.props.heightLength, item.props.height) && item.props.height != "auto") ? childH : -1.0f;
                     GridPainter::Paint(buffer,
                                        fonts,
                                        *item.grid,

@@ -175,14 +175,14 @@ struct GridBounds {
 struct GridItem {
     GridItemKind kind = GridItemKind::Text;
     GridItemProps props;
-    Text text;
-    Button button;
-    Input input;
-    Scrollbar scrollbar;
+    std::shared_ptr<Text> text;
+    std::shared_ptr<Button> button;
+    std::shared_ptr<Input> input;
+    std::shared_ptr<Scrollbar> scrollbar;
     std::shared_ptr<Container> container;
     std::shared_ptr<Flexbox> flexbox;
     std::shared_ptr<Grid> grid;
-    Svg svg;
+    std::shared_ptr<Svg> svg;
     std::shared_ptr<BrandLogo> brandLogo;
     std::shared_ptr<Robo::TitleBar> titleBar;
     std::shared_ptr<Robo::Sidebar> sidebar;
