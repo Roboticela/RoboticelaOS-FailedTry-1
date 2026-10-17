@@ -1016,6 +1016,37 @@ void RoboFsUseBootFiles(const RoboBootInfo* info) {
     }
 }
 
+int RoboFsList(const char* directory, char* names, int nameStride, int capacity) {
+    if (!gRoboVolume || directory == nullptr || names == nullptr || capacity <= 0 || nameStride < 40) {
+        return 0;
+    }
+    RoboPlace place{};
+    if (RoboWalk(directory, true, &place) != ROBO_FS_OK || place.kind != ROBO_ENTRY_DIRECTORY) {
+        return 0;
+    }
+    const uint64_t bytes = place.bytes == 0 ? ROBO_DIRECTORY_BYTES : place.bytes;
+    if (!RoboReadDirectory(place.start, bytes)) {
+        return 0;
+    }
+    uint32_t limit = bytes > ROBO_DIRECTORY_BYTES ? ROBO_DIRECTORY_BYTES : static_cast<uint32_t>(bytes);
+    int count = 0;
+    for (uint32_t offset = 0; offset + ROBO_ENTRY_BYTES <= limit && count < capacity; offset += ROBO_ENTRY_BYTES) {
+        const uint8_t* entry = gDirectory + offset;
+        if (RoboFsLoad32(entry + 40) != ROBO_ENTRY_FILE) {
+            continue;
+        }
+        char* dest = names + count * nameStride;
+        for (int index = 0; index < 40; ++index) {
+            dest[index] = static_cast<char>(entry[index]);
+        }
+        if (nameStride > 40) {
+            dest[40] = 0;
+        }
+        count += 1;
+    }
+    return count;
+}
+
 bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t* size) {
     if (name == nullptr || dest == nullptr || capacity == 0) {
         return false;

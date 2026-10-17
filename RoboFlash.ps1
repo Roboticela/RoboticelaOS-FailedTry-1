@@ -62,7 +62,7 @@ foreach ($relative in $RoboEspOptional) {
     Copy-RoboEspFile $relative $false
 }
 
-$disk = Join-Path $Root "Build\RoboDisk.img"
+$disk = Join-Path $Root $RoboDiskImage
 if (Test-Path -LiteralPath $disk) {
     $diskTarget = Join-Path $destination "RoboDisk.img"
     $diskItem = Get-Item -LiteralPath $disk

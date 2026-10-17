@@ -166,14 +166,19 @@ public:
 
     // Dynamic catalog apps (DevKit): load one pane / rail panel on demand.
     using PaneEnsureFn = void (*)(RoboScene& scene, const char* paneId);
-    using RailChildrenFn = void (*)(Sidebar& sidebar, int railIndex);
+    // Returns true when more children remain (budgeted fill; call again next tick).
+    using RailChildrenFn = bool (*)(Sidebar& sidebar, int railIndex);
     void SetPaneEnsure(PaneEnsureFn fn);
     void SetRailChildrenEnsure(RailChildrenFn fn);
+    std::vector<SceneItem>& Items() { return items_; }
+    const std::vector<SceneItem>& Items() const { return items_; }
     bool HasPaneContainer(const char* paneId) const;
     void EnsurePaneContent();
-    void EnsureSelectedRailChildren(Sidebar* owner);
+    bool EnsureSelectedRailChildren(Sidebar* owner);
     void SetActivePaneId(const std::string& paneId);
     void EvictInactivePanes(const std::string& keepPaneId);
+    int GalleryLimit() const;
+    void SetGalleryCount(int count);
 
     bool KeyInsert(const std::string& utf8);
     bool KeyBackspace();
@@ -228,6 +233,11 @@ private:
     void MarkFullDirty();
     void MarkSurfaceDirty();
     void MarkDirty(float x, float y, float width, float height);
+    void ShiftPaintedScroll();
+    void DropPane(const std::string& paneId);
+    bool TakeParkedPane(const char* paneId);
+    void CollectTextLineDamage();
+    void MarkDirtyLocal(float x, float y, float width, float height);
     void DirtyMenuBar();
     void DirtyContextMenu();
     void RunContextAction(const std::string& action);
@@ -258,8 +268,10 @@ private:
     bool PointerOnDevKit(float x, float y) const;
     void EnsureDevKit();
     void DirtyDevKitWindow();
+    void DirtyDevKitWindowSoft();
     void DirtyDevKitFromNested();
     void OpenDevKit();
+    void PumpPaint();
     void PaintDevKit();
     void CompositeDevKit();
     bool DevKitNeedsPaint() const;
@@ -274,6 +286,9 @@ private:
     const Scrollbar* PageScrollbarAt(float x, float y) const;
 
     std::vector<SceneItem> items_;
+    std::vector<SceneItem> parkedPanes_;
+    int galleryLimit_ = 48;
+    int galleryCount_ = 0;
     Desktop desktop_;
     int hoveredDock_ = -1;
     int hoveredMenu_ = -1;
@@ -330,6 +345,8 @@ private:
     float devKitW_ = 1080.0f;
     float devKitH_ = 700.0f;
     RoboScene* devKitScene_ = nullptr;
+    int devKitBuildStep_ = -1;
+    bool devKitRailFillPending_ = false;
     bool devKitPaintDirty_ = false;
     bool devKitSurfaceValid_ = false;
     bool devKitParentWiped_ = false;

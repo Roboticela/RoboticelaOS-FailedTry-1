@@ -21,6 +21,9 @@ $RoboEspOptional = @(
     "BACKGROU.MP4"
 )
 
+# Writable RoboFS volume. QEMU attaches it beside the ESP folder; Flash copies the same file.
+$RoboDiskImage = "Build\RoboDisk.img"
+
 $RoboEspArmRequired = @(
     "EFI\BOOT\BOOTAA64.EFI",
     "RoboKernel.elf",

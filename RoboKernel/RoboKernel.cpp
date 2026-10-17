@@ -13,6 +13,7 @@
 #include "RoboCall.hpp"
 #include "RoboFrame.hpp"
 #include "RoboFS.hpp"
+#include "RoboProcess.hpp"
 #include "RoboDesktopImage.hpp"
 #include "RoboDebug.hpp"
 #include "RoboShell.hpp"
@@ -109,10 +110,51 @@ bool RoboShellLoad(RoboDesktop* desktop) {
     return true;
 }
 
+void RoboAppLoad(void);
+void RoboAppPaintWidget(RoboWindow* window, bool on);
+
 void RoboFsMountDisk(void) {
     if (RoboDiskStart()) {
         RoboFsStart(RoboDiskReadSector);
     }
+}
+
+enum class RoboBootPhase : uint8_t {
+    Usb = 0,
+    Disk = 1,
+    App = 2,
+    Done = 3,
+};
+
+RoboBootPhase gBootPhase = RoboBootPhase::Usb;
+bool gAppWindowReady = false;
+
+void RoboBootAdvance(RoboDesktop* desktop, RoboWindow* appWindow) {
+    if (gBootPhase == RoboBootPhase::Done || desktop == nullptr) {
+        return;
+    }
+    if (gBootPhase == RoboBootPhase::Usb) {
+        RoboUsbStart();
+        RoboDebugLine("usb");
+        gBootPhase = RoboBootPhase::Disk;
+        return;
+    }
+    if (gBootPhase == RoboBootPhase::Disk) {
+        RoboFsMountDisk();
+        RoboDebugLine("disk");
+        gBootPhase = RoboBootPhase::App;
+        return;
+    }
+    RoboAppLoad();
+    RoboLauncherScan();
+    RoboDebugLine("app");
+    if (!gShellLoaded && appWindow != nullptr && !gAppWindowReady) {
+        RoboDesktopOpenWindow(desktop, appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);
+        RoboAppPaintWidget(appWindow, false);
+        RoboDesktopPresentWindow(desktop, appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
+        gAppWindowReady = true;
+    }
+    gBootPhase = RoboBootPhase::Done;
 }
 
 void RoboAppLoad(void) {
@@ -195,23 +237,14 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
     RoboDebugLine("frame");
     RoboCpuJoin();
     RoboDebugLine("smp");
-    RoboUsbStart();
-    RoboDebugLine("usb");
-    RoboFsMountDisk();
-    RoboDebugLine("disk");
-    RoboAppLoad();
     RoboWindow appWindow{};
     appWindow.pixels = gAppPixels;
-    if (!gShellLoaded) {
-        RoboDesktopOpenWindow(&desktop, &appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);
-        RoboAppPaintWidget(&appWindow, false);
-        RoboDesktopPresentWindow(&desktop, &appWindow, ROBO_APP_WIDGET_X, ROBO_APP_WIDGET_Y, ROBO_APP_WIDGET_WIDTH, ROBO_APP_WIDGET_HEIGHT);
-    }
     uint64_t nextWidgetTick = ROBO_APP_WIDGET_TICKS;
     bool widgetOn = false;
     RoboDebugLine("loop");
 
     for (;;) {
+        RoboBootAdvance(&desktop, &appWindow);
         RoboArchCli();
         RoboArenaReset(RoboArenaFrame());
         (void)RoboArenaAlloc(RoboArenaFrame(), 32, 8);

@@ -26,6 +26,8 @@ struct TextLayoutSpan {
 struct TextLayoutLine {
     std::vector<TextLayoutSpan> spans;
     float width = 0.0f;
+    float y = 0.0f;
+    float height = 0.0f;
 };
 
 struct TextLayoutCache {
@@ -41,6 +43,8 @@ struct TextLayoutCache {
     bool valid = false;
     float containerWidth = -1.0f;
     float pixelScale = -1.0f;
+    float originX = 0.0f;
+    float originY = 0.0f;
 };
 
 }  // namespace Robo

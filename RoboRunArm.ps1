@@ -57,7 +57,7 @@ $smp = [Math]::Min(4, [Math]::Max(1, [Environment]::ProcessorCount))
 $firmwarePath = $firmware -replace '\\', '/'
 $varsPath = $vars -replace '\\', '/'
 $espPath = $esp -replace '\\', '/'
-$disk = Join-Path $Root "Build\RoboDisk.img"
+$disk = Join-Path $Root $RoboDiskImage
 $diskPath = $disk -replace '\\', '/'
 Write-Host "Starting ARM64 QEMU (smp $smp)"
 $arguments = @(

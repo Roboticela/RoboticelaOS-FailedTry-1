@@ -22,6 +22,7 @@ void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes);
 uint64_t RoboMemoryVideoBuffer(void);
 uint64_t RoboMemoryKernelCr3(void);
 uint64_t RoboPageAlloc(void);
+void RoboPageFree(uint64_t page);
 void RoboArenaReset(RoboArena* arena);
 void* RoboArenaAlloc(RoboArena* arena, uint64_t size, uint64_t align);
 RoboArena* RoboArenaFrame(void);

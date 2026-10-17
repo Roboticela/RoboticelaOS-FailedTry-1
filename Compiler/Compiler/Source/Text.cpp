@@ -65,10 +65,62 @@ void Text::WriteMeasureCache(float containerWidth, float pixelScale, float width
 }
 
 void Text::InvalidateMeasureCache() const {
+    previousLineCount_ = 0;
+    const int limit = static_cast<int>(layoutCache_.lines.size());
+    for (int index = 0; index < limit && previousLineCount_ < 32; ++index) {
+        previousLineY_[previousLineCount_] = layoutCache_.lines[static_cast<std::size_t>(index)].y;
+        previousLineH_[previousLineCount_] = layoutCache_.lines[static_cast<std::size_t>(index)].height;
+        previousLineW_[previousLineCount_] = layoutCache_.lines[static_cast<std::size_t>(index)].width;
+        previousLineCount_ += 1;
+    }
     measureCacheValid_ = false;
     layoutCache_.valid = false;
     layoutCache_.lines.clear();
     needsLayout_ = true;
+}
+
+void Text::NoteRelayout() const {
+    dirtyLineFirst_ = -1;
+    dirtyLineLast_ = -1;
+    if (previousLineCount_ == 0) {
+        return;
+    }
+    const int count = static_cast<int>(layoutCache_.lines.size());
+    const int shared = count < previousLineCount_ ? count : previousLineCount_;
+    for (int index = 0; index < shared; ++index) {
+        const TextLayoutLine& line = layoutCache_.lines[static_cast<std::size_t>(index)];
+        const float oldY = previousLineY_[index];
+        const float oldH = previousLineH_[index];
+        if (std::fabs(line.y - oldY) > 0.5f || std::fabs(line.height - oldH) > 0.5f ||
+            std::fabs(line.width - previousLineW_[index]) > 0.5f) {
+            if (dirtyLineFirst_ < 0) {
+                dirtyLineFirst_ = index;
+            }
+            dirtyLineLast_ = index;
+        }
+    }
+    if (count != previousLineCount_) {
+        const int from = shared;
+        const int to = (count > previousLineCount_ ? count : previousLineCount_) - 1;
+        if (to >= from) {
+            if (dirtyLineFirst_ < 0) {
+                dirtyLineFirst_ = from;
+            }
+            dirtyLineLast_ = to;
+        }
+    }
+    previousLineCount_ = 0;
+}
+
+bool Text::TakeDirtyLines(int& first, int& last) const {
+    if (dirtyLineFirst_ < 0 || dirtyLineLast_ < dirtyLineFirst_) {
+        return false;
+    }
+    first = dirtyLineFirst_;
+    last = dirtyLineLast_;
+    dirtyLineFirst_ = -1;
+    dirtyLineLast_ = -1;
+    return true;
 }
 
 TextLayoutCache& Text::LayoutCache() const {

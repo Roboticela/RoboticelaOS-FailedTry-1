@@ -100,7 +100,7 @@ $arguments = @(
     "-device", "usb-tablet,bus=usbc.0",
     "-drive", "if=ide,format=raw,file=fat:rw:$espPath"
 )
-$disk = Join-Path $Root "Build\RoboDisk.img"
+$disk = Join-Path $Root $RoboDiskImage
 if (Test-Path $disk) {
     $diskPath = $disk -replace '\\', '/'
     $arguments += @(

@@ -88,12 +88,9 @@ int RoboDevKitOpenPageStep(Robo::RoboScene& scene, int step) {
     if (gDevKitBuildStep != nullptr) {
         return gDevKitBuildStep(scene, step);
     }
+    // No stepped export: stub chrome only — never run full Build on the open path.
     if (step == 0) {
-        if (gDevKitBuild != nullptr) {
-            gDevKitBuild(scene);
-        } else {
-            RoboDevKitStubPage(scene);
-        }
+        RoboDevKitStubPage(scene);
     }
     return -1;
 }

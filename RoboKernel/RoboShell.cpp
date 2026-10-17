@@ -2,6 +2,7 @@
 
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
+#include "RoboGPU.hpp"
 #include "RoboPS2Mouse.hpp"
 #include "RoboticelaOSPlatform.hpp"
 #include "Robo/Color.hpp"
@@ -187,16 +188,18 @@ bool RoboShellStart(RoboDesktop* desktop) {
         return false;
     }
     gDesktop = desktop;
+    // Scanout is live before fonts, wallpaper, or page build. A later failure still has pixels.
+    RoboGPUFill(desktop->gpu, 0x202838u);
+    RoboDesktopUseCursor(desktop);
+    RoboDesktopShowCursor(desktop);
     gPlatform = new Robo::RoboticelaOSPlatform();
     gFonts = new Robo::FontEngine();
     gScene = new Robo::RoboScene();
-    RoboLoadFace(Robo::FontFaceId::Regular, "INTERR.TTF");
-    RoboLoadFace(Robo::FontFaceId::Medium, "INTERM.TTF");
-    RoboLoadFace(Robo::FontFaceId::SemiBold, "INTERS.TTF");
-    RoboLoadFace(Robo::FontFaceId::Bold, "INTERB.TTF");
-    RoboLoadFace(Robo::FontFaceId::Italic, "INTERI.TTF");
-    gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
-    gScene->SetPaintPump(RoboShellTrackCursor, nullptr);
+    if (gPlatform == nullptr || gFonts == nullptr || gScene == nullptr) {
+        RoboGPUFill(desktop->gpu, 0x202838u);
+        RoboDesktopRedrawCursor(desktop);
+        return false;
+    }
     const int frameWidth = desktop->gpu->width;
     const int frameHeight = desktop->gpu->height;
     float pixelScale = 1.0f;
@@ -214,13 +217,23 @@ bool RoboShellStart(RoboDesktop* desktop) {
     }
     gSceneScale = frameWidth > 0 ? static_cast<float>(surfaceWidth) / static_cast<float>(frameWidth) : 1.0f;
     gPlatform->SetPixelScale(pixelScale);
-    gFonts->WarmChrome(pixelScale);
+    gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
+    gScene->SetPaintPump(RoboShellTrackCursor, nullptr);
     gPlatform->SetScanout(desktop->gpu->base, desktop->gpu->width, desktop->gpu->height, desktop->gpu->stride, desktop->gpu->pixelFormat);
     gPlatform->SetSurfaceSize(surfaceWidth, surfaceHeight);
+    const bool regular = RoboLoadFace(Robo::FontFaceId::Regular, "INTERR.TTF");
+    const bool medium = RoboLoadFace(Robo::FontFaceId::Medium, "INTERM.TTF");
+    const bool semi = RoboLoadFace(Robo::FontFaceId::SemiBold, "INTERS.TTF");
+    const bool bold = RoboLoadFace(Robo::FontFaceId::Bold, "INTERB.TTF");
+    const bool italic = RoboLoadFace(Robo::FontFaceId::Italic, "INTERI.TTF");
+    if (regular || medium || semi || bold || italic) {
+        gFonts->WarmChrome(pixelScale);
+    }
     BuildPage(*gScene);
-    RoboDesktopUseCursor(desktop);
-    RoboDesktopShowCursor(desktop);
     gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    gScene->DamageRect(0.0f, 0.0f, 100000.0f, 100000.0f);
+    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    RoboDesktopRedrawCursor(desktop);
     return true;
 }
 

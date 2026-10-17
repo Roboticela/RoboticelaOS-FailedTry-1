@@ -258,7 +258,31 @@ void FrameBuffer::FillRoundedRect(float x, float y, float width, float height, f
     }
 }
 
+void FrameBuffer::BeginDisplayList() {
+    displayOps_.clear();
+    recordDisplay_ = true;
+}
+
+void FrameBuffer::EndDisplayList() {
+    recordDisplay_ = false;
+}
+
+int FrameBuffer::DisplayOpCount() const {
+    return static_cast<int>(displayOps_.size());
+}
+
 void FrameBuffer::FillRect(int x, int y, int width, int height, const Color& color, float opacity) {
+    if (recordDisplay_ && displayOps_.size() < 4096u) {
+        DisplayOp op;
+        op.x = x;
+        op.y = y;
+        op.width = width;
+        op.height = height;
+        op.color = (static_cast<std::uint32_t>(color.red) << 16) | (static_cast<std::uint32_t>(color.green) << 8) |
+                   static_cast<std::uint32_t>(color.blue);
+        op.opacity = opacity;
+        displayOps_.push_back(op);
+    }
     int x0 = std::max(0, x);
     int y0 = std::max(0, y);
     int x1 = std::min(width_, x + width);

@@ -21,6 +21,10 @@ private:
     void EmitContainer(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar,
                        bool emitChildren = true) const;
     void EmitSharedIconPack(std::ostringstream& code, int indent, const std::vector<std::string>& names) const;
+    void NotePackIcon(const std::string& name, std::vector<std::string>& names) const;
+    void CollectPackIconNames(const XmlNode& node, std::vector<std::string>& names) const;
+    void EmitPackedIcon(std::ostringstream& code, int indent, const std::string& iconVar, const std::string& iconName,
+                        float size, const std::string& applyLine) const;
     void EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitColorPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitFlexbox(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;

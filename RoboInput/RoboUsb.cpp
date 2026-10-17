@@ -104,6 +104,7 @@ struct RoboUsbHost {
     uint8_t commandDone;
     uint8_t commandCode;
     uint8_t commandSlot;
+    uint32_t scanPort;
 };
 
 RoboUsbHost gHosts[ROBO_USB_HOST_MAX]{};
@@ -994,12 +995,6 @@ void RoboUsbResetPort(uint32_t port) {
     RoboUsbEnumerate(port, portsc);
 }
 
-void RoboUsbScanPorts(void) {
-    for (uint32_t port = 1; port <= gMaxPorts && port <= 32u; ++port) {
-        RoboUsbResetPort(port);
-    }
-}
-
 void RoboUsbScanPending(uint32_t pending) {
     for (uint32_t port = 1; port <= gMaxPorts && port <= 31u; ++port) {
         if ((pending & (1u << port)) != 0) {
@@ -1207,10 +1202,10 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
         return;
     }
     gHost->running = 1;
+    gHost->scanPort = 1;
     if (gHost->irq >= 1u && gHost->irq <= 15u) {
         RoboArchIrqClaim(gHost->irq);
     }
-    RoboUsbScanPorts();
 }
 
 }  // namespace
@@ -1229,6 +1224,14 @@ void RoboUsbCollect(void) {
             uint32_t pending = gHost->pending;
             gHost->pending = 0;
             RoboUsbScanPending(pending);
+        }
+        if (gHost->scanPort != 0) {
+            gMaxPorts = gHost->maxPorts;
+            RoboUsbResetPort(gHost->scanPort);
+            gHost->scanPort += 1u;
+            if (gHost->scanPort > gHost->maxPorts || gHost->scanPort > 32u) {
+                gHost->scanPort = 0;
+            }
         }
     }
 }

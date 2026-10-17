@@ -299,8 +299,12 @@ const TextLayoutCache& TextPainter::EnsureLayout(const FontEngine& fonts,
 
     float maxLineWidth = 0.0f;
     std::size_t nonEmptyLines = 0;
+    float lineTop = 0.0f;
     for (TextLayoutLine& line : cache.lines) {
         TrimLineEdges(line);
+        line.y = lineTop;
+        line.height = baseLineHeight;
+        lineTop += baseLineHeight;
         if (!line.spans.empty()) {
             ++nonEmptyLines;
             maxLineWidth = std::max(maxLineWidth, line.width);
@@ -315,6 +319,7 @@ const TextLayoutCache& TextPainter::EnsureLayout(const FontEngine& fonts,
     cache.valid = true;
     text.SetNeedsLayout(false);
     text.WriteMeasureCache(containerWidth, scale, cache.width, cache.height, cache.advanceY);
+    text.NoteRelayout();
     return cache;
 }
 
@@ -340,6 +345,8 @@ float TextPainter::Paint(FrameBuffer& buffer,
     const SelectableScope selection(&text, text.GetStyle().selectable);
     const float scale = std::max(0.5f, pixelScale);
     const TextLayoutCache& cache = EnsureLayout(fonts, text, containerWidth, scale);
+    text.LayoutCache().originX = originX;
+    text.LayoutCache().originY = originY;
 
     if (cache.lines.empty()) {
         return cache.advanceY;

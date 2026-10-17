@@ -59,6 +59,8 @@ public:
     TextLayoutCache& LayoutCache() const;
     bool NeedsLayout() const;
     void SetNeedsLayout(bool needs) const;
+    void NoteRelayout() const;
+    bool TakeDirtyLines(int& first, int& last) const;
 
 private:
     TextStyle style_;
@@ -71,6 +73,12 @@ private:
     mutable float measureCacheAdvanceY_ = 0.0f;
     mutable TextLayoutCache layoutCache_{};
     mutable bool needsLayout_ = true;
+    mutable int previousLineCount_ = 0;
+    mutable float previousLineY_[32]{};
+    mutable float previousLineH_[32]{};
+    mutable float previousLineW_[32]{};
+    mutable int dirtyLineFirst_ = -1;
+    mutable int dirtyLineLast_ = -1;
 };
 
 }  // namespace Robo

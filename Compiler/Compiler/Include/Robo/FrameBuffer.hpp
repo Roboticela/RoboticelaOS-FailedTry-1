@@ -35,6 +35,9 @@ public:
 
     void BlendPixel(int x, int y, const Color& color, float opacity = 1.0f);
     void FillRect(int x, int y, int width, int height, const Color& color, float opacity = 1.0f);
+    void BeginDisplayList();
+    void EndDisplayList();
+    int DisplayOpCount() const;
     void FillRoundedRect(float x, float y, float width, float height, float radius, const Color& color, float opacity = 1.0f);
 
     // Clipping. Every write funnels through BlendPixel, so a clip restricts text,
@@ -52,6 +55,15 @@ private:
         int bottom = 0;
     };
 
+    struct DisplayOp {
+        int x = 0;
+        int y = 0;
+        int width = 0;
+        int height = 0;
+        std::uint32_t color = 0;
+        float opacity = 1.0f;
+    };
+
     bool InsideClip(int x, int y) const;
 
     int width_ = 0;
@@ -62,6 +74,8 @@ private:
     int presentHeight_ = 0;
     std::vector<std::uint8_t> pixels_;
     std::vector<ClipRect> clips_;
+    std::vector<DisplayOp> displayOps_;
+    bool recordDisplay_ = false;
     void (*pump_)(void*) = nullptr;
     void* pumpCookie_ = nullptr;
 };

@@ -28,9 +28,10 @@
 #include <functional>
 
 #ifdef ROBO_KERNEL
-void RoboDevKitOpenPage(Robo::RoboScene& scene);
+int RoboDevKitOpenPageStep(Robo::RoboScene& scene, int step);
 #else
 void BuildDevKitPage(Robo::RoboScene& scene);
+int BuildDevKitPageStep(Robo::RoboScene& scene, int step);
 #endif
 
 namespace Robo {
@@ -149,21 +150,24 @@ public:
             if (radius <= 0.5f || (localY >= radius && localY < windowH - radius)) {
                 memcpy(dst + (destY_ + srcRow) * dstStride + (destX_ + blitX) * 4,
                        src + srcRow * srcStride + blitX * 4, static_cast<std::size_t>(blitW) * 4u);
-                continue;
-            }
-            for (int col = 0; col < blitW; ++col) {
-                const int srcCol = blitX + col;
-                const float localX = static_cast<float>(srcCol) + 0.5f;
-                if (!InsideRoundedWindow(localX, localY, windowW, windowH, radius)) {
-                    continue;
+            } else {
+                for (int col = 0; col < blitW; ++col) {
+                    const int srcCol = blitX + col;
+                    const float localX = static_cast<float>(srcCol) + 0.5f;
+                    if (!InsideRoundedWindow(localX, localY, windowW, windowH, radius)) {
+                        continue;
+                    }
+                    const std::size_t srcIndex = static_cast<std::size_t>(srcRow * srcStride + srcCol * 4);
+                    const std::size_t dstIndex =
+                        static_cast<std::size_t>((destY_ + srcRow) * dstStride + (destX_ + srcCol) * 4);
+                    dst[dstIndex] = src[srcIndex];
+                    dst[dstIndex + 1u] = src[srcIndex + 1u];
+                    dst[dstIndex + 2u] = src[srcIndex + 2u];
+                    dst[dstIndex + 3u] = src[srcIndex + 3u];
                 }
-                const std::size_t srcIndex = static_cast<std::size_t>(srcRow * srcStride + srcCol * 4);
-                const std::size_t dstIndex =
-                    static_cast<std::size_t>((destY_ + srcRow) * dstStride + (destX_ + srcCol) * 4);
-                dst[dstIndex] = src[srcIndex];
-                dst[dstIndex + 1u] = src[srcIndex + 1u];
-                dst[dstIndex + 2u] = src[srcIndex + 2u];
-                dst[dstIndex + 3u] = src[srcIndex + 3u];
+            }
+            if ((row & 31) == 31) {
+                dest_->Pump();
             }
         }
     }
@@ -2259,12 +2263,38 @@ void RoboScene::MarkDirty(float x, float y, float width, float height) {
         dirtyRight_ = std::max(dirtyRight_, right);
         dirtyBottom_ = std::max(dirtyBottom_, bottom);
     }
-    const float area = std::max(0.0f, dirtyRight_ - dirtyLeft_) * std::max(0.0f, dirtyBottom_ - dirtyTop_);
+    const float added = std::max(0.0f, right - left) * std::max(0.0f, bottom - top);
     const float surface = static_cast<float>(std::max(1, paintedWidth_)) * static_cast<float>(std::max(1, paintedHeight_));
-    if (area > surface * 0.5f) {
+    if (added > surface * 0.5f) {
         fullDirty_ = true;
         damageOpen_ = false;
     }
+}
+
+void RoboScene::MarkDirtyLocal(float x, float y, float width, float height) {
+    if (width <= 0.0f || height <= 0.0f) {
+        return;
+    }
+    needsRender_ = true;
+    videoOnly_ = false;
+    const float pad = 8.0f;
+    const float left = x - pad;
+    const float top = y - pad;
+    const float right = x + width + pad;
+    const float bottom = y + height + pad;
+    if (!damageOpen_) {
+        dirtyLeft_ = left;
+        dirtyTop_ = top;
+        dirtyRight_ = right;
+        dirtyBottom_ = bottom;
+        damageOpen_ = true;
+    } else {
+        dirtyLeft_ = std::min(dirtyLeft_, left);
+        dirtyTop_ = std::min(dirtyTop_, top);
+        dirtyRight_ = std::max(dirtyRight_, right);
+        dirtyBottom_ = std::max(dirtyBottom_, bottom);
+    }
+    // Never promote DevKit-local damage to a full desktop CaptureChrome paint.
 }
 
 void RoboScene::DirtyButton(const Button* button) {
@@ -2556,10 +2586,28 @@ void RoboScene::DirtyDevKitWindow() {
     float width = 0.0f;
     float height = 0.0f;
     DevKitFrame(x, y, width, height);
-    MarkDirty(x, y, width, height);
+    MarkDirtyLocal(x, y, width, height);
+    wallpaperAroundDevKit_ = true;
     devKitPaintDirty_ = true;
     // Geometry/open/theme: retained surface must be rebuilt.
     devKitSurfaceValid_ = false;
+}
+
+void RoboScene::DirtyDevKitWindowSoft() {
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    DevKitFrame(x, y, width, height);
+    MarkDirtyLocal(x, y, width, height);
+    wallpaperAroundDevKit_ = true;
+    devKitPaintDirty_ = true;
+}
+
+void RoboScene::PumpPaint() {
+    if (paintPump_ != nullptr) {
+        paintPump_(paintPumpCookie_);
+    }
 }
 
 void RoboScene::DirtyDevKitFromNested() {
@@ -2612,21 +2660,57 @@ bool RoboScene::HasPaneContainer(const char* paneId) const {
     return false;
 }
 
-void RoboScene::EnsurePaneContent() {
-    if (paneEnsureFn_ == nullptr) {
-        return;
+bool RoboScene::TakeParkedPane(const char* paneId) {
+    if (paneId == nullptr) {
+        return false;
     }
+    for (std::size_t index = 0; index < parkedPanes_.size(); ++index) {
+        SceneItem& item = parkedPanes_[index];
+        if (item.kind != SceneItemKind::Container || !item.container) {
+            continue;
+        }
+        if (item.container->ShownWhen() != paneId) {
+            continue;
+        }
+        items_.push_back(std::move(item));
+        parkedPanes_.erase(parkedPanes_.begin() + static_cast<std::ptrdiff_t>(index));
+        return true;
+    }
+    return false;
+}
+
+void RoboScene::DropPane(const std::string& paneId) {
+    auto drop = [&](std::vector<SceneItem>& list) {
+        for (std::size_t index = list.size(); index > 0; --index) {
+            const std::size_t at = index - 1;
+            SceneItem& item = list[at];
+            if (item.kind != SceneItemKind::Container || !item.container) {
+                continue;
+            }
+            if (item.container->ShownWhen() == paneId) {
+                list.erase(list.begin() + static_cast<std::ptrdiff_t>(at));
+            }
+        }
+    };
+    drop(items_);
+    drop(parkedPanes_);
+}
+
+void RoboScene::EnsurePaneContent() {
     const std::string& id = ActivePaneId();
     if (id.empty() || HasPaneContainer(id.c_str())) {
+        return;
+    }
+    if (TakeParkedPane(id.c_str())) {
+        return;
+    }
+    if (paneEnsureFn_ == nullptr) {
         return;
     }
     paneEnsureFn_(*this, id.c_str());
 }
 
 void RoboScene::EvictInactivePanes(const std::string& keepPaneId) {
-    // Soft-evict ShownWhen containers that are not the active pane so walk cost
-    // and retained layout memory stay bounded. Rebuild on next EnsurePane.
-    // Hand-rolled erase (no std::remove_if — freestanding shell has no full <algorithm>).
     for (std::size_t index = items_.size(); index > 0; --index) {
         const std::size_t at = index - 1;
         SceneItem& item = items_[at];
@@ -2637,7 +2721,69 @@ void RoboScene::EvictInactivePanes(const std::string& keepPaneId) {
         if (shown.empty() || shown == keepPaneId) {
             continue;
         }
+        parkedPanes_.push_back(std::move(item));
         items_.erase(items_.begin() + static_cast<std::ptrdiff_t>(at));
+    }
+}
+
+int RoboScene::GalleryLimit() const {
+    return galleryLimit_;
+}
+
+void RoboScene::SetGalleryCount(int count) {
+    galleryCount_ = count;
+}
+
+void RoboScene::ShiftPaintedScroll() {
+    const float dy = scrollY_ - paintedScrollY_;
+    const float dx = scrollX_ - paintedScrollX_;
+    if (!frameReady_ || frame_.GetPixels() == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0 ||
+        std::fabs(dx) > 0.5f) {
+        MarkSurfaceDirty();
+        return;
+    }
+    const int shift = static_cast<int>(std::lround(dy));
+    const int height = frame_.GetHeight();
+    const int width = frame_.GetWidth();
+    if (shift == 0 || shift <= -height || shift >= height || width <= 0) {
+        MarkSurfaceDirty();
+        return;
+    }
+    const int rows = shift > 0 ? shift : -shift;
+    const std::size_t stride = static_cast<std::size_t>(width) * 4u;
+    uint8_t* pixels = frame_.GetPixels();
+    if (shift > 0) {
+        std::memmove(pixels, pixels + static_cast<std::size_t>(rows) * stride,
+                     static_cast<std::size_t>(height - rows) * stride);
+        MarkDirty(0.0f, static_cast<float>(height - rows), static_cast<float>(width), static_cast<float>(rows));
+    } else {
+        std::memmove(pixels + static_cast<std::size_t>(rows) * stride, pixels,
+                     static_cast<std::size_t>(height - rows) * stride);
+        MarkDirty(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(rows));
+    }
+    paintedScrollY_ = scrollY_;
+}
+
+void RoboScene::CollectTextLineDamage() {
+    for (SceneItem& item : items_) {
+        if (item.kind != SceneItemKind::Text || !item.text) {
+            continue;
+        }
+        int first = 0;
+        int last = 0;
+        if (!item.text->TakeDirtyLines(first, last)) {
+            continue;
+        }
+        const TextLayoutCache& cache = item.text->LayoutCache();
+        if (first < 0 || last < first || cache.lines.empty()) {
+            continue;
+        }
+        const int clampedLast = std::min(last, static_cast<int>(cache.lines.size()) - 1);
+        const TextLayoutLine& start = cache.lines[static_cast<std::size_t>(first)];
+        const TextLayoutLine& end = cache.lines[static_cast<std::size_t>(clampedLast)];
+        const float top = cache.originY + start.y;
+        const float bottom = cache.originY + end.y + end.height;
+        MarkDirty(cache.originX, top, std::max(cache.width, 1.0f), std::max(1.0f, bottom - top));
     }
 }
 
@@ -2658,15 +2804,15 @@ void RoboScene::SetActivePaneId(const std::string& paneId) {
     MarkSurfaceDirty();
 }
 
-void RoboScene::EnsureSelectedRailChildren(Sidebar* owner) {
+bool RoboScene::EnsureSelectedRailChildren(Sidebar* owner) {
     if (owner == nullptr || railChildrenFn_ == nullptr) {
-        return;
+        return false;
     }
     const int selected = owner->Selected();
     if (selected < 0) {
-        return;
+        return false;
     }
-    railChildrenFn_(*owner, selected);
+    return railChildrenFn_(*owner, selected);
 }
 
 void RoboScene::EnsureDevKit() {
@@ -2677,12 +2823,9 @@ void RoboScene::EnsureDevKit() {
     if (devKitScene_ == nullptr) {
         return;
     }
-#ifdef ROBO_KERNEL
-    RoboDevKitOpenPage(*devKitScene_);
-#else
-    BuildDevKitPage(*devKitScene_);
-#endif
-    DirtyDevKitWindow();
+    // Build across ticks (micro-step spiral). Zero heavy work on PointerDown.
+    devKitBuildStep_ = 0;
+    DirtyDevKitWindowSoft();
 }
 
 bool RoboScene::DevKitNeedsPaint() const {
@@ -2709,7 +2852,9 @@ void RoboScene::OpenDevKit() {
         devKitW_ = DEV_KIT_WIDTH;
         devKitH_ = DEV_KIT_HEIGHT;
     }
-    DirtyDevKitWindow();
+    // Stub window only — chrome/rails/pane fill in Tick with the paint pump.
+    devKitRailFillPending_ = true;
+    DirtyDevKitWindowSoft();
 }
 
 bool RoboScene::ForwardDevKitMove(float x, float y) {
@@ -2744,6 +2889,10 @@ bool RoboScene::ForwardDevKitPointer(float x, float y, bool down, bool up, bool 
     bool changed = false;
     if (down) {
         changed = devKitScene_->PointerDown(x - left, y - top, fromTouch, clicks);
+        // Rail/pane clicks may leave budgeted child fills unfinished.
+        if (changed) {
+            devKitRailFillPending_ = true;
+        }
     }
     if (up) {
         changed = devKitScene_->PointerUp(x - left, y - top) || changed;
@@ -2810,17 +2959,21 @@ void RoboScene::CompositeDevKit() {
     const bool wipeRestore = devKitParentWiped_ || (parentHitsDevKit && !nestedNeeds);
     host.SetForceFullBlit(wipeRestore);
     frame_.PushClipRect(x, y, width, height);
+    // Forward shell pump so nested paint/blit cannot freeze the cursor.
+    devKitScene_->SetPaintPump(paintPump_, paintPumpCookie_);
     if (nestedNeeds) {
         const Color page = devKitScene_->GetBackground();
-        for (SceneItem& item : devKitScene_->items_) {
-            if (item.kind == SceneItemKind::Sidebar) {
-                devKitScene_->EnsureSelectedRailChildren(item.sidebar.get());
-            }
-        }
-        devKitScene_->EnsurePaneContent();
-        // Partial nested Present blits only PresentRect unless wipe forces full.
+        // Do not EnsureRailChildren / EnsurePaneContent here — Tick micro-steps own that work.
         host.SetForceFullBlit(wipeRestore || !devKitSurfaceValid_);
-        devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+        if (devKitScene_->items_.empty()) {
+            // Stub: empty nested scene — fill window so open is visible immediately.
+            frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
+                            static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
+                            page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
+            PumpPaint();
+        } else {
+            devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+        }
         devKitPaintDirty_ = false;
         devKitSurfaceValid_ = true;
     } else if (devKitScene_->frame_.GetPixels() != nullptr &&
@@ -2832,7 +2985,14 @@ void RoboScene::CompositeDevKit() {
     } else {
         const Color page = devKitScene_->GetBackground();
         host.SetForceFullBlit(true);
-        devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+        if (devKitScene_->items_.empty()) {
+            frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
+                            static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
+                            page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
+            PumpPaint();
+        } else {
+            devKitScene_->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+        }
         devKitPaintDirty_ = false;
         devKitSurfaceValid_ = true;
     }
@@ -3160,6 +3320,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     }
     FrameBuffer& frame = frame_;
     frame.SetPump(paintPump_, paintPumpCookie_);
+    frame.BeginDisplayList();
     const bool partial = CanPaintPartial(paintScale, width, height);
     int damageX = 0;
     int damageY = 0;
@@ -3181,10 +3342,10 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         }
     }
 
-    float verticalReserve = partial ? paintedVerticalReserve_ : 0.0f;
-    float horizontalReserve = partial ? paintedHorizontalReserve_ : 0.0f;
+    float verticalReserve = paintedVerticalReserve_;
+    float horizontalReserve = paintedHorizontalReserve_;
     float titleBarBottom = 0.0f;
-    for (int pass = 0; pass < 3; ++pass) {
+    for (int pass = 0; pass < 2; ++pass) {
         titleBarBottom = 0.0f;
         scrollX_ = std::max(0.0f, std::min(scrollX_, maxScrollX_));
         scrollY_ = std::max(0.0f, std::min(scrollY_, maxScrollY_));
@@ -3309,6 +3470,16 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 const FlexboxBounds& bounds = item.flexbox->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
             } else if (item.kind == SceneItemKind::Grid && item.grid) {
+                if (partial) {
+                    const GridBounds& prior = item.grid->GetBounds();
+                    if (prior.width > 1.0f && prior.height > 1.0f &&
+                        frame.MissesClip(static_cast<int>(prior.x), static_cast<int>(prior.y),
+                                         static_cast<int>(prior.width), static_cast<int>(prior.height))) {
+                        cursorY += prior.height;
+                        contentRight = std::max(contentRight, prior.x + prior.width + scrollX_);
+                        continue;
+                    }
+                }
                 const GridPaintResult painted =
                     GridPainter::Paint(frame, fonts, *item.grid, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
@@ -3445,7 +3616,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         maxScrollX_ = nextMaxX;
         scrollY_ = std::max(0.0f, std::min(scrollY_, maxScrollY_));
         scrollX_ = std::max(0.0f, std::min(scrollX_, maxScrollX_));
-        if (!partial && pass < 2 && (nextVertical != verticalReserve || nextHorizontal != horizontalReserve || scrollClamped)) {
+        if (!partial && pass < 1 && (nextVertical != verticalReserve || nextHorizontal != horizontalReserve || scrollClamped)) {
             verticalReserve = nextVertical;
             horizontalReserve = nextHorizontal;
             continue;
@@ -3542,6 +3713,8 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         damageHeight = height;
     }
     frame.SetPump(nullptr, nullptr);
+    frame.EndDisplayList();
+    (void)frame.DisplayOpCount();
     frame.SetPresentRect(damageX, damageY, damageWidth, damageHeight);
     fullDirty_ = false;
     damageOpen_ = false;
@@ -3554,6 +3727,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     paintedVerticalReserve_ = verticalReserve;
     paintedHorizontalReserve_ = horizontalReserve;
     platform.Present(frame);
+    CollectTextLineDamage();
 }
 
 bool RoboScene::ScrollBy(float deltaY) {
@@ -4859,7 +5033,10 @@ void RoboScene::ActivateSidebarItem(SidebarItem* item) {
         const bool same = index == owner->Selected();
         DirtySidebarItem(item);
         owner->Select(index);
-        EnsureSelectedRailChildren(owner);
+        if (EnsureSelectedRailChildren(owner)) {
+            // Nested DevKit: parent Tick continues budgeted fills.
+            // Desktop scene: NeedsTick stays warm via sidebar animation / dirty.
+        }
         if (activity && same && sidebarVisible_) {
             ToggleSidebar();
         } else if (activity && !sidebarVisible_) {
@@ -5550,8 +5727,10 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
         const std::string opened = area->ConsumeOpen();
         if (opened == "DevKit") {
             OpenDevKit();
+            DirtyDevKitWindowSoft();
+        } else {
+            DirtySelection(*area);
         }
-        DirtySelection(*area);
         return true;
     }
     panningContainer_ = nullptr;
@@ -5862,6 +6041,44 @@ bool RoboScene::Tick(double deltaMs) {
     }
     wallpaperClockMs_ += deltaMs;
     bool changed = false;
+    if (devKitOpen_ && devKitScene_ != nullptr && devKitBuildStep_ >= 0) {
+        PumpPaint();
+#ifdef ROBO_KERNEL
+        devKitBuildStep_ = RoboDevKitOpenPageStep(*devKitScene_, devKitBuildStep_);
+#else
+        devKitBuildStep_ = BuildDevKitPageStep(*devKitScene_, devKitBuildStep_);
+#endif
+        PumpPaint();
+        if (devKitBuildStep_ < 0) {
+            devKitRailFillPending_ = true;
+        }
+        DirtyDevKitWindowSoft();
+        changed = true;
+    } else if (devKitOpen_ && devKitScene_ != nullptr && devKitRailFillPending_) {
+        // Budgeted EnsureRailChildren on the nested scene (≤8 kids/call).
+        for (SceneItem& item : devKitScene_->items_) {
+            if (item.kind != SceneItemKind::Sidebar || !item.sidebar) {
+                continue;
+            }
+            const int selected = item.sidebar->Selected();
+            if (selected < 0 || selected >= static_cast<int>(item.sidebar->Items().size())) {
+                devKitRailFillPending_ = false;
+                break;
+            }
+            const std::size_t before =
+                item.sidebar->Items()[static_cast<std::size_t>(selected)].Children().size();
+            PumpPaint();
+            devKitRailFillPending_ = devKitScene_->EnsureSelectedRailChildren(item.sidebar.get());
+            PumpPaint();
+            const std::size_t after =
+                item.sidebar->Items()[static_cast<std::size_t>(selected)].Children().size();
+            if (devKitRailFillPending_ || after != before) {
+                DirtyDevKitWindowSoft();
+                changed = true;
+            }
+            break;
+        }
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         if (desktop_.GetContextMenu().Tick(static_cast<float>(deltaMs))) {
             DirtyContextMenu();
@@ -6024,6 +6241,13 @@ bool RoboScene::Tick(double deltaMs) {
         changed = true;
     }
     if (contentMoved) {
+        ShiftPaintedScroll();
+    }
+    if (activePaneId_ == "icons" && galleryLimit_ < galleryCount_ && maxScrollY_ > 1.0f &&
+        scrollY_ > maxScrollY_ * 0.75f) {
+        galleryLimit_ += 48;
+        DropPane("icons");
+        EnsurePaneContent();
         MarkSurfaceDirty();
     }
     if (videoAdvanced) {
@@ -6056,6 +6280,12 @@ bool RoboScene::Tick(double deltaMs) {
 }
 
 bool RoboScene::NeedsTick() {
+    if (devKitOpen_ && devKitBuildStep_ >= 0) {
+        return true;
+    }
+    if (devKitOpen_ && devKitRailFillPending_) {
+        return true;
+    }
     if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->NeedsTick()) {
         return true;
     }

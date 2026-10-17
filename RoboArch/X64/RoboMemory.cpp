@@ -14,14 +14,18 @@ constexpr uint64_t ROBO_PAGE_BYTES = 4096ull;
 constexpr uint64_t ROBO_TWO_MB = 2ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_ONE_GB = 1024ull * 1024ull * 1024ull;
 constexpr uint32_t ROBO_PD_MAX = static_cast<uint32_t>(ROBO_RAM_MAP_MAX_BYTES / ROBO_ONE_GB);
-constexpr uint32_t ROBO_FREE_LIMIT = 8192u;
+constexpr uint32_t ROBO_SPAN_LIMIT = 128u;
 constexpr uint64_t ROBO_HEAP_MIN_BYTES = 48ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_HEAP_TARGET_BYTES = 96ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_HEAP_MAX_BYTES = 256ull * 1024ull * 1024ull;
 
 alignas(4096) uint8_t gTablePages[(2u + ROBO_PD_MAX) * 4096u];
-uint64_t gFreePages[ROBO_FREE_LIMIT];
-uint32_t gFreeCount = 0;
+struct RoboFreeSpan {
+    uint64_t base;
+    uint64_t end;
+};
+RoboFreeSpan gFreeSpans[ROBO_SPAN_LIMIT];
+uint32_t gSpanCount = 0;
 uint64_t gKernelCr3 = 0;
 uint64_t gMapBytes = ROBO_RAM_MIN_BYTES;
 uint32_t gMapGigabytes = 1u;
@@ -258,13 +262,19 @@ void RoboCarveHeap(const RoboBootInfo* info, uint64_t stack) {
 }
 
 void RoboCollectPages(const RoboBootInfo* info, uint64_t stack) {
+    gSpanCount = 0;
     RoboVisitFreeSpans(info, stack, [&](uint64_t base, uint64_t end) {
-        uint64_t address = (base + ROBO_PAGE_BYTES - 1ull) & ~(ROBO_PAGE_BYTES - 1ull);
-        while (address + ROBO_PAGE_BYTES <= end && gFreeCount < ROBO_FREE_LIMIT) {
-            gFreePages[gFreeCount] = address;
-            gFreeCount += 1;
-            address += ROBO_PAGE_BYTES;
+        if (gSpanCount >= ROBO_SPAN_LIMIT) {
+            return;
         }
+        uint64_t address = (base + ROBO_PAGE_BYTES - 1ull) & ~(ROBO_PAGE_BYTES - 1ull);
+        uint64_t alignedEnd = end & ~(ROBO_PAGE_BYTES - 1ull);
+        if (address >= alignedEnd) {
+            return;
+        }
+        gFreeSpans[gSpanCount].base = address;
+        gFreeSpans[gSpanCount].end = alignedEnd;
+        gSpanCount += 1u;
     });
 }
 
@@ -283,16 +293,42 @@ RoboArena RoboMakeArena(void) {
 }  // namespace
 
 uint64_t RoboPageAlloc(void) {
-    if (gFreeCount == 0) {
-        return 0;
+    for (uint32_t index = 0; index < gSpanCount; ++index) {
+        if (gFreeSpans[index].base + ROBO_PAGE_BYTES > gFreeSpans[index].end) {
+            continue;
+        }
+        uint64_t page = gFreeSpans[index].base;
+        gFreeSpans[index].base += ROBO_PAGE_BYTES;
+        uint64_t* words = reinterpret_cast<uint64_t*>(page);
+        for (uint32_t word = 0; word < ROBO_PAGE_BYTES / 8u; ++word) {
+            words[word] = 0;
+        }
+        return page;
     }
-    gFreeCount -= 1;
-    uint64_t page = gFreePages[gFreeCount];
-    uint8_t* bytes = reinterpret_cast<uint8_t*>(page);
-    for (uint32_t index = 0; index < ROBO_PAGE_BYTES; ++index) {
-        bytes[index] = 0;
+    return 0;
+}
+
+void RoboPageFree(uint64_t page) {
+    if (page == 0 || (page & (ROBO_PAGE_BYTES - 1ull)) != 0) {
+        return;
     }
-    return page;
+    const uint64_t end = page + ROBO_PAGE_BYTES;
+    for (uint32_t index = 0; index < gSpanCount; ++index) {
+        if (gFreeSpans[index].end == page) {
+            gFreeSpans[index].end = end;
+            return;
+        }
+        if (gFreeSpans[index].base == end) {
+            gFreeSpans[index].base = page;
+            return;
+        }
+    }
+    if (gSpanCount >= ROBO_SPAN_LIMIT) {
+        return;
+    }
+    gFreeSpans[gSpanCount].base = page;
+    gFreeSpans[gSpanCount].end = end;
+    gSpanCount += 1u;
 }
 
 void RoboMemoryStart(const RoboBootInfo* info) {

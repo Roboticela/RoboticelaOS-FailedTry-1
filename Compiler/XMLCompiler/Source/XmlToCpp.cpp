@@ -583,13 +583,11 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             }
             code << Indent(indent) << "static Robo::Svg BakeCatalogIcon_" << SanitizePaneId(iconName) << "() {\n";
             code << Indent(indent + 1) << "Robo::Icon icon;\n";
-            code << Indent(indent + 1) << "icon.SetViewBox(" << FloatLiteral(std::to_string(icon->second.viewX)) << ", "
-                 << FloatLiteral(std::to_string(icon->second.viewY)) << ", "
-                 << FloatLiteral(std::to_string(icon->second.viewWidth)) << ", "
-                 << FloatLiteral(std::to_string(icon->second.viewHeight)) << ");\n";
+            code << Indent(indent + 1) << "if (!RoboFillIconByName(icon, \"" << EscapeCpp(iconName) << "\")) {\n";
+            code << Indent(indent + 2) << "return Robo::Svg();\n";
+            code << Indent(indent + 1) << "}\n";
             code << Indent(indent + 1) << "icon.SetWidth(20.0f);\n";
             code << Indent(indent + 1) << "icon.SetHeight(20.0f);\n";
-            code << EmitCompiledShapes(icon->second.shapes, indent + 1, "icon", true);
             code << Indent(indent + 1) << "return icon.Bake();\n";
             code << Indent(indent) << "}\n\n";
         }
@@ -684,34 +682,55 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             }
             code << Indent(indent) << "}\n\n";
 
-            code << Indent(indent) << "static void EnsureRailChildren(Robo::Sidebar& sidebar, int railIndex) {\n";
+            code << Indent(indent) << "// Budgeted: add at most 8 children per call. Returns true if more remain.\n";
+            code << Indent(indent) << "static bool EnsureRailChildren(Robo::Sidebar& sidebar, int railIndex) {\n";
             code << Indent(indent + 1) << "if (railIndex < 0 || railIndex >= static_cast<int>(sidebar.Items().size())) {\n";
-            code << Indent(indent + 2) << "return;\n";
+            code << Indent(indent + 2) << "return false;\n";
             code << Indent(indent + 1) << "}\n";
             code << Indent(indent + 1) << "Robo::SidebarItem& rail = sidebar.Items()[static_cast<std::size_t>(railIndex)];\n";
-            code << Indent(indent + 1) << "if (!rail.Children().empty()) {\n";
-            code << Indent(indent + 2) << "return;\n";
-            code << Indent(indent + 1) << "}\n";
             code << Indent(indent + 1) << "const int catalogIndex = CatalogRailEntry(railIndex);\n";
             code << Indent(indent + 1) << "if (catalogIndex < 0) {\n";
-            code << Indent(indent + 2) << "return;\n";
+            code << Indent(indent + 2) << "return false;\n";
             code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "const int have = static_cast<int>(rail.Children().size());\n";
+            code << Indent(indent + 1) << "int seen = 0;\n";
+            code << Indent(indent + 1) << "int added = 0;\n";
+            code << Indent(indent + 1) << "constexpr int kBudget = 8;\n";
             code << Indent(indent + 1) << "for (int i = 0; i < kRoboCatalogCount; ++i) {\n";
             code << Indent(indent + 2) << "if (kRoboCatalog[i].parent != catalogIndex) {\n";
+            code << Indent(indent + 3) << "continue;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "if (seen < have) {\n";
+            code << Indent(indent + 3) << "++seen;\n";
             code << Indent(indent + 3) << "continue;\n";
             code << Indent(indent + 2) << "}\n";
             code << Indent(indent + 2) << "Robo::SidebarItem child;\n";
             code << Indent(indent + 2) << "FillSidebarItem(child, kRoboCatalog[i]);\n";
             code << Indent(indent + 2) << "rail.AddChild(std::move(child));\n";
+            code << Indent(indent + 2) << "++added;\n";
+            code << Indent(indent + 2) << "if (added >= kBudget) {\n";
+            code << Indent(indent + 3) << "for (int j = i + 1; j < kRoboCatalogCount; ++j) {\n";
+            code << Indent(indent + 4) << "if (kRoboCatalog[j].parent == catalogIndex) {\n";
+            code << Indent(indent + 5) << "return true;\n";
+            code << Indent(indent + 4) << "}\n";
+            code << Indent(indent + 3) << "}\n";
+            code << Indent(indent + 3) << "return false;\n";
+            code << Indent(indent + 2) << "}\n";
             code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "return false;\n";
             code << Indent(indent) << "}\n\n";
 
-            code << Indent(indent) << "static void BuildSidebarFromCatalog(Robo::RoboScene& scene) {\n";
-            code << Indent(indent + 1) << "Robo::Sidebar sidebar;\n";
-            if (!sidebarVariant.empty()) {
-                code << Indent(indent + 1) << "sidebar.SetVariant(Robo::ParseSidebarVariant(\""
-                     << EscapeCpp(sidebarVariant) << "\"));\n";
-            }
+            code << Indent(indent) << "static int CountCatalogRails() {\n";
+            code << Indent(indent + 1) << "int count = 0;\n";
+            code << Indent(indent + 1) << "for (int i = 0; i < kRoboCatalogCount; ++i) {\n";
+            code << Indent(indent + 2) << "if (kRoboCatalog[i].parent < 0) {\n";
+            code << Indent(indent + 3) << "++count;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "return count;\n";
+            code << Indent(indent) << "}\n\n";
+
+            code << Indent(indent) << "static int DefaultCatalogRail() {\n";
             code << Indent(indent + 1) << "int defaultRail = 0;\n";
             code << Indent(indent + 1) << "int defaultCatalog = -1;\n";
             code << Indent(indent + 1) << "for (int i = 0; i < kRoboCatalogCount; ++i) {\n";
@@ -720,89 +739,94 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             code << Indent(indent + 3) << "break;\n";
             code << Indent(indent + 2) << "}\n";
             code << Indent(indent + 1) << "}\n";
-            code << Indent(indent + 1) << "if (defaultCatalog >= 0) {\n";
-            code << Indent(indent + 2) << "int railCat = defaultCatalog;\n";
-            code << Indent(indent + 2) << "while (railCat >= 0 && kRoboCatalog[railCat].parent >= 0) {\n";
-            code << Indent(indent + 3) << "railCat = kRoboCatalog[railCat].parent;\n";
-            code << Indent(indent + 2) << "}\n";
-            code << Indent(indent + 2) << "int seen = 0;\n";
-            code << Indent(indent + 2) << "for (int i = 0; i < kRoboCatalogCount; ++i) {\n";
-            code << Indent(indent + 3) << "if (kRoboCatalog[i].parent >= 0) {\n";
-            code << Indent(indent + 4) << "continue;\n";
-            code << Indent(indent + 3) << "}\n";
-            code << Indent(indent + 3) << "if (i == railCat) {\n";
-            code << Indent(indent + 4) << "defaultRail = seen;\n";
-            code << Indent(indent + 4) << "break;\n";
-            code << Indent(indent + 3) << "}\n";
-            code << Indent(indent + 3) << "++seen;\n";
-            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 1) << "if (defaultCatalog < 0) {\n";
+            code << Indent(indent + 2) << "return 0;\n";
             code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "int railCat = defaultCatalog;\n";
+            code << Indent(indent + 1) << "while (railCat >= 0 && kRoboCatalog[railCat].parent >= 0) {\n";
+            code << Indent(indent + 2) << "railCat = kRoboCatalog[railCat].parent;\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "int seen = 0;\n";
             code << Indent(indent + 1) << "for (int i = 0; i < kRoboCatalogCount; ++i) {\n";
             code << Indent(indent + 2) << "if (kRoboCatalog[i].parent >= 0) {\n";
             code << Indent(indent + 3) << "continue;\n";
             code << Indent(indent + 2) << "}\n";
-            code << Indent(indent + 2) << "Robo::SidebarItem item;\n";
-            code << Indent(indent + 2) << "FillSidebarItem(item, kRoboCatalog[i]);\n";
-            code << Indent(indent + 2) << "sidebar.AddItem(std::move(item));\n";
+            code << Indent(indent + 2) << "if (i == railCat) {\n";
+            code << Indent(indent + 3) << "return seen;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "++seen;\n";
             code << Indent(indent + 1) << "}\n";
-            code << Indent(indent + 1) << "if (!sidebar.Items().empty()) {\n";
-            code << Indent(indent + 2) << "sidebar.Select(defaultRail);\n";
-            code << Indent(indent + 2) << "EnsureRailChildren(sidebar, defaultRail);\n";
+            code << Indent(indent + 1) << "return defaultRail;\n";
+            code << Indent(indent) << "}\n\n";
+
+            code << Indent(indent) << "static Robo::Sidebar* FindSidebar(Robo::RoboScene& scene) {\n";
+            code << Indent(indent + 1) << "for (Robo::SceneItem& item : scene.Items()) {\n";
+            code << Indent(indent + 2) << "if (item.kind == Robo::SceneItemKind::Sidebar && item.sidebar) {\n";
+            code << Indent(indent + 3) << "return item.sidebar.get();\n";
+            code << Indent(indent + 2) << "}\n";
             code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "return nullptr;\n";
+            code << Indent(indent) << "}\n\n";
+
+            code << Indent(indent) << "static void EnsureSidebarShell(Robo::RoboScene& scene) {\n";
+            code << Indent(indent + 1) << "if (FindSidebar(scene) != nullptr) {\n";
+            code << Indent(indent + 2) << "return;\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "Robo::Sidebar sidebar;\n";
+            if (!sidebarVariant.empty()) {
+                code << Indent(indent + 1) << "sidebar.SetVariant(Robo::ParseSidebarVariant(\""
+                     << EscapeCpp(sidebarVariant) << "\"));\n";
+            }
             code << Indent(indent + 1) << "scene.AddSidebar(std::move(sidebar));\n";
             code << Indent(indent) << "}\n\n";
-            (void)sidebarNode;
-        }
 
-        {
-            std::vector<std::string> packNames;
-            for (const XmlNode* pane : lazyPanes) {
-                if (pane->attributes.at("when") != "icons") {
-                    continue;
-                }
-                for (const XmlNode& child : pane->children) {
-                    if (child.isText || child.name != "Flexbox") {
-                        continue;
-                    }
-                    for (const XmlNode& cell : child.children) {
-                        if (cell.isText) {
-                            continue;
-                        }
-                        if (cell.name == "Flexbox") {
-                            for (const XmlNode& part : cell.children) {
-                                if (!part.isText && icons_.find(part.name) != icons_.end()) {
-                                    bool seen = false;
-                                    for (const std::string& existing : packNames) {
-                                        if (existing == part.name) {
-                                            seen = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!seen) {
-                                        packNames.push_back(part.name);
-                                    }
-                                    break;
-                                }
-                            }
-                        } else if (cell.name == "IconButton" && cell.attributes.count("icon") != 0) {
-                            const std::string iconName = cell.attributes.at("icon");
-                            bool seen = false;
-                            for (const std::string& existing : packNames) {
-                                if (existing == iconName) {
-                                    seen = true;
-                                    break;
-                                }
-                            }
-                            if (!seen && icons_.find(iconName) != icons_.end()) {
-                                packNames.push_back(iconName);
-                            }
-                        }
-                    }
-                }
-            }
-            if (!packNames.empty()) {
-                EmitSharedIconPack(code, indent, packNames);
-            }
+            code << Indent(indent) << "// Add up to railBudget top-level rails starting at railStart. Returns next rail index.\n";
+            code << Indent(indent) << "static int BuildSidebarRailsStep(Robo::RoboScene& scene, int railStart, int railBudget) {\n";
+            code << Indent(indent + 1) << "EnsureSidebarShell(scene);\n";
+            code << Indent(indent + 1) << "Robo::Sidebar* sidebar = FindSidebar(scene);\n";
+            code << Indent(indent + 1) << "if (sidebar == nullptr || railBudget <= 0) {\n";
+            code << Indent(indent + 2) << "return CountCatalogRails();\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "int railIndex = 0;\n";
+            code << Indent(indent + 1) << "int added = 0;\n";
+            code << Indent(indent + 1) << "for (int i = 0; i < kRoboCatalogCount; ++i) {\n";
+            code << Indent(indent + 2) << "if (kRoboCatalog[i].parent >= 0) {\n";
+            code << Indent(indent + 3) << "continue;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "if (railIndex < railStart) {\n";
+            code << Indent(indent + 3) << "++railIndex;\n";
+            code << Indent(indent + 3) << "continue;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "if (railIndex < static_cast<int>(sidebar->Items().size())) {\n";
+            code << Indent(indent + 3) << "++railIndex;\n";
+            code << Indent(indent + 3) << "continue;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "Robo::SidebarItem item;\n";
+            code << Indent(indent + 2) << "FillSidebarItem(item, kRoboCatalog[i]);\n";
+            code << Indent(indent + 2) << "sidebar->AddItem(std::move(item));\n";
+            code << Indent(indent + 2) << "++railIndex;\n";
+            code << Indent(indent + 2) << "++added;\n";
+            code << Indent(indent + 2) << "if (added >= railBudget) {\n";
+            code << Indent(indent + 3) << "return railIndex;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "if (!sidebar->Items().empty() && sidebar->Selected() < 0) {\n";
+            code << Indent(indent + 2) << "sidebar->Select(DefaultCatalogRail());\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "return railIndex;\n";
+            code << Indent(indent) << "}\n\n";
+
+            code << Indent(indent) << "static void BuildSidebarFromCatalog(Robo::RoboScene& scene) {\n";
+            code << Indent(indent + 1) << "const int total = CountCatalogRails();\n";
+            code << Indent(indent + 1) << "int next = 0;\n";
+            code << Indent(indent + 1) << "while (next < total) {\n";
+            code << Indent(indent + 2) << "next = BuildSidebarRailsStep(scene, next, total);\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent + 1) << "if (Robo::Sidebar* sidebar = FindSidebar(scene)) {\n";
+            code << Indent(indent + 2) << "sidebar->Select(DefaultCatalogRail());\n";
+            code << Indent(indent + 1) << "}\n";
+            code << Indent(indent) << "}\n\n";
+            (void)sidebarNode;
         }
 
         for (const XmlNode* pane : lazyPanes) {
@@ -896,11 +920,81 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             code << Indent(indent + 1) << "scene.SetActivePaneId(\"" << EscapeCpp(defaultPaneId) << "\");\n";
         }
         code << Indent(indent) << "}\n\n";
-        code << Indent(indent) << "// Compat: one-shot build (no BSP stepped spiral).\n";
+        const bool hasRails = !catalog.empty();
+        const bool hasPaneHook = !lazyPanes.empty();
+        const bool hasPaneBuild = !defaultPaneId.empty();
+        code << Indent(indent) << "// Micro-steps: 0=chrome, 100+n=rails, 200=hooks, 300=pane. One budget per tick.\n";
         code << Indent(indent) << "int BuildPageStep(Robo::RoboScene& scene, int step) {\n";
         code << Indent(indent + 1) << "if (step == 0) {\n";
-        code << Indent(indent + 2) << "BuildPage(scene);\n";
+        if (node.attributes.count("padding") != 0) {
+            code << Indent(indent + 2) << "scene.SetPagePadding(" << FloatLiteral(node.attributes.at("padding"))
+                 << ");\n";
+        }
+        for (const XmlNode& child : node.children) {
+            if (child.name == "Foundation") {
+                code << ConvertNode(child, indent + 2);
+            }
+        }
+        for (const XmlNode& child : node.children) {
+            if (child.name == "FoundationUse") {
+                code << ConvertNode(child, indent + 2);
+            }
+        }
+        for (const XmlNode& child : node.children) {
+            if (child.name == "Keyframes") {
+                code << ConvertNode(child, indent + 2);
+            }
+        }
+        for (int i = 0; i < eagerPart; ++i) {
+            code << Indent(indent + 2) << "BuildEagerPart" << i << "(scene);\n";
+        }
+        if (hasRails) {
+            code << Indent(indent + 2) << "return 100;\n";
+        } else if (hasPaneHook || hasPaneBuild) {
+            code << Indent(indent + 2) << "return 200;\n";
+        } else {
+            code << Indent(indent + 2) << "return -1;\n";
+        }
         code << Indent(indent + 1) << "}\n";
+        if (hasRails) {
+            code << Indent(indent + 1) << "if (step >= 100 && step < 200) {\n";
+            code << Indent(indent + 2) << "const int railStart = step - 100;\n";
+            code << Indent(indent + 2) << "const int next = BuildSidebarRailsStep(scene, railStart, 4);\n";
+            code << Indent(indent + 2) << "if (next < CountCatalogRails()) {\n";
+            code << Indent(indent + 3) << "return 100 + next;\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "if (Robo::Sidebar* sidebar = FindSidebar(scene)) {\n";
+            code << Indent(indent + 3) << "sidebar->Select(DefaultCatalogRail());\n";
+            code << Indent(indent + 2) << "}\n";
+            if (hasPaneHook || hasPaneBuild) {
+                code << Indent(indent + 2) << "return 200;\n";
+            } else {
+                code << Indent(indent + 2) << "scene.SetRailChildrenEnsure(&EnsureRailChildren);\n";
+                code << Indent(indent + 2) << "return -1;\n";
+            }
+            code << Indent(indent + 1) << "}\n";
+        }
+        if (hasPaneHook || hasPaneBuild || hasRails) {
+            code << Indent(indent + 1) << "if (step == 200) {\n";
+            if (hasRails) {
+                code << Indent(indent + 2) << "scene.SetRailChildrenEnsure(&EnsureRailChildren);\n";
+            }
+            if (hasPaneHook) {
+                code << Indent(indent + 2) << "scene.SetPaneEnsure(&EnsurePane);\n";
+            }
+            if (hasPaneBuild) {
+                code << Indent(indent + 2) << "return 300;\n";
+            } else {
+                code << Indent(indent + 2) << "return -1;\n";
+            }
+            code << Indent(indent + 1) << "}\n";
+        }
+        if (hasPaneBuild) {
+            code << Indent(indent + 1) << "if (step == 300) {\n";
+            code << Indent(indent + 2) << "scene.SetActivePaneId(\"" << EscapeCpp(defaultPaneId) << "\");\n";
+            code << Indent(indent + 2) << "return -1;\n";
+            code << Indent(indent + 1) << "}\n";
+        }
         code << Indent(indent + 1) << "(void)scene;\n";
         code << Indent(indent + 1) << "return -1;\n";
         code << Indent(indent) << "}\n";
@@ -2578,17 +2672,7 @@ void XmlToCpp::EmitSidebarItem(std::ostringstream& code,
     // Nested PaneItem icons are deferred: baking thousands of SVGs on open freezes the OS BSP.
     // Top-level rail icons (nestDepth == 0) still bake so the activity sidebar has marks.
     if (nestDepth == 0 && !iconName.empty() && icon != icons_.end()) {
-        code << Indent(indent) << "{\n";
-        code << Indent(indent + 1) << "Robo::Icon icon;\n";
-        code << Indent(indent + 1) << "icon.SetViewBox(" << FloatLiteral(std::to_string(icon->second.viewX)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewY)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewWidth)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewHeight)) << ");\n";
-        code << Indent(indent + 1) << "icon.SetWidth(20.0f);\n";
-        code << Indent(indent + 1) << "icon.SetHeight(20.0f);\n";
-        code << EmitCompiledShapes(icon->second.shapes, indent + 1, "icon", true);
-        code << Indent(indent + 1) << variable << ".SetIcon(icon.Bake());\n";
-        code << Indent(indent) << "}\n";
+        EmitPackedIcon(code, indent, "icon", iconName, 20.0f, variable + ".SetIcon(icon.Bake());");
     }
     int childIndex = 0;
     for (const XmlNode& child : node.children) {
@@ -2693,17 +2777,7 @@ void XmlToCpp::EmitDockItem(std::ostringstream& code,
     }
     const auto icon = icons_.find(iconName);
     if (!iconName.empty() && icon != icons_.end()) {
-        code << Indent(indent) << "{\n";
-        code << Indent(indent + 1) << "Robo::Icon icon;\n";
-        code << Indent(indent + 1) << "icon.SetViewBox(" << FloatLiteral(std::to_string(icon->second.viewX)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewY)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewWidth)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewHeight)) << ");\n";
-        code << Indent(indent + 1) << "icon.SetWidth(22.0f);\n";
-        code << Indent(indent + 1) << "icon.SetHeight(22.0f);\n";
-        code << EmitCompiledShapes(icon->second.shapes, indent + 1, "icon", true);
-        code << Indent(indent + 1) << variable << ".SetIcon(icon.Bake());\n";
-        code << Indent(indent) << "}\n";
+        EmitPackedIcon(code, indent, "icon", iconName, 22.0f, variable + ".SetIcon(icon.Bake());");
     }
 }
 
@@ -3037,17 +3111,7 @@ void XmlToCpp::EmitContextMenuItem(std::ostringstream& code, const XmlNode& node
             return;
         }
         const std::string graphic = variable + "Graphic" + std::to_string(graphicIndex++);
-        code << Indent(indent) << "{\n";
-        code << Indent(indent + 1) << "Robo::Icon " << graphic << ";\n";
-        code << Indent(indent + 1) << graphic << ".SetViewBox(" << FloatLiteral(std::to_string(found->second.viewX)) << ", "
-             << FloatLiteral(std::to_string(found->second.viewY)) << ", "
-             << FloatLiteral(std::to_string(found->second.viewWidth)) << ", "
-             << FloatLiteral(std::to_string(found->second.viewHeight)) << ");\n";
-        code << Indent(indent + 1) << graphic << ".SetWidth(16.0f);\n";
-        code << Indent(indent + 1) << graphic << ".SetHeight(16.0f);\n";
-        code << EmitCompiledShapes(found->second.shapes, indent + 1, graphic, true);
-        code << Indent(indent + 1) << variable << "." << setter << "(" << graphic << ".Bake());\n";
-        code << Indent(indent) << "}\n";
+        EmitPackedIcon(code, indent, graphic, iconName, 16.0f, variable + "." + setter + "(" + graphic + ".Bake());");
     };
     if (node.attributes.count("icon") != 0) {
         bakeIcon(node.attributes.at("icon"), "SetIcon");
@@ -3093,17 +3157,8 @@ void XmlToCpp::EmitContextMenuItem(std::ostringstream& code, const XmlNode& node
                 const auto found = icons_.find(iconName);
                 if (found != icons_.end()) {
                     const std::string graphic = variable + "Graphic" + std::to_string(graphicIndex++);
-                    code << Indent(indent) << "{\n";
-                    code << Indent(indent + 1) << "Robo::Icon " << graphic << ";\n";
-                    code << Indent(indent + 1) << graphic << ".SetViewBox(" << FloatLiteral(std::to_string(found->second.viewX)) << ", "
-                         << FloatLiteral(std::to_string(found->second.viewY)) << ", "
-                         << FloatLiteral(std::to_string(found->second.viewWidth)) << ", "
-                         << FloatLiteral(std::to_string(found->second.viewHeight)) << ");\n";
-                    code << Indent(indent + 1) << graphic << ".SetWidth(13.0f);\n";
-                    code << Indent(indent + 1) << graphic << ".SetHeight(13.0f);\n";
-                    code << EmitCompiledShapes(found->second.shapes, indent + 1, graphic, true);
-                    code << Indent(indent + 1) << variable << ".AddShortcutGlyph(" << graphic << ".Bake());\n";
-                    code << Indent(indent) << "}\n";
+                    EmitPackedIcon(code, indent, graphic, iconName, 13.0f,
+                                   variable + ".AddShortcutGlyph(" + graphic + ".Bake());");
                 }
                 shortcut.erase(0, used);
                 continue;
@@ -3174,20 +3229,18 @@ void XmlToCpp::EmitTitleBar(std::ostringstream& code,
     const auto shown = icons_.find("Sidebar");
     const auto hidden = icons_.find("SidebarHidden");
     if (shown != icons_.end() && hidden != icons_.end()) {
-        auto emitIcon = [&](const CompiledSvg& graphic, const std::string& name) {
-            code << Indent(indent + 1) << "Robo::Icon " << name << ";\n";
-            code << Indent(indent + 1) << name << ".SetViewBox(" << FloatLiteral(std::to_string(graphic.viewX)) << ", "
-                 << FloatLiteral(std::to_string(graphic.viewY)) << ", "
-                 << FloatLiteral(std::to_string(graphic.viewWidth)) << ", "
-                 << FloatLiteral(std::to_string(graphic.viewHeight)) << ");\n";
-            code << Indent(indent + 1) << name << ".SetWidth(20.0f);\n";
-            code << Indent(indent + 1) << name << ".SetHeight(20.0f);\n";
-            code << EmitCompiledShapes(graphic.shapes, indent + 1, name, true);
-        };
         code << Indent(indent) << "{\n";
-        emitIcon(shown->second, "shown");
-        emitIcon(hidden->second, "hidden");
-        code << Indent(indent + 1) << variable << ".SetSidebarIcons(shown.Bake(), hidden.Bake());\n";
+        code << Indent(indent + 1) << "Robo::Icon shown;\n";
+        code << Indent(indent + 1) << "Robo::Icon hidden;\n";
+        code << Indent(indent + 1) << "const bool shownReady = RoboFillIconByName(shown, \"Sidebar\");\n";
+        code << Indent(indent + 1) << "const bool hiddenReady = RoboFillIconByName(hidden, \"SidebarHidden\");\n";
+        code << Indent(indent + 1) << "if (shownReady && hiddenReady) {\n";
+        code << Indent(indent + 2) << "shown.SetWidth(20.0f);\n";
+        code << Indent(indent + 2) << "shown.SetHeight(20.0f);\n";
+        code << Indent(indent + 2) << "hidden.SetWidth(20.0f);\n";
+        code << Indent(indent + 2) << "hidden.SetHeight(20.0f);\n";
+        code << Indent(indent + 2) << variable << ".SetSidebarIcons(shown.Bake(), hidden.Bake());\n";
+        code << Indent(indent + 1) << "}\n";
         code << Indent(indent) << "}\n";
     }
 }
@@ -3507,17 +3560,7 @@ void XmlToCpp::EmitButtonFlags(std::ostringstream& code, int indent, const XmlNo
     }
     const auto icon = icons_.find(iconName);
     if (!iconName.empty() && icon != icons_.end()) {
-        code << Indent(indent) << "{\n";
-        code << Indent(indent + 1) << "Robo::Icon icon;\n";
-        code << Indent(indent + 1) << "icon.SetViewBox(" << FloatLiteral(std::to_string(icon->second.viewX)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewY)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewWidth)) << ", "
-             << FloatLiteral(std::to_string(icon->second.viewHeight)) << ");\n";
-        code << Indent(indent + 1) << "icon.SetWidth(20.0f);\n";
-        code << Indent(indent + 1) << "icon.SetHeight(20.0f);\n";
-        code << EmitCompiledShapes(icon->second.shapes, indent + 1, "icon", true);
-        code << Indent(indent + 1) << "button.SetIcon(icon.Bake());\n";
-        code << Indent(indent) << "}\n";
+        EmitPackedIcon(code, indent, "icon", iconName, 20.0f, "button.SetIcon(icon.Bake());");
     }
 }
 
@@ -3583,8 +3626,9 @@ bool XmlToCpp::TryEmitGraphic(std::ostringstream& code,
         code << Indent(indent) << "icon.SetOpacity(packedStyle.opacity);\n";
         code << Indent(indent) << "icon.SetAlign(packedStyle.align);\n";
         code << Indent(indent) << "}\n";
-        code << EmitCompiledShapes(icon->second.shapes, indent, "icon", true);
-        code << Indent(indent) << parent << ".AddSvg(icon.Bake()" << props << ");\n";
+        code << Indent(indent) << "if (RoboFillIconByName(icon, \"" << EscapeCpp(node.name) << "\")) {\n";
+        code << Indent(indent + 1) << parent << ".AddSvg(icon.Bake()" << props << ");\n";
+        code << Indent(indent) << "}\n";
     } else {
         const CompiledSvg graphic = CompileSvgElement(node, false);
         code << Indent(indent) << "Robo::Svg svg;\n";
@@ -3626,6 +3670,58 @@ std::string BraceToken(const std::string& value) {
 }
 
 }  // namespace
+
+void XmlToCpp::NotePackIcon(const std::string& name, std::vector<std::string>& names) const {
+    if (name.empty() || icons_.find(name) == icons_.end()) {
+        return;
+    }
+    for (const std::string& existing : names) {
+        if (existing == name) {
+            return;
+        }
+    }
+    names.push_back(name);
+}
+
+void XmlToCpp::CollectPackIconNames(const XmlNode& node, std::vector<std::string>& names) const {
+    if (node.isText) {
+        return;
+    }
+    NotePackIcon(node.name, names);
+    if (node.name == "TitleBar" || node.name == "Navbar") {
+        NotePackIcon("Sidebar", names);
+        NotePackIcon("SidebarHidden", names);
+    }
+    if (node.name == "ContextMenuItem" || node.name == "ContextMenuSeparator") {
+        NotePackIcon("Chevron", names);
+        NotePackIcon("Check", names);
+    }
+    for (const auto& attribute : node.attributes) {
+        if (attribute.first == "icon") {
+            NotePackIcon(attribute.second, names);
+        } else if (attribute.first == "shortcut") {
+            NotePackIcon("Shift", names);
+            NotePackIcon("Command", names);
+        }
+    }
+    for (const XmlNode& child : node.children) {
+        CollectPackIconNames(child, names);
+    }
+}
+
+void XmlToCpp::EmitPackedIcon(std::ostringstream& code, int indent, const std::string& iconVar, const std::string& iconName,
+                               float size, const std::string& applyLine) const {
+    code << Indent(indent) << "{\n";
+    code << Indent(indent + 1) << "Robo::Icon " << iconVar << ";\n";
+    code << Indent(indent + 1) << "if (RoboFillIconByName(" << iconVar << ", \"" << EscapeCpp(iconName) << "\")) {\n";
+    if (size > 0.0f) {
+        code << Indent(indent + 2) << iconVar << ".SetWidth(" << FloatLiteral(std::to_string(static_cast<int>(size))) << ");\n";
+        code << Indent(indent + 2) << iconVar << ".SetHeight(" << FloatLiteral(std::to_string(static_cast<int>(size))) << ");\n";
+    }
+    code << Indent(indent + 2) << applyLine << "\n";
+    code << Indent(indent + 1) << "}\n";
+    code << Indent(indent) << "}\n";
+}
 
 void XmlToCpp::EmitSharedIconPack(std::ostringstream& code, int indent, const std::vector<std::string>& names) const {
     if (names.empty()) {
@@ -3777,7 +3873,11 @@ void XmlToCpp::EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int 
             code << Indent(indent + 2)
                  << "static const int kRoboIconGalleryCount = "
                     "static_cast<int>(sizeof(kRoboIconGallery) / sizeof(kRoboIconGallery[0]));\n";
-            code << Indent(indent + 2) << "for (int i = 0; i < kRoboIconGalleryCount; ++i) {\n";
+            code << Indent(indent + 2) << "scene.SetGalleryCount(kRoboIconGalleryCount);\n";
+            code << Indent(indent + 2)
+                 << "const int galleryLimit = scene.GalleryLimit() < kRoboIconGalleryCount ? scene.GalleryLimit() : "
+                    "kRoboIconGalleryCount;\n";
+            code << Indent(indent + 2) << "for (int i = 0; i < galleryLimit; ++i) {\n";
             code << Indent(indent + 3) << "const char* iconName = kRoboIconGallery[i];\n";
             code << Indent(indent + 3) << "Robo::FlexItemProps cellProps;\n";
             code << Indent(indent + 3) << "Robo::Flexbox cell;\n";
@@ -4100,6 +4200,9 @@ std::string XmlToCpp::Convert(const std::string& xml, const std::string& assetDi
     code << "#include \"Robo/FontStyle.hpp\"\n";
     code << "#include \"Robo/TextAlign.hpp\"\n";
     code << "#include \"Robo/Selectable.hpp\"\n\n";
+    std::vector<std::string> packNames;
+    CollectPackIconNames(root, packNames);
+    EmitSharedIconPack(code, 0, packNames);
     code << ConvertNode(root, 0);
     return code.str();
 }
