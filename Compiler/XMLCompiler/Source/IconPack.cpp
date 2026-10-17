@@ -7,6 +7,7 @@
 #include <exception>
 #include <fstream>
 #include <iterator>
+#include <set>
 #include <sstream>
 #include <vector>
 
@@ -113,12 +114,7 @@ void WriteText(std::ostream& output, const std::string& text) {
 
 }  // namespace
 
-bool WriteRuntimeIconPack(const std::string& packPath, const std::string& outputPath) {
-    std::map<std::string, CompiledSvg> icons;
-    LoadPack(packPath, icons);
-    if (icons.empty()) {
-        return false;
-    }
+bool WriteIconMap(const std::map<std::string, CompiledSvg>& icons, const std::string& outputPath) {
     std::ofstream output(outputPath, std::ios::binary);
     if (!output) {
         return false;
@@ -178,6 +174,104 @@ bool WriteRuntimeIconPack(const std::string& packPath, const std::string& output
         }
     }
     return static_cast<bool>(output);
+}
+
+bool WriteRuntimeIconPack(const std::string& packPath, const std::string& outputPath) {
+    std::map<std::string, CompiledSvg> icons;
+    LoadPack(packPath, icons);
+    if (icons.empty()) {
+        return false;
+    }
+    return WriteIconMap(icons, outputPath);
+}
+
+void CollectUsedIconNames(const XmlNode& node,
+                          const std::map<std::string, CompiledSvg>& library,
+                          std::set<std::string>& used,
+                          bool& hasContextMenu,
+                          bool& hasTitleBar) {
+    if (node.isText) {
+        return;
+    }
+    if (node.name == "ContextMenu" || node.name == "ContextMenuItem") {
+        hasContextMenu = true;
+    }
+    if (node.name == "TitleBar") {
+        hasTitleBar = true;
+    }
+    if (library.find(node.name) != library.end()) {
+        used.insert(node.name);
+    }
+    for (const auto& attribute : node.attributes) {
+        if (attribute.first == "icon" && library.find(attribute.second) != library.end()) {
+            used.insert(attribute.second);
+        }
+    }
+    bool hasChildMenu = false;
+    for (const XmlNode& child : node.children) {
+        if (!child.isText && (child.name == "ContextMenuItem" || child.name == "ContextMenuSeparator")) {
+            hasChildMenu = true;
+        }
+        CollectUsedIconNames(child, library, used, hasContextMenu, hasTitleBar);
+    }
+    if (node.name == "ContextMenuItem" && hasChildMenu && library.find("Chevron") != library.end()) {
+        used.insert("Chevron");
+    }
+    if (node.name == "ContextMenuItem" && node.attributes.count("checkable") != 0 &&
+        node.attributes.at("checkable") != "false" && node.attributes.at("checkable") != "0" &&
+        library.find("Check") != library.end()) {
+        used.insert("Check");
+    }
+}
+
+bool WriteRuntimeIconPackUsed(const std::string& packPath,
+                              const std::string& outputPath,
+                              const std::vector<std::string>& pageXmlPaths) {
+    std::map<std::string, CompiledSvg> library;
+    LoadPack(packPath, library);
+    if (library.empty()) {
+        return false;
+    }
+    std::set<std::string> used;
+    bool hasContextMenu = false;
+    bool hasTitleBar = false;
+    XmlParser parser;
+    for (const std::string& xmlPath : pageXmlPaths) {
+        const std::string xml = ReadFile(xmlPath);
+        if (xml.empty()) {
+            continue;
+        }
+        try {
+            const XmlNode root = parser.Parse(xml);
+            CollectUsedIconNames(root, library, used, hasContextMenu, hasTitleBar);
+        } catch (const std::exception&) {
+            continue;
+        }
+    }
+    if (hasContextMenu) {
+        if (library.find("Check") != library.end()) {
+            used.insert("Check");
+        }
+        if (library.find("Chevron") != library.end()) {
+            used.insert("Chevron");
+        }
+    }
+    if (hasTitleBar) {
+        if (library.find("Sidebar") != library.end()) {
+            used.insert("Sidebar");
+        }
+        if (library.find("SidebarHidden") != library.end()) {
+            used.insert("SidebarHidden");
+        }
+    }
+    std::map<std::string, CompiledSvg> filtered;
+    for (const std::string& name : used) {
+        const auto found = library.find(name);
+        if (found != library.end()) {
+            filtered[name] = found->second;
+        }
+    }
+    return WriteIconMap(filtered, outputPath);
 }
 
 namespace {

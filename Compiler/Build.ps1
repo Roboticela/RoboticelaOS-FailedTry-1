@@ -239,6 +239,7 @@ exit /b %ERRORLEVEL%
         [IO.File]::WriteAllText($devKitCpp, $devKitText)
         Write-Host "Built: $devKitCpp"
 
+        # Full compiler libraries stay in Assets; app packs (used icons + catalog + panes) go to Build.
         & $toolExe --pack (Join-Path $assetDirectory "RoboIcons.pack") (Join-Path $assetDirectory "ROBOICON.PAK")
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write ROBOICON.PAK"
@@ -247,15 +248,31 @@ exit /b %ERRORLEVEL%
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write ROBOCTRY.PAK"
         }
-        & $toolExe --catalog $devKitXml (Join-Path $assetDirectory "ROBOCAT.PAK")
+        $desktopXml = Join-Path (Split-Path $Root -Parent) "RoboDesktop\Desktop.xml"
+        if (-not (Test-Path $desktopXml)) {
+            $desktopXml = Join-Path $Root "..\RoboDesktop\Desktop.xml"
+        }
+        $iconPak = Join-Path $generatedDir "ROBOICON.PAK"
+        $countryPak = Join-Path $generatedDir "ROBOCTRY.PAK"
+        $catalogPak = Join-Path $generatedDir "ROBOCAT.PAK"
+        $panePak = Join-Path $generatedDir "ROBOPANE.PAK"
+        & $toolExe --pack-used (Join-Path $assetDirectory "RoboIcons.pack") $iconPak $desktopXml $devKitXml
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to write used ROBOICON.PAK"
+        }
+        & $toolExe --pack-used (Join-Path $assetDirectory "RoboCountry.pack") $countryPak $desktopXml $devKitXml
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to write used ROBOCTRY.PAK"
+        }
+        & $toolExe --catalog $devKitXml $catalogPak
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write ROBOCAT.PAK"
         }
-        & $toolExe --panes $devKitXml (Join-Path $assetDirectory "ROBOPANE.PAK") $assetDirectory
+        & $toolExe --panes $devKitXml $panePak $assetDirectory
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write ROBOPANE.PAK"
         }
-        Write-Host "Built: ROBOICON.PAK ROBOCTRY.PAK ROBOCAT.PAK ROBOPANE.PAK"
+        Write-Host "Built app packs in ${generatedDir}: ROBOICON.PAK ROBOCTRY.PAK ROBOCAT.PAK ROBOPANE.PAK"
     }
 }
 
@@ -301,10 +318,10 @@ function Invoke-WebBuild {
         if (Test-Path $folderIcon) {
             $preloadArgs += @("--preload-file", "${folderIcon}@/Assets/EmptyFolder.svg")
         }
-        $iconPack = Join-Path $Root "Assets\ROBOICON.PAK"
-        $countryPack = Join-Path $Root "Assets\ROBOCTRY.PAK"
-        $catalogPack = Join-Path $Root "Assets\ROBOCAT.PAK"
-        $panePack = Join-Path $Root "Assets\ROBOPANE.PAK"
+        $iconPack = Join-Path $Root "Build\Generated\ROBOICON.PAK"
+        $countryPack = Join-Path $Root "Build\Generated\ROBOCTRY.PAK"
+        $catalogPack = Join-Path $Root "Build\Generated\ROBOCAT.PAK"
+        $panePack = Join-Path $Root "Build\Generated\ROBOPANE.PAK"
         if (Test-Path $iconPack) {
             $preloadArgs += @("--preload-file", "${iconPack}@/Assets/ROBOICON.PAK")
         }

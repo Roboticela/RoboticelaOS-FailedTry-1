@@ -18,7 +18,7 @@ struct RoboCatalogEntry {
     bool selected = false;
 };
 
-// Loads ROBOCAT.PAK through the platform asset path. Safe to call more than once.
+// Loads the app catalog pack (ROBOCAT.PAK) from the platform asset path / ESP. Safe to call more than once.
 void RoboCatalogLoad(const IPlatform& platform);
 
 // Copies one catalog image into the row table (boot-held or asset bytes).

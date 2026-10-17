@@ -65,6 +65,7 @@ if (-not (Test-Path $devKitXml)) {
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
+# Full compiler icon libraries stay under Compiler\Assets (source .pack + full .PAK for the toolkit).
 & $toolExe --pack (Join-Path $assets "RoboIcons.pack") (Join-Path $assets "ROBOICON.PAK")
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
@@ -73,11 +74,24 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-& $toolExe --catalog $devKitXml (Join-Path $assets "ROBOCAT.PAK")
+# App packs land in Build: only icons referenced by Desktop/DevKit XML, plus catalog + panes.
+$iconPak = Join-Path $toolDir "ROBOICON.PAK"
+$countryPak = Join-Path $toolDir "ROBOCTRY.PAK"
+$catalogPak = Join-Path $toolDir "ROBOCAT.PAK"
+$panePak = Join-Path $toolDir "ROBOPANE.PAK"
+& $toolExe --pack-used (Join-Path $assets "RoboIcons.pack") $iconPak $pageXml $devKitXml
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-& $toolExe --panes $devKitXml (Join-Path $assets "ROBOPANE.PAK") $assets
+& $toolExe --pack-used (Join-Path $assets "RoboCountry.pack") $countryPak $pageXml $devKitXml
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+& $toolExe --catalog $devKitXml $catalogPak
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+& $toolExe --panes $devKitXml $panePak $assets
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
@@ -169,14 +183,14 @@ Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")
 Copy-Item -Force (Join-Path $esp "INTERB.TTF") (Join-Path $espArm "INTERB.TTF")
 Copy-Item -Force (Join-Path $esp "INTERI.TTF") (Join-Path $espArm "INTERI.TTF")
-Copy-Item -Force (Join-Path $assets "ROBOICON.PAK") (Join-Path $esp "ROBOICON.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOCTRY.PAK") (Join-Path $esp "ROBOCTRY.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOCAT.PAK") (Join-Path $esp "ROBOCAT.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOPANE.PAK") (Join-Path $esp "ROBOPANE.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOICON.PAK") (Join-Path $espArm "ROBOICON.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOCTRY.PAK") (Join-Path $espArm "ROBOCTRY.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOCAT.PAK") (Join-Path $espArm "ROBOCAT.PAK")
-Copy-Item -Force (Join-Path $assets "ROBOPANE.PAK") (Join-Path $espArm "ROBOPANE.PAK")
+Copy-Item -Force $iconPak (Join-Path $esp "ROBOICON.PAK")
+Copy-Item -Force $countryPak (Join-Path $esp "ROBOCTRY.PAK")
+Copy-Item -Force $catalogPak (Join-Path $esp "ROBOCAT.PAK")
+Copy-Item -Force $panePak (Join-Path $esp "ROBOPANE.PAK")
+Copy-Item -Force $iconPak (Join-Path $espArm "ROBOICON.PAK")
+Copy-Item -Force $countryPak (Join-Path $espArm "ROBOCTRY.PAK")
+Copy-Item -Force $catalogPak (Join-Path $espArm "ROBOCAT.PAK")
+Copy-Item -Force $panePak (Join-Path $espArm "ROBOPANE.PAK")
 $video = Join-Path $Root "Assets\Background.mp4"
 if (Test-Path $video) {
     Copy-Item -Force $video (Join-Path $esp "BACKGROU.MP4")

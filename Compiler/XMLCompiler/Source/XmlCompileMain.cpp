@@ -5,11 +5,23 @@
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <vector>
 
 int main(int argc, char** argv) {
     if (argc == 4 && std::string(argv[1]) == "--pack") {
         if (!Robo::WriteRuntimeIconPack(argv[2], argv[3])) {
             std::cerr << "Failed to write pack image " << argv[3] << "\n";
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 5 && std::string(argv[1]) == "--pack-used") {
+        std::vector<std::string> pages;
+        for (int index = 4; index < argc; ++index) {
+            pages.push_back(argv[index]);
+        }
+        if (!Robo::WriteRuntimeIconPackUsed(argv[2], argv[3], pages)) {
+            std::cerr << "Failed to write used pack image " << argv[3] << "\n";
             return 1;
         }
         return 0;
@@ -32,6 +44,7 @@ int main(int argc, char** argv) {
     if (argc != 3 && argc != 4) {
         std::cerr << "Usage: XmlCompile <input.xml> <output.cpp> [asset-directory]\n";
         std::cerr << "       XmlCompile --pack <pack.txt> <out.PAK>\n";
+        std::cerr << "       XmlCompile --pack-used <pack.txt> <out.PAK> <page.xml> [page.xml...]\n";
         std::cerr << "       XmlCompile --catalog <page.xml> <ROBOCAT.PAK>\n";
         std::cerr << "       XmlCompile --panes <page.xml> <ROBOPANE.PAK> [asset-directory]\n";
         return 1;

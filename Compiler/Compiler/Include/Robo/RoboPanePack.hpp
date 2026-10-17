@@ -7,7 +7,7 @@
 
 namespace Robo {
 
-// Loads ROBOPANE.PAK through the platform asset path. Safe to call more than once.
+// Loads the app pane pack (ROBOPANE.PAK) from the platform asset path / ESP. Safe to call more than once.
 void RoboPaneLoad(const IPlatform& platform);
 
 // Copies one pane pack image into the runtime table.
