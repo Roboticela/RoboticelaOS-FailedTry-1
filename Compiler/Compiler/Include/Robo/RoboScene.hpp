@@ -72,14 +72,14 @@ struct SceneItem {
     std::shared_ptr<Grid> grid;
     std::shared_ptr<Position> position;
     Svg svg;
-    BrandLogo brandLogo;
-    Robo::TitleBar titleBar;
-    Robo::Sidebar sidebar;
-    Robo::SidebarItem sidebarItem;
-    Robo::Separator separator;
-    ThemeToggle themeToggle;
-    ThemeIconToggle themeIconToggle;
-    MotionShape motionShape;
+    std::shared_ptr<BrandLogo> brandLogo;
+    std::shared_ptr<Robo::TitleBar> titleBar;
+    std::shared_ptr<Robo::Sidebar> sidebar;
+    std::shared_ptr<Robo::SidebarItem> sidebarItem;
+    std::shared_ptr<Robo::Separator> separator;
+    std::shared_ptr<ThemeToggle> themeToggle;
+    std::shared_ptr<ThemeIconToggle> themeIconToggle;
+    std::shared_ptr<MotionShape> motionShape;
     Robo::SelectionArea selectionArea;
 };
 

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 namespace Robo {
@@ -175,6 +176,12 @@ PositionMeasureResult PositionPainter::Measure(const FontEngine& fonts,
                                                float forcedWidth,
                                                float forcedHeight) {
     const float scale = std::max(0.5f, pixelScale);
+    if (position.HasLayoutCache(availableWidth, scale, forcedWidth, forcedHeight)) {
+        PositionMeasureResult cached;
+        cached.width = position.LayoutCache().containerWidth;
+        cached.height = position.LayoutCache().containerHeight;
+        return cached;
+    }
     PositionStyle style = position.GetStyle();
     Resolve(style);
 
@@ -206,50 +213,50 @@ PositionMeasureResult PositionPainter::Measure(const FontEngine& fonts,
                 break;
             }
             case PositionItemKind::BrandLogo: {
-                BrandLogoMeasureResult res = BrandLogoPainter::Measure(fonts, item.brandLogo, scale);
+                BrandLogoMeasureResult res = BrandLogoPainter::Measure(fonts, *item.brandLogo, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::TitleBar: {
-                TitleBarMeasureResult res = TitleBarPainter::Measure(fonts, item.titleBar, innerAvailW, scale);
+                TitleBarMeasureResult res = TitleBarPainter::Measure(fonts, *item.titleBar, innerAvailW, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::Sidebar: {
-                SidebarMeasureResult res = SidebarPainter::Measure(item.sidebar, 0.0f, scale);
+                SidebarMeasureResult res = SidebarPainter::Measure(*item.sidebar, 0.0f, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::ThemeToggle: {
-                ThemeToggleMeasureResult res = ThemeTogglePainter::Measure(fonts, item.themeToggle, innerAvailW, scale);
+                ThemeToggleMeasureResult res = ThemeTogglePainter::Measure(fonts, *item.themeToggle, innerAvailW, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::ThemeIconToggle: {
-                ThemeIconToggleMeasureResult res = ThemeIconTogglePainter::Measure(item.themeIconToggle, scale);
+                ThemeIconToggleMeasureResult res = ThemeIconTogglePainter::Measure(*item.themeIconToggle, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::SidebarItem: {
-                SidebarItemMeasureResult res = SidebarPainter::MeasureItem(fonts, item.sidebarItem, scale);
+                SidebarItemMeasureResult res = SidebarPainter::MeasureItem(fonts, *item.sidebarItem, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::Separator: {
-                SeparatorMeasureResult res = SeparatorPainter::Measure(fonts, item.separator, innerAvailW, 0.0f, scale);
+                SeparatorMeasureResult res = SeparatorPainter::Measure(fonts, *item.separator, innerAvailW, 0.0f, scale);
                 childW = res.width;
                 childH = res.height;
                 break;
             }
             case PositionItemKind::MotionShape: {
-                childW = item.motionShape.Width() * scale;
-                childH = item.motionShape.Height() * scale;
+                childW = item.motionShape->Width() * scale;
+                childH = item.motionShape->Height() * scale;
                 break;
             }
             case PositionItemKind::Button: {
@@ -442,12 +449,42 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
         float height = 0.0f;
     };
     std::vector<LayoutChild> layout(items.size());
+    float resolvedW = 0.0f;
+    float resolvedH = 0.0f;
+    bool usedLayoutCache = false;
+
+    if (position.HasLayoutCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+        const ComputedPositionLayout& cached = position.LayoutCache();
+        layout.resize(cached.children.size());
+        for (std::size_t i = 0; i < cached.children.size(); ++i) {
+            const PlacedPositionChild& child = cached.children[i];
+            layout[i].x = originX + child.x;
+            layout[i].y = originY + child.y;
+            layout[i].width = child.width;
+            layout[i].height = child.height;
+            if (i < items.size()) {
+                PositionItem& item = items[i];
+                item.computedBounds = { layout[i].x, layout[i].y, layout[i].width, layout[i].height };
+                if (item.kind == PositionItemKind::Button) {
+                    item.button.SetBounds({ layout[i].x, layout[i].y, layout[i].width, layout[i].height });
+                } else if (item.kind == PositionItemKind::Input) {
+                    item.input.SetBounds(item.computedBounds);
+                } else if (item.kind == PositionItemKind::Position && item.position) {
+                    item.position->SetBounds(item.computedBounds);
+                }
+            }
+        }
+        resolvedW = cached.containerWidth;
+        resolvedH = cached.containerHeight;
+        usedLayoutCache = true;
+        position.SetNeedsPaint(false);
+    }
 
     float maxExtentX = 0.0f;
     float maxExtentY = 0.0f;
 
     // First pass: measure intrinsic dimensions and preliminary extents
-    for (std::size_t i = 0; i < items.size(); ++i) {
+    for (std::size_t i = 0; !usedLayoutCache && i < items.size(); ++i) {
         PositionItem& item = items[i];
         LayoutChild& lc = layout[i];
 
@@ -465,50 +502,50 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
                 break;
             }
             case PositionItemKind::BrandLogo: {
-                BrandLogoMeasureResult res = BrandLogoPainter::Measure(fonts, item.brandLogo, scale);
+                BrandLogoMeasureResult res = BrandLogoPainter::Measure(fonts, *item.brandLogo, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::TitleBar: {
-                TitleBarMeasureResult res = TitleBarPainter::Measure(fonts, item.titleBar, innerAvailW, scale);
+                TitleBarMeasureResult res = TitleBarPainter::Measure(fonts, *item.titleBar, innerAvailW, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::Sidebar: {
-                SidebarMeasureResult res = SidebarPainter::Measure(item.sidebar, 0.0f, scale);
+                SidebarMeasureResult res = SidebarPainter::Measure(*item.sidebar, 0.0f, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::ThemeToggle: {
-                ThemeToggleMeasureResult res = ThemeTogglePainter::Measure(fonts, item.themeToggle, innerAvailW, scale);
+                ThemeToggleMeasureResult res = ThemeTogglePainter::Measure(fonts, *item.themeToggle, innerAvailW, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::ThemeIconToggle: {
-                ThemeIconToggleMeasureResult res = ThemeIconTogglePainter::Measure(item.themeIconToggle, scale);
+                ThemeIconToggleMeasureResult res = ThemeIconTogglePainter::Measure(*item.themeIconToggle, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::SidebarItem: {
-                SidebarItemMeasureResult res = SidebarPainter::MeasureItem(fonts, item.sidebarItem, scale);
+                SidebarItemMeasureResult res = SidebarPainter::MeasureItem(fonts, *item.sidebarItem, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::Separator: {
-                SeparatorMeasureResult res = SeparatorPainter::Measure(fonts, item.separator, innerAvailW, 0.0f, scale);
+                SeparatorMeasureResult res = SeparatorPainter::Measure(fonts, *item.separator, innerAvailW, 0.0f, scale);
                 lc.width = res.width;
                 lc.height = res.height;
                 break;
             }
             case PositionItemKind::MotionShape: {
-                lc.width = item.motionShape.Width() * scale;
-                lc.height = item.motionShape.Height() * scale;
+                lc.width = item.motionShape->Width() * scale;
+                lc.height = item.motionShape->Height() * scale;
                 break;
             }
             case PositionItemKind::Button: {
@@ -644,10 +681,13 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
         maxExtentY = std::max(maxExtentY, itemBottom);
     }
 
+    if (!usedLayoutCache) {
     const float naturalW = maxExtentX + padL + padR;
-    float resolvedW = containerWidth;
+    resolvedW = containerWidth;
     if (forcedWidth > 0.0f) {
         resolvedW = forcedWidth;
+    } else if (style.hasWidthLength && !style.widthLength.IsAuto()) {
+        resolvedW = style.widthLength.Resolve(containerWidth / scale, 1.0f) * scale;
     } else if (!style.width.empty() && style.width != "auto") {
         resolvedW = ParseDimension(style.width, containerWidth, naturalW, scale);
     } else if (naturalW > padL + padR) {
@@ -661,9 +701,11 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
     }
 
     const float naturalH = maxExtentY + padT + padB;
-    float resolvedH = naturalH;
+    resolvedH = naturalH;
     if (forcedHeight > 0.0f) {
         resolvedH = std::max(forcedHeight, naturalH);
+    } else if (style.hasHeightLength && !style.heightLength.IsAuto()) {
+        resolvedH = style.heightLength.Resolve(containerWidth / scale, 1.0f) * scale;
     } else if (!style.height.empty() && style.height != "auto") {
         resolvedH = std::max(ParseDimension(style.height, containerWidth, naturalH, scale), naturalH);
     }
@@ -753,6 +795,20 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
         }
     }
 
+    ComputedPositionLayout stored;
+    stored.containerWidth = resolvedW;
+    stored.containerHeight = resolvedH;
+    stored.children.resize(layout.size());
+    for (std::size_t i = 0; i < layout.size(); ++i) {
+        stored.children[i].x = layout[i].x - originX;
+        stored.children[i].y = layout[i].y - originY;
+        stored.children[i].width = layout[i].width;
+        stored.children[i].height = layout[i].height;
+    }
+    position.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, std::move(stored));
+    position.SetNeedsPaint(false);
+    }  // !usedLayoutCache
+
     position.SetBounds({ originX, originY, resolvedW, resolvedH });
 
     // Paint container background
@@ -787,28 +843,28 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
                 SvgPainter::Paint(buffer, item.svg, lc.x, lc.y, lc.width, scale);
                 break;
             case PositionItemKind::BrandLogo:
-                BrandLogoPainter::Paint(buffer, fonts, item.brandLogo, lc.x, lc.y, scale);
+                BrandLogoPainter::Paint(buffer, fonts, *item.brandLogo, lc.x, lc.y, scale);
                 break;
             case PositionItemKind::TitleBar:
-                TitleBarPainter::Paint(buffer, fonts, item.titleBar, lc.x, lc.y, lc.width, scale);
+                TitleBarPainter::Paint(buffer, fonts, *item.titleBar, lc.x, lc.y, lc.width, scale);
                 break;
             case PositionItemKind::Sidebar:
-                SidebarPainter::Paint(buffer, fonts, item.sidebar, lc.x, lc.y, lc.height, scale, 1.0f);
+                SidebarPainter::Paint(buffer, fonts, *item.sidebar, lc.x, lc.y, lc.height, scale, 1.0f);
                 break;
             case PositionItemKind::SidebarItem:
-                SidebarPainter::PaintItem(buffer, fonts, item.sidebarItem, lc.x, lc.y, lc.width, lc.height, scale, false);
+                SidebarPainter::PaintItem(buffer, fonts, *item.sidebarItem, lc.x, lc.y, lc.width, lc.height, scale, false);
                 break;
             case PositionItemKind::ThemeToggle:
-                ThemeTogglePainter::Paint(buffer, fonts, item.themeToggle, lc.x, lc.y, lc.width, scale);
+                ThemeTogglePainter::Paint(buffer, fonts, *item.themeToggle, lc.x, lc.y, lc.width, scale);
                 break;
             case PositionItemKind::ThemeIconToggle:
-                ThemeIconTogglePainter::Paint(buffer, item.themeIconToggle, lc.x, lc.y, scale);
+                ThemeIconTogglePainter::Paint(buffer, *item.themeIconToggle, lc.x, lc.y, scale);
                 break;
             case PositionItemKind::Separator:
-                SeparatorPainter::Paint(buffer, fonts, item.separator, lc.x, lc.y, lc.width, lc.height, scale);
+                SeparatorPainter::Paint(buffer, fonts, *item.separator, lc.x, lc.y, lc.width, lc.height, scale);
                 break;
             case PositionItemKind::MotionShape:
-                item.motionShape.Paint(buffer, lc.x, lc.y, lc.width, lc.height, scale);
+                item.motionShape->Paint(buffer, lc.x, lc.y, lc.width, lc.height, scale);
                 break;
             case PositionItemKind::Button:
                 ButtonPainter::Paint(buffer, fonts, item.button, lc.x, lc.y, lc.width, scale, lc.width, lc.height);

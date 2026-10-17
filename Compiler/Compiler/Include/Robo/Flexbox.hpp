@@ -86,6 +86,18 @@ struct FlexItemProps {
     std::string maxWidth;
     std::string minHeight;
     std::string maxHeight;
+    Length widthLength = Length::Auto();
+    Length heightLength = Length::Auto();
+    Length minWidthLength = Length::Auto();
+    Length maxWidthLength = Length::Auto();
+    Length minHeightLength = Length::Auto();
+    Length maxHeightLength = Length::Auto();
+    bool hasWidthLength = false;
+    bool hasHeightLength = false;
+    bool hasMinWidthLength = false;
+    bool hasMaxWidthLength = false;
+    bool hasMinHeightLength = false;
+    bool hasMaxHeightLength = false;
     float marginTop = 0.0f;
     float marginBottom = 0.0f;
     float marginLeft = 0.0f;
@@ -95,6 +107,7 @@ struct FlexItemProps {
 class Container;
 class Flexbox;
 
+// Slim item: heavy / infrequent widgets are heap-backed so each slot stays small.
 struct FlexboxItem {
     FlexItemKind kind = FlexItemKind::Text;
     FlexItemProps props;
@@ -105,14 +118,14 @@ struct FlexboxItem {
     std::shared_ptr<Container> container;
     std::shared_ptr<Flexbox> flexbox;
     Svg svg;
-    BrandLogo brandLogo;
-    Robo::TitleBar titleBar;
-    Robo::Sidebar sidebar;
-    Robo::SidebarItem sidebarItem;
-    Robo::Separator separator;
-    ThemeToggle themeToggle;
-    ThemeIconToggle themeIconToggle;
-    MotionShape motionShape;
+    std::shared_ptr<BrandLogo> brandLogo;
+    std::shared_ptr<Robo::TitleBar> titleBar;
+    std::shared_ptr<Robo::Sidebar> sidebar;
+    std::shared_ptr<Robo::SidebarItem> sidebarItem;
+    std::shared_ptr<Robo::Separator> separator;
+    std::shared_ptr<ThemeToggle> themeToggle;
+    std::shared_ptr<ThemeIconToggle> themeIconToggle;
+    std::shared_ptr<MotionShape> motionShape;
 };
 
 struct FlexboxBounds {

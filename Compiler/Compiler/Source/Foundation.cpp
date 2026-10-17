@@ -93,6 +93,22 @@ void ApplyLength(std::string& length, const std::map<std::string, std::string>& 
     length = std::to_string(static_cast<double>(value));
 }
 
+void ApplyLengthTyped(std::string& length, Length& typed, bool& hasTyped,
+                      const std::map<std::string, std::string>& tokens, const char* key) {
+    const std::string token = TokenOf(tokens, key);
+    if (token.empty()) {
+        return;
+    }
+    float value = 0.0f;
+    if (!CurrentFoundation().LookupFloat(token, value)) {
+        return;
+    }
+    typed = Length::Px(value);
+    hasTyped = true;
+    // Keep a numeric string for legacy ParseDimension callers; typed Length is preferred.
+    length = std::to_string(static_cast<double>(value));
+}
+
 void ApplyTracking(double& letterSpacing, double fontSize, const std::map<std::string, std::string>& tokens) {
     const std::string token = TokenOf(tokens, "letterSpacing");
     if (token.empty()) {
@@ -430,8 +446,8 @@ void Resolve(TextStyle& style) {
     ApplyTracking(style.letterSpacing, style.fontSize, style.tokens);
     ApplyWeight(style.fontWeight, style.tokens);
     ApplyColor(style.color, style.tokens, "color");
-    ApplyLength(style.width, style.tokens, "width");
-    ApplyLength(style.maxWidth, style.tokens, "maxWidth");
+    ApplyLengthTyped(style.width, style.widthLength, style.hasWidthLength, style.tokens, "width");
+    ApplyLengthTyped(style.maxWidth, style.maxWidthLength, style.hasMaxWidthLength, style.tokens, "maxWidth");
 }
 
 void Resolve(TextRun& run) {
@@ -465,7 +481,7 @@ void Resolve(InputStyle& style) {
     ApplyColor(style.borderColor, style.tokens, "borderColor");
     ApplyColor(style.focusBorderColor, style.tokens, "focusBorderColor");
     ApplyColor(style.caretColor, style.tokens, "caretColor");
-    ApplyLength(style.width, style.tokens, "width");
+    ApplyLengthTyped(style.width, style.widthLength, style.hasWidthLength, style.tokens, "width");
 }
 
 void Resolve(FlexboxStyle& style) {
@@ -483,8 +499,8 @@ void Resolve(FlexboxStyle& style) {
     ApplyFloat(style.cornerRadius, style.tokens, "cornerRadius");
     ApplyColor(style.backgroundColor, style.tokens, "backgroundColor");
     ApplyColor(style.borderColor, style.tokens, "borderColor");
-    ApplyLength(style.width, style.tokens, "width");
-    ApplyLength(style.height, style.tokens, "height");
+    ApplyLengthTyped(style.width, style.widthLength, style.hasWidthLength, style.tokens, "width");
+    ApplyLengthTyped(style.height, style.heightLength, style.hasHeightLength, style.tokens, "height");
 }
 
 void Resolve(GridStyle& style) {
@@ -502,8 +518,8 @@ void Resolve(GridStyle& style) {
     ApplyFloat(style.cornerRadius, style.tokens, "cornerRadius");
     ApplyColor(style.backgroundColor, style.tokens, "backgroundColor");
     ApplyColor(style.borderColor, style.tokens, "borderColor");
-    ApplyLength(style.width, style.tokens, "width");
-    ApplyLength(style.height, style.tokens, "height");
+    ApplyLengthTyped(style.width, style.widthLength, style.hasWidthLength, style.tokens, "width");
+    ApplyLengthTyped(style.height, style.heightLength, style.hasHeightLength, style.tokens, "height");
 }
 
 void Resolve(PositionStyle& style) {
@@ -514,8 +530,8 @@ void Resolve(PositionStyle& style) {
     ApplyFloat(style.cornerRadius, style.tokens, "cornerRadius");
     ApplyColor(style.backgroundColor, style.tokens, "backgroundColor");
     ApplyColor(style.borderColor, style.tokens, "borderColor");
-    ApplyLength(style.width, style.tokens, "width");
-    ApplyLength(style.height, style.tokens, "height");
+    ApplyLengthTyped(style.width, style.widthLength, style.hasWidthLength, style.tokens, "width");
+    ApplyLengthTyped(style.height, style.heightLength, style.hasHeightLength, style.tokens, "height");
 }
 
 void Resolve(ContainerStyle& style) {
@@ -527,8 +543,8 @@ void Resolve(ContainerStyle& style) {
     ApplyFloat(style.cornerRadius, style.tokens, "cornerRadius");
     ApplyColor(style.backgroundColor, style.tokens, "backgroundColor");
     ApplyColor(style.borderColor, style.tokens, "borderColor");
-    ApplyLength(style.width, style.tokens, "width");
-    ApplyLength(style.height, style.tokens, "height");
+    ApplyLengthTyped(style.width, style.widthLength, style.hasWidthLength, style.tokens, "width");
+    ApplyLengthTyped(style.height, style.heightLength, style.hasHeightLength, style.tokens, "height");
 }
 
 void Resolve(ScrollbarStyle& style) {

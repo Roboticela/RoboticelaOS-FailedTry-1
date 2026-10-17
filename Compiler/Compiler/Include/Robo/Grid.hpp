@@ -2,6 +2,8 @@
 
 #include "Button.hpp"
 #include "Color.hpp"
+#include "GridLayout.hpp"
+#include "Length.hpp"
 #include "Selectable.hpp"
 #include "Input.hpp"
 #include "Scrollbar.hpp"
@@ -16,6 +18,7 @@
 #include "Text.hpp"
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -141,6 +144,18 @@ struct GridItemProps {
     std::string maxWidth;
     std::string minHeight;
     std::string maxHeight;
+    Length widthLength = Length::Auto();
+    Length heightLength = Length::Auto();
+    Length minWidthLength = Length::Auto();
+    Length maxWidthLength = Length::Auto();
+    Length minHeightLength = Length::Auto();
+    Length maxHeightLength = Length::Auto();
+    bool hasWidthLength = false;
+    bool hasHeightLength = false;
+    bool hasMinWidthLength = false;
+    bool hasMaxWidthLength = false;
+    bool hasMinHeightLength = false;
+    bool hasMaxHeightLength = false;
 
     float marginTop = 0.0f;
     float marginBottom = 0.0f;
@@ -168,14 +183,14 @@ struct GridItem {
     std::shared_ptr<Flexbox> flexbox;
     std::shared_ptr<Grid> grid;
     Svg svg;
-    BrandLogo brandLogo;
-    Robo::TitleBar titleBar;
-    Robo::Sidebar sidebar;
-    Robo::SidebarItem sidebarItem;
-    Robo::Separator separator;
-    ThemeToggle themeToggle;
-    ThemeIconToggle themeIconToggle;
-    MotionShape motionShape;
+    std::shared_ptr<BrandLogo> brandLogo;
+    std::shared_ptr<Robo::TitleBar> titleBar;
+    std::shared_ptr<Robo::Sidebar> sidebar;
+    std::shared_ptr<Robo::SidebarItem> sidebarItem;
+    std::shared_ptr<Robo::Separator> separator;
+    std::shared_ptr<ThemeToggle> themeToggle;
+    std::shared_ptr<ThemeIconToggle> themeIconToggle;
+    std::shared_ptr<MotionShape> motionShape;
 };
 
 class Grid {
@@ -213,10 +228,23 @@ public:
     float ResolveGapX(float pixelScale) const;
     float ResolveGapY(float pixelScale) const;
 
+    bool HasLayoutCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight) const;
+    const ComputedGridLayout& LayoutCache() const;
+    void StoreLayoutCache(float containerWidth, float pixelScale, float forcedWidth, float forcedHeight,
+                          ComputedGridLayout layout) const;
+    void InvalidateLayoutCache() const;
+    bool NeedsLayout() const;
+    void SetNeedsLayout(bool needs) const;
+    bool NeedsPaint() const;
+    void SetNeedsPaint(bool needs) const;
+
 private:
     GridStyle style_;
     std::vector<GridItem> items_;
     GridBounds bounds_;
+    mutable GridLayoutCache layoutCache_{};
+    mutable bool needsLayout_ = true;
+    mutable bool needsPaint_ = true;
 };
 
 std::vector<GridTrack> ParseGridTracks(const std::string& value);

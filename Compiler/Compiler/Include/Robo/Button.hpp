@@ -95,6 +95,23 @@ public:
     Color ResolveFocusColor() const;
     float ResolveOpacity() const;
 
+    struct MeasureCache {
+        float pixelScale = -1.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+        float advanceY = 0.0f;
+        float textWidth = 0.0f;
+        float textHeight = 0.0f;
+        float ascent = 0.0f;
+        float contentWidth = 0.0f;
+        std::string collapsedLabel;
+        bool valid = false;
+    };
+    bool HasMeasureCache(float pixelScale) const;
+    const MeasureCache& GetMeasureCache() const;
+    void StoreMeasureCache(MeasureCache cache) const;
+    void InvalidateMeasureCache() const;
+
 private:
     std::string label_;
     ButtonStyle style_;
@@ -107,6 +124,7 @@ private:
     bool loading_ = false;
     bool focused_ = false;
     bool focusVisible_ = false;
+    mutable MeasureCache measureCache_{};
 };
 
 ButtonVariant ParseButtonVariant(const std::string& value);

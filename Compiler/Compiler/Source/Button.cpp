@@ -2,6 +2,8 @@
 #include "Robo/Foundation.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 namespace Robo {
 
@@ -27,6 +29,7 @@ Button::Button() = default;
 
 void Button::SetLabel(const std::string& label) {
     label_ = label;
+    InvalidateMeasureCache();
 }
 
 const std::string& Button::GetLabel() const {
@@ -35,6 +38,7 @@ const std::string& Button::GetLabel() const {
 
 void Button::SetStyle(const ButtonStyle& style) {
     style_ = style;
+    InvalidateMeasureCache();
 }
 
 const ButtonStyle& Button::GetStyle() const {
@@ -280,6 +284,23 @@ Color Button::ResolveFocusColor() const {
 
 float Button::ResolveOpacity() const {
     return static_cast<float>(style_.opacity);
+}
+
+bool Button::HasMeasureCache(float pixelScale) const {
+    return measureCache_.valid && std::fabs(measureCache_.pixelScale - pixelScale) < 0.001f;
+}
+
+const Button::MeasureCache& Button::GetMeasureCache() const {
+    return measureCache_;
+}
+
+void Button::StoreMeasureCache(MeasureCache cache) const {
+    measureCache_ = std::move(cache);
+    measureCache_.valid = true;
+}
+
+void Button::InvalidateMeasureCache() const {
+    measureCache_.valid = false;
 }
 
 ButtonVariant ParseButtonVariant(const std::string& value) {

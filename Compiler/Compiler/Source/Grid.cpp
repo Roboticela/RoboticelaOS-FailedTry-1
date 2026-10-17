@@ -4,8 +4,11 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <sstream>
+#include <memory>
+#include <utility>
 
 namespace Robo {
 
@@ -71,6 +74,7 @@ Grid::Grid() = default;
 
 void Grid::SetStyle(const GridStyle& style) {
     style_ = style;
+    InvalidateLayoutCache();
 }
 
 const GridStyle& Grid::GetStyle() const {
@@ -101,7 +105,7 @@ void Grid::AddBrandLogo(BrandLogo logo, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::BrandLogo;
     item.props = props;
-    item.brandLogo = std::move(logo);
+    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
     items_.push_back(std::move(item));
 }
 
@@ -109,7 +113,7 @@ void Grid::AddTitleBar(TitleBar bar, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::TitleBar;
     item.props = props;
-    item.titleBar = std::move(bar);
+    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
     items_.push_back(std::move(item));
 }
 
@@ -117,7 +121,7 @@ void Grid::AddSidebar(Sidebar pane, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Sidebar;
     item.props = props;
-    item.sidebar = std::move(pane);
+    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
     items_.push_back(std::move(item));
 }
 
@@ -125,7 +129,7 @@ void Grid::AddSidebarItem(SidebarItem item, const GridItemProps& props) {
     GridItem entry;
     entry.kind = GridItemKind::SidebarItem;
     entry.props = props;
-    entry.sidebarItem = std::move(item);
+    entry.sidebarItem = std::make_shared<SidebarItem>(std::move(item));
     items_.push_back(std::move(entry));
 }
 
@@ -133,7 +137,7 @@ void Grid::AddThemeToggle(ThemeToggle toggle, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::ThemeToggle;
     item.props = props;
-    item.themeToggle = std::move(toggle);
+    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -141,7 +145,7 @@ void Grid::AddThemeIconToggle(ThemeIconToggle toggle, const GridItemProps& props
     GridItem item;
     item.kind = GridItemKind::ThemeIconToggle;
     item.props = props;
-    item.themeIconToggle = std::move(toggle);
+    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -149,7 +153,7 @@ void Grid::AddSeparator(Separator separator, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Separator;
     item.props = props;
-    item.separator = std::move(separator);
+    item.separator = std::make_shared<Separator>(std::move(separator));
     items_.push_back(std::move(item));
 }
 
@@ -157,7 +161,7 @@ void Grid::AddMotionShape(MotionShape shape, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::MotionShape;
     item.props = props;
-    item.motionShape = std::move(shape);
+    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
     items_.push_back(std::move(item));
 }
 
@@ -211,6 +215,7 @@ void Grid::AddContainer(Container container, const GridItemProps& props) {
 
 void Grid::AddItem(GridItem item) {
     items_.push_back(std::move(item));
+    InvalidateLayoutCache();
 }
 
 const std::vector<GridItem>& Grid::GetItems() const {
@@ -241,6 +246,57 @@ float Grid::ResolveGapY(float pixelScale) const {
         return style_.rowGap * pixelScale;
     }
     return style_.gap * pixelScale;
+}
+
+bool Grid::HasLayoutCache(float containerWidth, float pixelScale, float forcedWidth,
+                          float forcedHeight) const {
+    return layoutCache_.valid && !needsLayout_ &&
+           std::fabs(layoutCache_.key.containerWidth - containerWidth) < 0.5f &&
+           std::fabs(layoutCache_.key.pixelScale - pixelScale) < 0.001f &&
+           std::fabs(layoutCache_.key.forcedWidth - forcedWidth) < 0.5f &&
+           std::fabs(layoutCache_.key.forcedHeight - forcedHeight) < 0.5f;
+}
+
+const ComputedGridLayout& Grid::LayoutCache() const {
+    return layoutCache_.layout;
+}
+
+void Grid::StoreLayoutCache(float containerWidth, float pixelScale, float forcedWidth,
+                            float forcedHeight, ComputedGridLayout layout) const {
+    layoutCache_.layout = std::move(layout);
+    layoutCache_.key.containerWidth = containerWidth;
+    layoutCache_.key.pixelScale = pixelScale;
+    layoutCache_.key.forcedWidth = forcedWidth;
+    layoutCache_.key.forcedHeight = forcedHeight;
+    layoutCache_.valid = true;
+    needsLayout_ = false;
+}
+
+void Grid::InvalidateLayoutCache() const {
+    layoutCache_.valid = false;
+    layoutCache_.layout = ComputedGridLayout{};
+    needsLayout_ = true;
+    needsPaint_ = true;
+}
+
+bool Grid::NeedsLayout() const {
+    return needsLayout_ || !layoutCache_.valid;
+}
+
+void Grid::SetNeedsLayout(bool needs) const {
+    needsLayout_ = needs;
+    if (needs) {
+        layoutCache_.valid = false;
+        needsPaint_ = true;
+    }
+}
+
+bool Grid::NeedsPaint() const {
+    return needsPaint_;
+}
+
+void Grid::SetNeedsPaint(bool needs) const {
+    needsPaint_ = needs;
 }
 
 std::vector<GridTrack> ParseGridTracks(const std::string& value) {

@@ -251,16 +251,16 @@ void ScaleFlexboxBounds(Flexbox& flexbox, float inv) {
             ScaleBounds(bb, inv);
             item.button.SetBounds(bb);
         } else if (item.kind == FlexItemKind::ThemeToggle) {
-            item.themeToggle.ScaleBounds(inv);
+            item.themeToggle->ScaleBounds(inv);
         } else if (item.kind == FlexItemKind::ThemeIconToggle) {
-            item.themeIconToggle.ScaleBounds(inv);
+            item.themeIconToggle->ScaleBounds(inv);
         } else if (item.kind == FlexItemKind::TitleBar) {
-            item.titleBar.ThemeIcon().ScaleBounds(inv);
-            ButtonBounds sidebarBounds = item.titleBar.SidebarButton().GetBounds();
+            item.titleBar->ThemeIcon().ScaleBounds(inv);
+            ButtonBounds sidebarBounds = item.titleBar->SidebarButton().GetBounds();
             ScaleBounds(sidebarBounds, inv);
-            item.titleBar.SidebarButton().SetBounds(sidebarBounds);
+            item.titleBar->SidebarButton().SetBounds(sidebarBounds);
         } else if (item.kind == FlexItemKind::MotionShape) {
-            item.motionShape.ScaleBounds(inv);
+            item.motionShape->ScaleBounds(inv);
         } else if (item.kind == FlexItemKind::Input) {
             InputBounds ib = item.input.GetBounds();
             ScaleBounds(ib, inv);
@@ -301,16 +301,16 @@ void ScaleGridBounds(Grid& grid, float inv) {
             ScaleBounds(bb, inv);
             item.button.SetBounds(bb);
         } else if (item.kind == GridItemKind::ThemeToggle) {
-            item.themeToggle.ScaleBounds(inv);
+            item.themeToggle->ScaleBounds(inv);
         } else if (item.kind == GridItemKind::ThemeIconToggle) {
-            item.themeIconToggle.ScaleBounds(inv);
+            item.themeIconToggle->ScaleBounds(inv);
         } else if (item.kind == GridItemKind::TitleBar) {
-            item.titleBar.ThemeIcon().ScaleBounds(inv);
-            ButtonBounds sidebarBounds = item.titleBar.SidebarButton().GetBounds();
+            item.titleBar->ThemeIcon().ScaleBounds(inv);
+            ButtonBounds sidebarBounds = item.titleBar->SidebarButton().GetBounds();
             ScaleBounds(sidebarBounds, inv);
-            item.titleBar.SidebarButton().SetBounds(sidebarBounds);
+            item.titleBar->SidebarButton().SetBounds(sidebarBounds);
         } else if (item.kind == GridItemKind::MotionShape) {
-            item.motionShape.ScaleBounds(inv);
+            item.motionShape->ScaleBounds(inv);
         } else if (item.kind == GridItemKind::Input) {
             InputBounds ib = item.input.GetBounds();
             ScaleBounds(ib, inv);
@@ -411,7 +411,7 @@ void VisitSceneScrollbars(std::vector<SceneItem>& items, const std::string& pane
         } else if (item.kind == SceneItemKind::Position && item.position) {
             VisitScrollbars(*item.position, visit);
         } else if (item.kind == SceneItemKind::Sidebar) {
-            visit(item.sidebar.PanelScrollbar());
+            visit(item.sidebar->PanelScrollbar());
         }
     }
 }
@@ -456,8 +456,8 @@ Button* FindButtonInFlexbox(Flexbox& flexbox, float x, float y) {
                 return &item.button;
             }
         } else if (item.kind == FlexItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == FlexItemKind::Container && item.container) {
             Button* found = FindButtonInContainer(*item.container, x, y);
@@ -529,8 +529,8 @@ const Button* FindButtonInFlexboxConst(const Flexbox& flexbox, float x, float y)
                 return &item.button;
             }
         } else if (item.kind == FlexItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == FlexItemKind::Container && item.container) {
             const Button* found = FindButtonInContainerConst(*item.container, x, y);
@@ -609,8 +609,8 @@ Button* FindButtonInGrid(Grid& grid, float x, float y) {
                 return &item.button;
             }
         } else if (item.kind == GridItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == GridItemKind::Container && item.container) {
             Button* found = FindButtonInContainer(*item.container, x, y);
@@ -697,8 +697,8 @@ const Button* FindButtonInGridConst(const Grid& grid, float x, float y) {
                 return &item.button;
             }
         } else if (item.kind == GridItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == GridItemKind::Container && item.container) {
             const Button* found = FindButtonInContainerConst(*item.container, x, y);
@@ -788,16 +788,16 @@ void ScalePositionBounds(Position& position, float inv) {
             ScaleBounds(bb, inv);
             item.button.SetBounds(bb);
         } else if (item.kind == PositionItemKind::ThemeToggle) {
-            item.themeToggle.ScaleBounds(inv);
+            item.themeToggle->ScaleBounds(inv);
         } else if (item.kind == PositionItemKind::ThemeIconToggle) {
-            item.themeIconToggle.ScaleBounds(inv);
+            item.themeIconToggle->ScaleBounds(inv);
         } else if (item.kind == PositionItemKind::TitleBar) {
-            item.titleBar.ThemeIcon().ScaleBounds(inv);
-            ButtonBounds sidebarBounds = item.titleBar.SidebarButton().GetBounds();
+            item.titleBar->ThemeIcon().ScaleBounds(inv);
+            ButtonBounds sidebarBounds = item.titleBar->SidebarButton().GetBounds();
             ScaleBounds(sidebarBounds, inv);
-            item.titleBar.SidebarButton().SetBounds(sidebarBounds);
+            item.titleBar->SidebarButton().SetBounds(sidebarBounds);
         } else if (item.kind == PositionItemKind::MotionShape) {
-            item.motionShape.ScaleBounds(inv);
+            item.motionShape->ScaleBounds(inv);
         } else if (item.kind == PositionItemKind::Input) {
             InputBounds ib = item.input.GetBounds();
             ScaleBounds(ib, inv);
@@ -832,8 +832,8 @@ Button* FindButtonInPosition(Position& position, float x, float y) {
                 return &item.button;
             }
         } else if (item.kind == PositionItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == PositionItemKind::Container && item.container) {
             Button* found = FindButtonInContainer(*item.container, x, y);
@@ -956,8 +956,8 @@ const Button* FindButtonInPositionConst(const Position& position, float x, float
                 return &item.button;
             }
         } else if (item.kind == PositionItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == PositionItemKind::Container && item.container) {
             const Button* found = FindButtonInContainerConst(*item.container, x, y);
@@ -1305,7 +1305,7 @@ void VisitMotionContainer(Container& container, const std::function<void(MotionS
 void VisitMotionFlex(Flexbox& flexbox, const std::function<void(MotionShape&)>& visit) {
     for (FlexboxItem& item : flexbox.GetItems()) {
         if (item.kind == FlexItemKind::MotionShape) {
-            visit(item.motionShape);
+            visit(*item.motionShape);
         } else if (item.kind == FlexItemKind::Container && item.container) {
             VisitMotionContainer(*item.container, visit);
         } else if (item.kind == FlexItemKind::Flexbox && item.flexbox) {
@@ -1317,7 +1317,7 @@ void VisitMotionFlex(Flexbox& flexbox, const std::function<void(MotionShape&)>& 
 void VisitMotionGrid(Grid& grid, const std::function<void(MotionShape&)>& visit) {
     for (GridItem& item : grid.GetItems()) {
         if (item.kind == GridItemKind::MotionShape) {
-            visit(item.motionShape);
+            visit(*item.motionShape);
         } else if (item.kind == GridItemKind::Container && item.container) {
             VisitMotionContainer(*item.container, visit);
         } else if (item.kind == GridItemKind::Flexbox && item.flexbox) {
@@ -1331,7 +1331,7 @@ void VisitMotionGrid(Grid& grid, const std::function<void(MotionShape&)>& visit)
 void VisitMotionPosition(Position& position, const std::function<void(MotionShape&)>& visit) {
     for (PositionItem& item : position.GetItems()) {
         if (item.kind == PositionItemKind::MotionShape) {
-            visit(item.motionShape);
+            visit(*item.motionShape);
         } else if (item.kind == PositionItemKind::Container && item.container) {
             VisitMotionContainer(*item.container, visit);
         } else if (item.kind == PositionItemKind::Flexbox && item.flexbox) {
@@ -1366,11 +1366,11 @@ template <typename Visit>
 void VisitThemeFlex(Flexbox& flexbox, Visit& visit) {
     for (FlexboxItem& item : flexbox.GetItems()) {
         if (item.kind == FlexItemKind::ThemeToggle) {
-            visit(item.themeToggle);
+            visit(*item.themeToggle);
         } else if (item.kind == FlexItemKind::ThemeIconToggle) {
-            visit(item.themeIconToggle);
+            visit(*item.themeIconToggle);
         } else if (item.kind == FlexItemKind::TitleBar) {
-            visit(item.titleBar.ThemeIcon());
+            visit(item.titleBar->ThemeIcon());
         } else if (item.kind == FlexItemKind::Container && item.container) {
             VisitThemeContainer(*item.container, visit);
         } else if (item.kind == FlexItemKind::Flexbox && item.flexbox) {
@@ -1383,11 +1383,11 @@ template <typename Visit>
 void VisitThemeGrid(Grid& grid, Visit& visit) {
     for (GridItem& item : grid.GetItems()) {
         if (item.kind == GridItemKind::ThemeToggle) {
-            visit(item.themeToggle);
+            visit(*item.themeToggle);
         } else if (item.kind == GridItemKind::ThemeIconToggle) {
-            visit(item.themeIconToggle);
+            visit(*item.themeIconToggle);
         } else if (item.kind == GridItemKind::TitleBar) {
-            visit(item.titleBar.ThemeIcon());
+            visit(item.titleBar->ThemeIcon());
         } else if (item.kind == GridItemKind::Container && item.container) {
             VisitThemeContainer(*item.container, visit);
         } else if (item.kind == GridItemKind::Flexbox && item.flexbox) {
@@ -1402,11 +1402,11 @@ template <typename Visit>
 void VisitThemePosition(Position& position, Visit& visit) {
     for (PositionItem& item : position.GetItems()) {
         if (item.kind == PositionItemKind::ThemeToggle) {
-            visit(item.themeToggle);
+            visit(*item.themeToggle);
         } else if (item.kind == PositionItemKind::ThemeIconToggle) {
-            visit(item.themeIconToggle);
+            visit(*item.themeIconToggle);
         } else if (item.kind == PositionItemKind::TitleBar) {
-            visit(item.titleBar.ThemeIcon());
+            visit(item.titleBar->ThemeIcon());
         } else if (item.kind == PositionItemKind::Container && item.container) {
             VisitThemeContainer(*item.container, visit);
         } else if (item.kind == PositionItemKind::Flexbox && item.flexbox) {
@@ -1423,11 +1423,11 @@ template <typename Visit>
 void VisitSceneThemes(std::vector<SceneItem>& items, const std::string& paneId, Visit& visit) {
     for (SceneItem& item : items) {
         if (item.kind == SceneItemKind::ThemeToggle) {
-            visit(item.themeToggle);
+            visit(*item.themeToggle);
         } else if (item.kind == SceneItemKind::ThemeIconToggle) {
-            visit(item.themeIconToggle);
+            visit(*item.themeIconToggle);
         } else if (item.kind == SceneItemKind::TitleBar) {
-            visit(item.titleBar.ThemeIcon());
+            visit(item.titleBar->ThemeIcon());
         } else if (item.kind == SceneItemKind::Container && item.container) {
             if (!item.container->ShownWhen().empty() && item.container->ShownWhen() != paneId) {
                 continue;
@@ -1447,7 +1447,7 @@ void VisitSceneMotion(std::vector<SceneItem>& items, const std::string& paneId,
                       const std::function<void(MotionShape&)>& visit) {
     for (SceneItem& item : items) {
         if (item.kind == SceneItemKind::MotionShape) {
-            visit(item.motionShape);
+            visit(*item.motionShape);
         } else if (item.kind == SceneItemKind::Container && item.container) {
             if (!item.container->ShownWhen().empty() && item.container->ShownWhen() != paneId) {
                 continue;
@@ -1489,9 +1489,9 @@ MotionShape* FindThemeMotionFlex(Flexbox& flexbox, float x, float y) {
             if (MotionShape* found = FindThemeMotionFlex(*item.flexbox, x, y)) {
                 return found;
             }
-        } else if (item.kind == FlexItemKind::MotionShape && item.motionShape.TogglesTheme() &&
-                   item.motionShape.Bounds().Contains(x, y)) {
-            return &item.motionShape;
+        } else if (item.kind == FlexItemKind::MotionShape && item.motionShape->TogglesTheme() &&
+                   item.motionShape->Bounds().Contains(x, y)) {
+            return item.motionShape.get();
         }
     }
     return nullptr;
@@ -1513,9 +1513,9 @@ MotionShape* FindThemeMotionGrid(Grid& grid, float x, float y) {
             if (MotionShape* found = FindThemeMotionGrid(*item.grid, x, y)) {
                 return found;
             }
-        } else if (item.kind == GridItemKind::MotionShape && item.motionShape.TogglesTheme() &&
-                   item.motionShape.Bounds().Contains(x, y)) {
-            return &item.motionShape;
+        } else if (item.kind == GridItemKind::MotionShape && item.motionShape->TogglesTheme() &&
+                   item.motionShape->Bounds().Contains(x, y)) {
+            return item.motionShape.get();
         }
     }
     return nullptr;
@@ -1541,9 +1541,9 @@ MotionShape* FindThemeMotionPosition(Position& position, float x, float y) {
             if (MotionShape* found = FindThemeMotionPosition(*item.position, x, y)) {
                 return found;
             }
-        } else if (item.kind == PositionItemKind::MotionShape && item.motionShape.TogglesTheme() &&
-                   item.motionShape.Bounds().Contains(x, y)) {
-            return &item.motionShape;
+        } else if (item.kind == PositionItemKind::MotionShape && item.motionShape->TogglesTheme() &&
+                   item.motionShape->Bounds().Contains(x, y)) {
+            return item.motionShape.get();
         }
     }
     return nullptr;
@@ -1568,9 +1568,9 @@ MotionShape* FindThemeMotionScene(std::vector<SceneItem>& items, float x, float 
             if (MotionShape* found = FindThemeMotionPosition(*item.position, x, y)) {
                 return found;
             }
-        } else if (item.kind == SceneItemKind::MotionShape && item.motionShape.TogglesTheme() &&
-                   item.motionShape.Bounds().Contains(x, y)) {
-            return &item.motionShape;
+        } else if (item.kind == SceneItemKind::MotionShape && item.motionShape->TogglesTheme() &&
+                   item.motionShape->Bounds().Contains(x, y)) {
+            return item.motionShape.get();
         }
     }
     return nullptr;
@@ -1658,11 +1658,11 @@ SidebarItem* FindPaneInFlexbox(Flexbox& flexbox, float x, float y) {
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         FlexboxItem& item = items[static_cast<std::size_t>(i)];
         if (item.kind == FlexItemKind::SidebarItem) {
-            if (SidebarItem* found = HitPane(item.sidebarItem, x, y)) {
+            if (SidebarItem* found = HitPane(*item.sidebarItem, x, y)) {
                 return found;
             }
         } else if (item.kind == FlexItemKind::Sidebar) {
-            if (SidebarItem* found = item.sidebar.HitItem(x, y)) {
+            if (SidebarItem* found = item.sidebar->HitItem(x, y)) {
                 return found;
             }
         } else if (item.kind == FlexItemKind::Container && item.container) {
@@ -1683,11 +1683,11 @@ SidebarItem* FindPaneInGrid(Grid& grid, float x, float y) {
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         GridItem& item = items[static_cast<std::size_t>(i)];
         if (item.kind == GridItemKind::SidebarItem) {
-            if (SidebarItem* found = HitPane(item.sidebarItem, x, y)) {
+            if (SidebarItem* found = HitPane(*item.sidebarItem, x, y)) {
                 return found;
             }
         } else if (item.kind == GridItemKind::Sidebar) {
-            if (SidebarItem* found = item.sidebar.HitItem(x, y)) {
+            if (SidebarItem* found = item.sidebar->HitItem(x, y)) {
                 return found;
             }
         } else if (item.kind == GridItemKind::Container && item.container) {
@@ -1712,11 +1712,11 @@ SidebarItem* FindPaneInPosition(Position& position, float x, float y) {
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         PositionItem& item = items[static_cast<std::size_t>(i)];
         if (item.kind == PositionItemKind::SidebarItem) {
-            if (SidebarItem* found = HitPane(item.sidebarItem, x, y)) {
+            if (SidebarItem* found = HitPane(*item.sidebarItem, x, y)) {
                 return found;
             }
         } else if (item.kind == PositionItemKind::Sidebar) {
-            if (SidebarItem* found = item.sidebar.HitItem(x, y)) {
+            if (SidebarItem* found = item.sidebar->HitItem(x, y)) {
                 return found;
             }
         } else if (item.kind == PositionItemKind::Container && item.container) {
@@ -1779,12 +1779,12 @@ void AppendPaneSlotsContainer(Container& container, std::vector<FocusSlot>& out)
 
 void AppendPaneSlotsFlex(Flexbox& flexbox, std::vector<FocusSlot>& out) {
     for (FlexboxItem& item : flexbox.GetItems()) {
-        if (item.kind == FlexItemKind::SidebarItem && item.sidebarItem.CanActivate()) {
+        if (item.kind == FlexItemKind::SidebarItem && item.sidebarItem->CanActivate()) {
             FocusSlot slot;
-            slot.item = &item.sidebarItem;
+            slot.item = item.sidebarItem.get();
             out.push_back(slot);
         } else if (item.kind == FlexItemKind::Sidebar) {
-            AppendSidebarSlots(item.sidebar, out);
+            AppendSidebarSlots(*item.sidebar, out);
         } else if (item.kind == FlexItemKind::Container && item.container) {
             AppendPaneSlotsContainer(*item.container, out);
         } else if (item.kind == FlexItemKind::Flexbox && item.flexbox) {
@@ -1795,12 +1795,12 @@ void AppendPaneSlotsFlex(Flexbox& flexbox, std::vector<FocusSlot>& out) {
 
 void AppendPaneSlotsGrid(Grid& grid, std::vector<FocusSlot>& out) {
     for (GridItem& item : grid.GetItems()) {
-        if (item.kind == GridItemKind::SidebarItem && item.sidebarItem.CanActivate()) {
+        if (item.kind == GridItemKind::SidebarItem && item.sidebarItem->CanActivate()) {
             FocusSlot slot;
-            slot.item = &item.sidebarItem;
+            slot.item = item.sidebarItem.get();
             out.push_back(slot);
         } else if (item.kind == GridItemKind::Sidebar) {
-            AppendSidebarSlots(item.sidebar, out);
+            AppendSidebarSlots(*item.sidebar, out);
         } else if (item.kind == GridItemKind::Container && item.container) {
             AppendPaneSlotsContainer(*item.container, out);
         } else if (item.kind == GridItemKind::Flexbox && item.flexbox) {
@@ -1813,12 +1813,12 @@ void AppendPaneSlotsGrid(Grid& grid, std::vector<FocusSlot>& out) {
 
 void AppendPaneSlotsPosition(Position& position, std::vector<FocusSlot>& out) {
     for (PositionItem& item : position.GetItems()) {
-        if (item.kind == PositionItemKind::SidebarItem && item.sidebarItem.CanActivate()) {
+        if (item.kind == PositionItemKind::SidebarItem && item.sidebarItem->CanActivate()) {
             FocusSlot slot;
-            slot.item = &item.sidebarItem;
+            slot.item = item.sidebarItem.get();
             out.push_back(slot);
         } else if (item.kind == PositionItemKind::Sidebar) {
-            AppendSidebarSlots(item.sidebar, out);
+            AppendSidebarSlots(*item.sidebar, out);
         } else if (item.kind == PositionItemKind::Container && item.container) {
             AppendPaneSlotsContainer(*item.container, out);
         } else if (item.kind == PositionItemKind::Flexbox && item.flexbox) {
@@ -1954,49 +1954,49 @@ void RoboScene::AddSvg(Svg svg) {
 void RoboScene::AddBrandLogo(BrandLogo logo) {
     SceneItem item;
     item.kind = SceneItemKind::BrandLogo;
-    item.brandLogo = std::move(logo);
+    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddTitleBar(TitleBar bar) {
     SceneItem item;
     item.kind = SceneItemKind::TitleBar;
-    item.titleBar = std::move(bar);
+    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSidebar(Sidebar pane) {
     SceneItem item;
     item.kind = SceneItemKind::Sidebar;
-    item.sidebar = std::move(pane);
+    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSidebarItem(SidebarItem entry) {
     SceneItem item;
     item.kind = SceneItemKind::SidebarItem;
-    item.sidebarItem = std::move(entry);
+    item.sidebarItem = std::make_shared<SidebarItem>(std::move(entry));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddThemeToggle(ThemeToggle toggle) {
     SceneItem item;
     item.kind = SceneItemKind::ThemeToggle;
-    item.themeToggle = std::move(toggle);
+    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddThemeIconToggle(ThemeIconToggle toggle) {
     SceneItem item;
     item.kind = SceneItemKind::ThemeIconToggle;
-    item.themeIconToggle = std::move(toggle);
+    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSeparator(Separator separator) {
     SceneItem item;
     item.kind = SceneItemKind::Separator;
-    item.separator = std::move(separator);
+    item.separator = std::make_shared<Separator>(std::move(separator));
     items_.push_back(std::move(item));
 }
 
@@ -2197,7 +2197,7 @@ bool RoboScene::PointerContext(float x, float y) {
 void RoboScene::AddMotionShape(MotionShape shape) {
     SceneItem item;
     item.kind = SceneItemKind::MotionShape;
-    item.motionShape = std::move(shape);
+    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
     items_.push_back(std::move(item));
 }
 
@@ -2433,8 +2433,8 @@ void RoboScene::PullSidebarScroll(const Scrollbar* bar) {
         return;
     }
     for (SceneItem& item : items_) {
-        if (item.kind == SceneItemKind::Sidebar && &item.sidebar.PanelScrollbar() == bar) {
-            item.sidebar.PullPanelScroll();
+        if (item.kind == SceneItemKind::Sidebar && &item.sidebar->PanelScrollbar() == bar) {
+            item.sidebar->PullPanelScroll();
             return;
         }
     }
@@ -2812,7 +2812,7 @@ void RoboScene::CompositeDevKit() {
         const Color page = devKitScene_->GetBackground();
         for (SceneItem& item : devKitScene_->items_) {
             if (item.kind == SceneItemKind::Sidebar) {
-                devKitScene_->EnsureSelectedRailChildren(&item.sidebar);
+                devKitScene_->EnsureSelectedRailChildren(item.sidebar.get());
             }
         }
         devKitScene_->EnsurePaneContent();
@@ -3320,18 +3320,18 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
             } else if (item.kind == SceneItemKind::BrandLogo) {
                 const BrandLogoPaintResult painted =
-                    BrandLogoPainter::Paint(frame, fonts, item.brandLogo, columnX, cursorY, paintScale);
+                    BrandLogoPainter::Paint(frame, fonts, *item.brandLogo, columnX, cursorY, paintScale);
                 cursorY += painted.advanceY;
-                const BrandLogoMeasureResult measured = BrandLogoPainter::Measure(fonts, item.brandLogo, paintScale);
+                const BrandLogoMeasureResult measured = BrandLogoPainter::Measure(fonts, *item.brandLogo, paintScale);
                 contentRight = std::max(contentRight, columnX + measured.width + scrollX_);
             } else if (item.kind == SceneItemKind::TitleBar) {
-                item.titleBar.SetSidebarOpen(sidebarVisible_);
-                item.titleBar.SetSidebarAmount(sidebarAmount_);
+                item.titleBar->SetSidebarOpen(sidebarVisible_);
+                item.titleBar->SetSidebarAmount(sidebarAmount_);
                 const float barX = 0.0f;
                 const float barY = cursorY + scrollY_;
                 const float barWidth = static_cast<float>(width);
                 const TitleBarPaintResult painted =
-                    TitleBarPainter::Paint(frame, fonts, item.titleBar, barX, barY, barWidth, paintScale);
+                    TitleBarPainter::Paint(frame, fonts, *item.titleBar, barX, barY, barWidth, paintScale);
                 cursorY += painted.advanceY;
                 flowEdge = yBefore + painted.height;
                 edgeSet = true;
@@ -3345,10 +3345,10 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
             } else if (item.kind == SceneItemKind::Sidebar) {
                 const float surfaceTop = flowEdge + scrollY_;
                 const float sidebarHeight = std::max(0.0f, static_cast<float>(height) - horizontalReserve - surfaceTop);
-                const float paneWidth = item.sidebar.LayoutWidth(sidebarAmount_) * paintScale;
+                const float paneWidth = item.sidebar->LayoutWidth(sidebarAmount_) * paintScale;
                 if (paneWidth > 0.5f) {
                     frame.PushClipRect(columnX, surfaceTop, paneWidth, sidebarHeight);
-                    SidebarPainter::Paint(frame, fonts, item.sidebar, columnX, surfaceTop, sidebarHeight, paintScale, sidebarAmount_);
+                    SidebarPainter::Paint(frame, fonts, *item.sidebar, columnX, surfaceTop, sidebarHeight, paintScale, sidebarAmount_);
                     frame.PopClip();
                     columnX += paneWidth;
                     columnW = std::max(0.0f, columnW - paneWidth);
@@ -3357,35 +3357,35 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 edgeSet = true;
                 contentRight = std::max(contentRight, columnX + scrollX_);
             } else if (item.kind == SceneItemKind::SidebarItem) {
-                const SidebarItemMeasureResult measured = SidebarPainter::MeasureItem(fonts, item.sidebarItem, paintScale);
-                SidebarPainter::PaintItem(frame, fonts, item.sidebarItem, columnX, cursorY, measured.width, measured.height, paintScale, false);
+                const SidebarItemMeasureResult measured = SidebarPainter::MeasureItem(fonts, *item.sidebarItem, paintScale);
+                SidebarPainter::PaintItem(frame, fonts, *item.sidebarItem, columnX, cursorY, measured.width, measured.height, paintScale, false);
                 cursorY += measured.height + 8.0f * paintScale;
                 contentRight = std::max(contentRight, columnX + measured.width + scrollX_);
             } else if (item.kind == SceneItemKind::Separator) {
-                const bool vertical = item.separator.GetOrientation() == SeparatorOrientation::Vertical;
+                const bool vertical = item.separator->GetOrientation() == SeparatorOrientation::Vertical;
                 const SeparatorMeasureResult measured =
-                    SeparatorPainter::Measure(fonts, item.separator, columnW, 0.0f, paintScale);
+                    SeparatorPainter::Measure(fonts, *item.separator, columnW, 0.0f, paintScale);
                 const float boxWidth = vertical ? measured.width : columnW;
                 const float boxHeight = measured.height;
                 const SeparatorPaintResult painted =
-                    SeparatorPainter::Paint(frame, fonts, item.separator, columnX, cursorY, boxWidth, boxHeight, paintScale);
+                    SeparatorPainter::Paint(frame, fonts, *item.separator, columnX, cursorY, boxWidth, boxHeight, paintScale);
                 cursorY += painted.advanceY;
                 contentRight = std::max(contentRight, columnX + painted.width + scrollX_);
             } else if (item.kind == SceneItemKind::ThemeToggle) {
                 const ThemeTogglePaintResult painted =
-                    ThemeTogglePainter::Paint(frame, fonts, item.themeToggle, columnX, cursorY, columnW, paintScale);
+                    ThemeTogglePainter::Paint(frame, fonts, *item.themeToggle, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
-                contentRight = std::max(contentRight, columnX + item.themeToggle.GetBounds().width + scrollX_);
+                contentRight = std::max(contentRight, columnX + item.themeToggle->GetBounds().width + scrollX_);
             } else if (item.kind == SceneItemKind::ThemeIconToggle) {
                 const ThemeIconTogglePaintResult painted =
-                    ThemeIconTogglePainter::Paint(frame, item.themeIconToggle, columnX, cursorY, paintScale);
+                    ThemeIconTogglePainter::Paint(frame, *item.themeIconToggle, columnX, cursorY, paintScale);
                 cursorY += painted.advanceY;
-                contentRight = std::max(contentRight, columnX + item.themeIconToggle.GetBounds().width + scrollX_);
+                contentRight = std::max(contentRight, columnX + item.themeIconToggle->GetBounds().width + scrollX_);
             } else if (item.kind == SceneItemKind::MotionShape) {
-                item.motionShape.Paint(frame, columnX, cursorY, columnW, item.motionShape.Height() * paintScale, paintScale);
-                const float advance = item.motionShape.Height() * paintScale + 12.0f * paintScale;
+                item.motionShape->Paint(frame, columnX, cursorY, columnW, item.motionShape->Height() * paintScale, paintScale);
+                const float advance = item.motionShape->Height() * paintScale + 12.0f * paintScale;
                 cursorY += advance;
-                contentRight = std::max(contentRight, columnX + item.motionShape.Width() * paintScale + scrollX_);
+                contentRight = std::max(contentRight, columnX + item.motionShape->Width() * paintScale + scrollX_);
             } else if (item.kind == SceneItemKind::SelectionArea) {
                 float areaX = columnX;
                 float areaY = cursorY;
@@ -3627,8 +3627,8 @@ ThemeToggle* FindThemeToggleInFlexbox(Flexbox& flexbox, float x, float y) {
     std::vector<FlexboxItem>& items = flexbox.GetItems();
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         FlexboxItem& item = items[static_cast<std::size_t>(i)];
-        if (item.kind == FlexItemKind::ThemeToggle && item.themeToggle.GetBounds().Contains(x, y)) {
-            return &item.themeToggle;
+        if (item.kind == FlexItemKind::ThemeToggle && item.themeToggle->GetBounds().Contains(x, y)) {
+            return item.themeToggle.get();
         }
         if (item.kind == FlexItemKind::Container && item.container) {
             if (ThemeToggle* found = FindThemeToggleInContainer(*item.container, x, y)) {
@@ -3647,11 +3647,11 @@ ThemeIconToggle* FindThemeIconInFlexbox(Flexbox& flexbox, float x, float y) {
     std::vector<FlexboxItem>& items = flexbox.GetItems();
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         FlexboxItem& item = items[static_cast<std::size_t>(i)];
-        if (item.kind == FlexItemKind::ThemeIconToggle && item.themeIconToggle.GetBounds().Contains(x, y)) {
-            return &item.themeIconToggle;
+        if (item.kind == FlexItemKind::ThemeIconToggle && item.themeIconToggle->GetBounds().Contains(x, y)) {
+            return item.themeIconToggle.get();
         }
-        if (item.kind == FlexItemKind::TitleBar && item.titleBar.ThemeIcon().GetBounds().Contains(x, y)) {
-            return &item.titleBar.ThemeIcon();
+        if (item.kind == FlexItemKind::TitleBar && item.titleBar->ThemeIcon().GetBounds().Contains(x, y)) {
+            return &item.titleBar->ThemeIcon();
         }
         if (item.kind == FlexItemKind::Container && item.container) {
             if (ThemeIconToggle* found = FindThemeIconInContainer(*item.container, x, y)) {
@@ -3670,8 +3670,8 @@ ThemeToggle* FindThemeToggleInGrid(Grid& grid, float x, float y) {
     std::vector<GridItem>& items = grid.GetItems();
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         GridItem& item = items[static_cast<std::size_t>(i)];
-        if (item.kind == GridItemKind::ThemeToggle && item.themeToggle.GetBounds().Contains(x, y)) {
-            return &item.themeToggle;
+        if (item.kind == GridItemKind::ThemeToggle && item.themeToggle->GetBounds().Contains(x, y)) {
+            return item.themeToggle.get();
         }
         if (item.kind == GridItemKind::Container && item.container) {
             if (ThemeToggle* found = FindThemeToggleInContainer(*item.container, x, y)) {
@@ -3694,11 +3694,11 @@ ThemeIconToggle* FindThemeIconInGrid(Grid& grid, float x, float y) {
     std::vector<GridItem>& items = grid.GetItems();
     for (int i = static_cast<int>(items.size()) - 1; i >= 0; --i) {
         GridItem& item = items[static_cast<std::size_t>(i)];
-        if (item.kind == GridItemKind::ThemeIconToggle && item.themeIconToggle.GetBounds().Contains(x, y)) {
-            return &item.themeIconToggle;
+        if (item.kind == GridItemKind::ThemeIconToggle && item.themeIconToggle->GetBounds().Contains(x, y)) {
+            return item.themeIconToggle.get();
         }
-        if (item.kind == GridItemKind::TitleBar && item.titleBar.ThemeIcon().GetBounds().Contains(x, y)) {
-            return &item.titleBar.ThemeIcon();
+        if (item.kind == GridItemKind::TitleBar && item.titleBar->ThemeIcon().GetBounds().Contains(x, y)) {
+            return &item.titleBar->ThemeIcon();
         }
         if (item.kind == GridItemKind::Container && item.container) {
             if (ThemeIconToggle* found = FindThemeIconInContainer(*item.container, x, y)) {
@@ -3719,8 +3719,8 @@ ThemeIconToggle* FindThemeIconInGrid(Grid& grid, float x, float y) {
 
 ThemeToggle* FindThemeToggleInPosition(Position& position, float x, float y) {
     for (PositionItem& item : position.GetItems()) {
-        if (item.kind == PositionItemKind::ThemeToggle && item.themeToggle.GetBounds().Contains(x, y)) {
-            return &item.themeToggle;
+        if (item.kind == PositionItemKind::ThemeToggle && item.themeToggle->GetBounds().Contains(x, y)) {
+            return item.themeToggle.get();
         }
         if (item.kind == PositionItemKind::Container && item.container) {
             if (ThemeToggle* found = FindThemeToggleInContainer(*item.container, x, y)) {
@@ -3745,11 +3745,11 @@ ThemeToggle* FindThemeToggleInPosition(Position& position, float x, float y) {
 
 ThemeIconToggle* FindThemeIconInPosition(Position& position, float x, float y) {
     for (PositionItem& item : position.GetItems()) {
-        if (item.kind == PositionItemKind::ThemeIconToggle && item.themeIconToggle.GetBounds().Contains(x, y)) {
-            return &item.themeIconToggle;
+        if (item.kind == PositionItemKind::ThemeIconToggle && item.themeIconToggle->GetBounds().Contains(x, y)) {
+            return item.themeIconToggle.get();
         }
-        if (item.kind == PositionItemKind::TitleBar && item.titleBar.ThemeIcon().GetBounds().Contains(x, y)) {
-            return &item.titleBar.ThemeIcon();
+        if (item.kind == PositionItemKind::TitleBar && item.titleBar->ThemeIcon().GetBounds().Contains(x, y)) {
+            return &item.titleBar->ThemeIcon();
         }
         if (item.kind == PositionItemKind::Container && item.container) {
             if (ThemeIconToggle* found = FindThemeIconInContainer(*item.container, x, y)) {
@@ -3823,15 +3823,15 @@ bool SyncHotInFlexbox(Flexbox& flexbox, float x, float y) {
     bool changed = false;
     for (FlexboxItem& item : flexbox.GetItems()) {
         if (item.kind == FlexItemKind::ThemeIconToggle) {
-            const ThemeIconHot next = HotFor(item.themeIconToggle, x, y);
-            if (item.themeIconToggle.GetHot() != next) {
-                item.themeIconToggle.SetHot(next);
+            const ThemeIconHot next = HotFor(*item.themeIconToggle, x, y);
+            if (item.themeIconToggle->GetHot() != next) {
+                item.themeIconToggle->SetHot(next);
                 changed = true;
             }
         } else if (item.kind == FlexItemKind::TitleBar) {
-            const ThemeIconHot next = HotFor(item.titleBar.ThemeIcon(), x, y);
-            if (item.titleBar.ThemeIcon().GetHot() != next) {
-                item.titleBar.ThemeIcon().SetHot(next);
+            const ThemeIconHot next = HotFor(item.titleBar->ThemeIcon(), x, y);
+            if (item.titleBar->ThemeIcon().GetHot() != next) {
+                item.titleBar->ThemeIcon().SetHot(next);
                 changed = true;
             }
         } else if (item.kind == FlexItemKind::Container && item.container) {
@@ -3847,15 +3847,15 @@ bool SyncHotInGrid(Grid& grid, float x, float y) {
     bool changed = false;
     for (GridItem& item : grid.GetItems()) {
         if (item.kind == GridItemKind::ThemeIconToggle) {
-            const ThemeIconHot next = HotFor(item.themeIconToggle, x, y);
-            if (item.themeIconToggle.GetHot() != next) {
-                item.themeIconToggle.SetHot(next);
+            const ThemeIconHot next = HotFor(*item.themeIconToggle, x, y);
+            if (item.themeIconToggle->GetHot() != next) {
+                item.themeIconToggle->SetHot(next);
                 changed = true;
             }
         } else if (item.kind == GridItemKind::TitleBar) {
-            const ThemeIconHot next = HotFor(item.titleBar.ThemeIcon(), x, y);
-            if (item.titleBar.ThemeIcon().GetHot() != next) {
-                item.titleBar.ThemeIcon().SetHot(next);
+            const ThemeIconHot next = HotFor(item.titleBar->ThemeIcon(), x, y);
+            if (item.titleBar->ThemeIcon().GetHot() != next) {
+                item.titleBar->ThemeIcon().SetHot(next);
                 changed = true;
             }
         } else if (item.kind == GridItemKind::Container && item.container) {
@@ -3873,15 +3873,15 @@ bool SyncHotInPosition(Position& position, float x, float y) {
     bool changed = false;
     for (PositionItem& item : position.GetItems()) {
         if (item.kind == PositionItemKind::ThemeIconToggle) {
-            const ThemeIconHot next = HotFor(item.themeIconToggle, x, y);
-            if (item.themeIconToggle.GetHot() != next) {
-                item.themeIconToggle.SetHot(next);
+            const ThemeIconHot next = HotFor(*item.themeIconToggle, x, y);
+            if (item.themeIconToggle->GetHot() != next) {
+                item.themeIconToggle->SetHot(next);
                 changed = true;
             }
         } else if (item.kind == PositionItemKind::TitleBar) {
-            const ThemeIconHot next = HotFor(item.titleBar.ThemeIcon(), x, y);
-            if (item.titleBar.ThemeIcon().GetHot() != next) {
-                item.titleBar.ThemeIcon().SetHot(next);
+            const ThemeIconHot next = HotFor(item.titleBar->ThemeIcon(), x, y);
+            if (item.titleBar->ThemeIcon().GetHot() != next) {
+                item.titleBar->ThemeIcon().SetHot(next);
                 changed = true;
             }
         } else if (item.kind == PositionItemKind::Container && item.container) {
@@ -3910,8 +3910,8 @@ bool SyncHotInContainer(Container& container, float x, float y) {
 ThemeToggle* RoboScene::FindThemeToggleAt(float x, float y) {
     for (int i = static_cast<int>(items_.size()) - 1; i >= 0; --i) {
         SceneItem& item = items_[static_cast<std::size_t>(i)];
-        if (item.kind == SceneItemKind::ThemeToggle && item.themeToggle.GetBounds().Contains(x, y)) {
-            return &item.themeToggle;
+        if (item.kind == SceneItemKind::ThemeToggle && item.themeToggle->GetBounds().Contains(x, y)) {
+            return item.themeToggle.get();
         }
         if (item.kind == SceneItemKind::Container) {
             if (ThemeToggle* found = FindThemeToggleInContainer(*item.container, x, y)) {
@@ -3937,11 +3937,11 @@ ThemeToggle* RoboScene::FindThemeToggleAt(float x, float y) {
 ThemeIconToggle* RoboScene::FindThemeIconToggleAt(float x, float y) {
     for (int i = static_cast<int>(items_.size()) - 1; i >= 0; --i) {
         SceneItem& item = items_[static_cast<std::size_t>(i)];
-        if (item.kind == SceneItemKind::ThemeIconToggle && item.themeIconToggle.GetBounds().Contains(x, y)) {
-            return &item.themeIconToggle;
+        if (item.kind == SceneItemKind::ThemeIconToggle && item.themeIconToggle->GetBounds().Contains(x, y)) {
+            return item.themeIconToggle.get();
         }
-        if (item.kind == SceneItemKind::TitleBar && item.titleBar.ThemeIcon().GetBounds().Contains(x, y)) {
-            return &item.titleBar.ThemeIcon();
+        if (item.kind == SceneItemKind::TitleBar && item.titleBar->ThemeIcon().GetBounds().Contains(x, y)) {
+            return &item.titleBar->ThemeIcon();
         }
         if (item.kind == SceneItemKind::Container) {
             if (ThemeIconToggle* found = FindThemeIconInContainer(*item.container, x, y)) {
@@ -3976,18 +3976,18 @@ bool SyncThemeHot(RoboScene& scene, std::vector<SceneItem>& items, const std::st
     bool changed = false;
     for (SceneItem& item : items) {
         if (item.kind == SceneItemKind::ThemeIconToggle) {
-            const ThemeIconHot next = HotFor(item.themeIconToggle, x, y);
-            if (item.themeIconToggle.GetHot() != next) {
-                item.themeIconToggle.SetHot(next);
-                const ThemeToggleBounds& bounds = item.themeIconToggle.GetBounds();
+            const ThemeIconHot next = HotFor(*item.themeIconToggle, x, y);
+            if (item.themeIconToggle->GetHot() != next) {
+                item.themeIconToggle->SetHot(next);
+                const ThemeToggleBounds& bounds = item.themeIconToggle->GetBounds();
                 DirtyThemeControl(scene, bounds.x, bounds.y, bounds.width, bounds.height);
                 changed = true;
             }
         } else if (item.kind == SceneItemKind::TitleBar) {
-            const ThemeIconHot next = HotFor(item.titleBar.ThemeIcon(), x, y);
-            if (item.titleBar.ThemeIcon().GetHot() != next) {
-                item.titleBar.ThemeIcon().SetHot(next);
-                const ThemeToggleBounds& bounds = item.titleBar.ThemeIcon().GetBounds();
+            const ThemeIconHot next = HotFor(item.titleBar->ThemeIcon(), x, y);
+            if (item.titleBar->ThemeIcon().GetHot() != next) {
+                item.titleBar->ThemeIcon().SetHot(next);
+                const ThemeToggleBounds& bounds = item.titleBar->ThemeIcon().GetBounds();
                 DirtyThemeControl(scene, bounds.x, bounds.y, bounds.width, bounds.height);
                 changed = true;
             }
@@ -4031,8 +4031,8 @@ Button* RoboScene::FindButtonAt(float x, float y) {
                 return &item.button;
             }
         } else if (item.kind == SceneItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == SceneItemKind::Container) {
             if (!PaneIsActive(*item.container)) {
@@ -4124,7 +4124,7 @@ Scrollbar* RoboScene::FindScrollbarAt(float x, float y) {
     for (int i = static_cast<int>(items_.size()) - 1; i >= 0; --i) {
         SceneItem& item = items_[static_cast<std::size_t>(i)];
         if (item.kind == SceneItemKind::Sidebar) {
-            Scrollbar& bar = item.sidebar.PanelScrollbar();
+            Scrollbar& bar = item.sidebar->PanelScrollbar();
             if (bar.IsVisible() && bar.GetBounds().Contains(x, y)) {
                 return &bar;
             }
@@ -4168,8 +4168,8 @@ const Button* RoboScene::FindButtonAt(float x, float y) const {
                 return &item.button;
             }
         } else if (item.kind == SceneItemKind::TitleBar) {
-            if (item.titleBar.SidebarButton().GetBounds().Contains(x, y)) {
-                return &item.titleBar.SidebarButton();
+            if (item.titleBar->SidebarButton().GetBounds().Contains(x, y)) {
+                return &item.titleBar->SidebarButton();
             }
         } else if (item.kind == SceneItemKind::Container) {
             if (!PaneIsActive(*item.container)) {
@@ -4241,7 +4241,7 @@ const Scrollbar* RoboScene::FindScrollbarAt(float x, float y) const {
     for (int i = static_cast<int>(items_.size()) - 1; i >= 0; --i) {
         const SceneItem& item = items_[static_cast<std::size_t>(i)];
         if (item.kind == SceneItemKind::Sidebar) {
-            const Scrollbar& bar = item.sidebar.PanelScrollbar();
+            const Scrollbar& bar = item.sidebar->PanelScrollbar();
             if (bar.IsVisible() && bar.GetBounds().Contains(x, y)) {
                 return &bar;
             }
@@ -4393,7 +4393,7 @@ bool RoboScene::Wheel(float x, float y, float deltaX, float deltaY) {
     }
     if (std::fabs(deltaY) >= std::fabs(deltaX)) {
         for (SceneItem& item : items_) {
-            if (item.kind == SceneItemKind::Sidebar && item.sidebar.Contains(x, y) && item.sidebar.ScrollBy(deltaY, x)) {
+            if (item.kind == SceneItemKind::Sidebar && item.sidebar->Contains(x, y) && item.sidebar->ScrollBy(deltaY, x)) {
                 MarkSurfaceDirty();
                 return true;
             }
@@ -4531,7 +4531,7 @@ HitKind RoboScene::HitTestKind(float x, float y) const {
         return HitKind::Theme;
     }
     for (const SceneItem& item : items_) {
-        if (item.kind == SceneItemKind::Sidebar && item.sidebar.HitRailArrow(x, y) != SidebarRailArrow::None) {
+        if (item.kind == SceneItemKind::Sidebar && item.sidebar->HitRailArrow(x, y) != SidebarRailArrow::None) {
             return HitKind::Button;
         }
     }
@@ -4667,12 +4667,12 @@ SidebarItem* RoboScene::FindSidebarItemAt(float x, float y) {
     for (int i = static_cast<int>(items_.size()) - 1; i >= 0; --i) {
         SceneItem& item = items_[static_cast<std::size_t>(i)];
         if (item.kind == SceneItemKind::Sidebar) {
-            if (SidebarItem* found = item.sidebar.HitItem(x, y)) {
+            if (SidebarItem* found = item.sidebar->HitItem(x, y)) {
                 return found;
             }
         } else if (item.kind == SceneItemKind::SidebarItem) {
-            if (item.sidebarItem.CanActivate() && item.sidebarItem.GetBounds().Contains(x, y)) {
-                return &item.sidebarItem;
+            if (item.sidebarItem->CanActivate() && item.sidebarItem->GetBounds().Contains(x, y)) {
+                return item.sidebarItem.get();
             }
         } else if (item.kind == SceneItemKind::Container && item.container) {
             if (SidebarItem* found = FindPaneInContainer(*item.container, x, y)) {
@@ -4767,9 +4767,9 @@ bool RoboScene::UpdateRailArrows(float x, float y) {
         if (item.kind != SceneItemKind::Sidebar) {
             continue;
         }
-        const SidebarRailArrow hit = item.sidebar.HitRailArrow(x, y);
-        if (item.sidebar.SetHotRailArrow(hit)) {
-            DirtyRailArrows(item.sidebar);
+        const SidebarRailArrow hit = item.sidebar->HitRailArrow(x, y);
+        if (item.sidebar->SetHotRailArrow(hit)) {
+            DirtyRailArrows(*item.sidebar);
             changed = true;
         }
     }
@@ -4782,14 +4782,14 @@ bool RoboScene::PressRailArrow(float x, float y) {
         if (item.kind != SceneItemKind::Sidebar) {
             continue;
         }
-        const SidebarRailArrow hit = item.sidebar.HitRailArrow(x, y);
+        const SidebarRailArrow hit = item.sidebar->HitRailArrow(x, y);
         if (hit == SidebarRailArrow::None) {
             continue;
         }
-        item.sidebar.SetPressedRailArrow(hit);
-        item.sidebar.SetHotRailArrow(hit);
-        item.sidebar.StepRail(hit);
-        DirtyRailArrows(item.sidebar);
+        item.sidebar->SetPressedRailArrow(hit);
+        item.sidebar->SetHotRailArrow(hit);
+        item.sidebar->StepRail(hit);
+        DirtyRailArrows(*item.sidebar);
         pressed = true;
     }
     if (!pressed) {
@@ -4809,8 +4809,8 @@ bool RoboScene::ReleaseRailArrows() {
         if (item.kind != SceneItemKind::Sidebar) {
             continue;
         }
-        if (item.sidebar.SetPressedRailArrow(SidebarRailArrow::None)) {
-            DirtyRailArrows(item.sidebar);
+        if (item.sidebar->SetPressedRailArrow(SidebarRailArrow::None)) {
+            DirtyRailArrows(*item.sidebar);
             changed = true;
         }
     }
@@ -4825,13 +4825,13 @@ Sidebar* RoboScene::SidebarOwning(SidebarItem* item) {
         if (scene.kind != SceneItemKind::Sidebar) {
             continue;
         }
-        if (scene.sidebar.IndexOf(item) >= 0) {
-            return &scene.sidebar;
+        if (scene.sidebar->IndexOf(item) >= 0) {
+            return scene.sidebar.get();
         }
-        for (SidebarItem& row : scene.sidebar.Items()) {
+        for (SidebarItem& row : scene.sidebar->Items()) {
             for (SidebarItem& child : row.Children()) {
                 if (&child == item) {
-                    return &scene.sidebar;
+                    return scene.sidebar.get();
                 }
             }
         }
@@ -4887,7 +4887,7 @@ const std::string& RoboScene::ActivePaneId() {
         if (scene.kind != SceneItemKind::Sidebar) {
             continue;
         }
-        for (const SidebarItem& row : scene.sidebar.Items()) {
+        for (const SidebarItem& row : scene.sidebar->Items()) {
             if (!row.GetId().empty() && row.IsSelected()) {
                 activePaneId_ = row.GetId();
                 return activePaneId_;
@@ -4943,7 +4943,7 @@ void RoboScene::CollectButtons(std::vector<Button*>& out) {
         if (item.kind == SceneItemKind::Button) {
             out.push_back(&item.button);
         } else if (item.kind == SceneItemKind::TitleBar) {
-            out.push_back(&item.titleBar.SidebarButton());
+            out.push_back(&item.titleBar->SidebarButton());
         } else if (item.kind == SceneItemKind::Container && item.container) {
             if (!item.container->ShownWhen().empty() && item.container->ShownWhen() != ActivePaneId()) {
                 continue;
@@ -4964,7 +4964,7 @@ bool RoboScene::IsSidebarToggle(const Button* button) const {
         return false;
     }
     for (const SceneItem& item : items_) {
-        if (item.kind == SceneItemKind::TitleBar && &item.titleBar.SidebarButton() == button) {
+        if (item.kind == SceneItemKind::TitleBar && &item.titleBar->SidebarButton() == button) {
             return true;
         }
     }
@@ -5103,15 +5103,15 @@ bool RoboScene::KeyDown(const std::string& key, bool shift) {
                 FocusSlot slot;
                 slot.button = &scene.button;
                 slots.push_back(slot);
-            } else if (scene.kind == SceneItemKind::TitleBar && scene.titleBar.SidebarButton().CanActivate()) {
+            } else if (scene.kind == SceneItemKind::TitleBar && scene.titleBar->SidebarButton().CanActivate()) {
                 FocusSlot slot;
-                slot.button = &scene.titleBar.SidebarButton();
+                slot.button = &scene.titleBar->SidebarButton();
                 slots.push_back(slot);
             } else if (scene.kind == SceneItemKind::Sidebar) {
-                AppendSidebarSlots(scene.sidebar, slots);
-            } else if (scene.kind == SceneItemKind::SidebarItem && scene.sidebarItem.CanActivate()) {
+                AppendSidebarSlots(*scene.sidebar, slots);
+            } else if (scene.kind == SceneItemKind::SidebarItem && scene.sidebarItem->CanActivate()) {
                 FocusSlot slot;
-                slot.item = &scene.sidebarItem;
+                slot.item = scene.sidebarItem.get();
                 slots.push_back(slot);
             } else if (scene.kind == SceneItemKind::Container && scene.container) {
                 std::vector<Button*> buttons;
@@ -5903,7 +5903,7 @@ bool RoboScene::Tick(double deltaMs) {
         if (item.kind == SceneItemKind::SelectionArea) {
             item.selectionArea.Advance(static_cast<float>(deltaMs));
         }
-        if (item.kind == SceneItemKind::Sidebar && item.sidebar.TickRail(deltaMs)) {
+        if (item.kind == SceneItemKind::Sidebar && item.sidebar->TickRail(deltaMs)) {
             contentMoved = true;
             changed = true;
         }
@@ -6071,7 +6071,7 @@ bool RoboScene::NeedsTick() {
     };
     VisitSceneScrollbars(items_, activePaneId_, visit);
     for (const SceneItem& item : items_) {
-        if (item.kind == SceneItemKind::Sidebar && item.sidebar.RailNeedsTick()) {
+        if (item.kind == SceneItemKind::Sidebar && item.sidebar->RailNeedsTick()) {
             needsTick = true;
         }
     }

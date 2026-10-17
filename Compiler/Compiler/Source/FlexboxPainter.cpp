@@ -41,6 +41,17 @@ float ParseDimension(const std::string& value, float parentSize, float fallback,
     return static_cast<float>(std::atof(value.c_str())) * scale;
 }
 
+float ResolvePropLength(bool hasLength, const Length& length, const std::string& legacy, float parentSize,
+                        float fallback, float scale) {
+    if (hasLength && !length.IsAuto()) {
+        return length.Resolve(parentSize / scale, 1.0f) * scale;
+    }
+    if (!legacy.empty() && legacy != "auto") {
+        return ParseDimension(legacy, parentSize, fallback, scale);
+    }
+    return fallback;
+}
+
 void FillRoundedRect(FrameBuffer& buffer,
                      float x,
                      float y,
@@ -234,7 +245,8 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
         switch (item.kind) {
             case FlexItemKind::Text: {
                 const float availW = hasExplicitWidth
-                    ? ParseDimension(item.props.width, innerW, innerW, scale)
+                    ? ResolvePropLength(item.props.hasWidthLength, item.props.widthLength, item.props.width, innerW,
+                                        innerW, scale)
                     : (isRow ? 100000.0f : innerW);
                 TextMeasureResult measured = TextPainter::Measure(fonts, item.text, availW, scale);
                 child.baseWidth = measured.width;
@@ -248,52 +260,52 @@ ComputedFlexLayout ComputeLayout(const FontEngine& fonts,
                 break;
             }
             case FlexItemKind::BrandLogo: {
-                BrandLogoMeasureResult measured = BrandLogoPainter::Measure(fonts, item.brandLogo, scale);
+                BrandLogoMeasureResult measured = BrandLogoPainter::Measure(fonts, *item.brandLogo, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::TitleBar: {
-                TitleBarMeasureResult measured = TitleBarPainter::Measure(fonts, item.titleBar, innerW, scale);
+                TitleBarMeasureResult measured = TitleBarPainter::Measure(fonts, *item.titleBar, innerW, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::Sidebar: {
                 const float offered = forcedHeight > 0.0f ? std::max(0.0f, forcedHeight - padT - padB) : 0.0f;
-                SidebarMeasureResult measured = SidebarPainter::Measure(item.sidebar, offered, scale);
+                SidebarMeasureResult measured = SidebarPainter::Measure(*item.sidebar, offered, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::SidebarItem: {
-                SidebarItemMeasureResult measured = SidebarPainter::MeasureItem(fonts, item.sidebarItem, scale);
+                SidebarItemMeasureResult measured = SidebarPainter::MeasureItem(fonts, *item.sidebarItem, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::ThemeToggle: {
-                ThemeToggleMeasureResult measured = ThemeTogglePainter::Measure(fonts, item.themeToggle, innerW, scale);
+                ThemeToggleMeasureResult measured = ThemeTogglePainter::Measure(fonts, *item.themeToggle, innerW, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::ThemeIconToggle: {
-                ThemeIconToggleMeasureResult measured = ThemeIconTogglePainter::Measure(item.themeIconToggle, scale);
+                ThemeIconToggleMeasureResult measured = ThemeIconTogglePainter::Measure(*item.themeIconToggle, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::Separator: {
                 const float offeredH = forcedHeight > 0.0f ? std::max(0.0f, forcedHeight - padT - padB) : 0.0f;
-                SeparatorMeasureResult measured = SeparatorPainter::Measure(fonts, item.separator, innerW, offeredH, scale);
+                SeparatorMeasureResult measured = SeparatorPainter::Measure(fonts, *item.separator, innerW, offeredH, scale);
                 child.baseWidth = measured.width;
                 child.baseHeight = measured.height;
                 break;
             }
             case FlexItemKind::MotionShape: {
-                child.baseWidth = item.motionShape.Width() * scale;
-                child.baseHeight = item.motionShape.Height() * scale;
+                child.baseWidth = item.motionShape->Width() * scale;
+                child.baseHeight = item.motionShape->Height() * scale;
                 break;
             }
             case FlexItemKind::Button: {
@@ -710,13 +722,16 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
     FlexboxStyle style = flexbox.GetStyle();
     Resolve(style);
 
-    ComputedFlexLayout layout;
+    const ComputedFlexLayout* layoutPtr = nullptr;
+    ComputedFlexLayout layoutOwned;
     if (flexbox.HasLayoutCache(containerWidth, scale, forcedWidth, forcedHeight)) {
-        layout = flexbox.LayoutCache();
+        layoutPtr = &flexbox.LayoutCache();
     } else {
-        layout = ComputeLayout(fonts, flexbox, containerWidth, scale, forcedWidth, forcedHeight);
-        flexbox.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, layout);
+        layoutOwned = ComputeLayout(fonts, flexbox, containerWidth, scale, forcedWidth, forcedHeight);
+        flexbox.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, std::move(layoutOwned));
+        layoutPtr = &flexbox.LayoutCache();
     }
+    const ComputedFlexLayout& layout = *layoutPtr;
     flexbox.SetNeedsPaint(false);
 
     const float containerX = originX + style.marginLeft * scale;
@@ -749,8 +764,8 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
 
     std::vector<FlexboxItem>& items = flexbox.GetItems();
 
-    for (FlexLine& line : layout.lines) {
-        for (MeasuredFlexChild& child : line.children) {
+    for (const FlexLine& line : layout.lines) {
+        for (const MeasuredFlexChild& child : line.children) {
             FlexboxItem& item = items[child.itemIndex];
             const float childX = containerX + child.finalX;
             const float childY = containerY + child.finalY;
@@ -767,35 +782,35 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
                     break;
                 }
                 case FlexItemKind::BrandLogo: {
-                    BrandLogoPainter::Paint(buffer, fonts, item.brandLogo, childX, childY, scale);
+                    BrandLogoPainter::Paint(buffer, fonts, *item.brandLogo, childX, childY, scale);
                     break;
                 }
                 case FlexItemKind::TitleBar: {
-                    TitleBarPainter::Paint(buffer, fonts, item.titleBar, childX, childY, childW, scale);
+                    TitleBarPainter::Paint(buffer, fonts, *item.titleBar, childX, childY, childW, scale);
                     break;
                 }
                 case FlexItemKind::Sidebar: {
-                    SidebarPainter::Paint(buffer, fonts, item.sidebar, childX, childY, childH, scale, 1.0f);
+                    SidebarPainter::Paint(buffer, fonts, *item.sidebar, childX, childY, childH, scale, 1.0f);
                     break;
                 }
                 case FlexItemKind::SidebarItem: {
-                    SidebarPainter::PaintItem(buffer, fonts, item.sidebarItem, childX, childY, childW, childH, scale, false);
+                    SidebarPainter::PaintItem(buffer, fonts, *item.sidebarItem, childX, childY, childW, childH, scale, false);
                     break;
                 }
                 case FlexItemKind::ThemeToggle: {
-                    ThemeTogglePainter::Paint(buffer, fonts, item.themeToggle, childX, childY, childW, scale);
+                    ThemeTogglePainter::Paint(buffer, fonts, *item.themeToggle, childX, childY, childW, scale);
                     break;
                 }
                 case FlexItemKind::ThemeIconToggle: {
-                    ThemeIconTogglePainter::Paint(buffer, item.themeIconToggle, childX, childY, scale);
+                    ThemeIconTogglePainter::Paint(buffer, *item.themeIconToggle, childX, childY, scale);
                     break;
                 }
                 case FlexItemKind::Separator: {
-                    SeparatorPainter::Paint(buffer, fonts, item.separator, childX, childY, childW, childH, scale);
+                    SeparatorPainter::Paint(buffer, fonts, *item.separator, childX, childY, childW, childH, scale);
                     break;
                 }
                 case FlexItemKind::MotionShape: {
-                    item.motionShape.Paint(buffer, childX, childY, childW, childH, scale);
+                    item.motionShape->Paint(buffer, childX, childY, childW, childH, scale);
                     break;
                 }
                 case FlexItemKind::Button: {

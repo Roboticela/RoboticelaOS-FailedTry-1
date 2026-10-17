@@ -7,6 +7,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace Robo {
 
@@ -17,7 +18,11 @@ public:
 private:
     std::string ConvertNode(const XmlNode& node, int indent) const;
     void EmitScrollbar(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;
-    void EmitContainer(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;
+    void EmitContainer(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar,
+                       bool emitChildren = true) const;
+    void EmitSharedIconPack(std::ostringstream& code, int indent, const std::vector<std::string>& names) const;
+    void EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
+    void EmitColorPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitFlexbox(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;
     void EmitFlexChild(std::ostringstream& code, const XmlNode& child, int indent, const std::string& parentVar) const;
     void EmitGrid(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;
@@ -53,6 +58,8 @@ private:
     std::string BindColor(int indent, const std::string& object, const std::string& field, const std::string& value, const std::string& element) const;
     std::string BindFloat(int indent, const std::string& object, const std::string& field, const std::string& value, const std::string& element) const;
     std::string BindLength(int indent, const std::string& object, const std::string& field, const std::string& value, const std::string& element) const;
+    // Item props (Flex/Grid/Position) have no token map — emit Length only.
+    std::string BindPropsLength(int indent, const std::string& object, const std::string& field, const std::string& value) const;
     std::string BindWeight(int indent, const std::string& object, const std::string& value, const std::string& element) const;
     std::string BindSides(int indent, const std::string& object, const std::string& kind, const std::string& value, const std::string& element) const;
     void CollectFoundations(const XmlNode& node) const;

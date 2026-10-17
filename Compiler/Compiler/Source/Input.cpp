@@ -2,6 +2,8 @@
 #include "Robo/Foundation.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 namespace Robo {
 
@@ -66,6 +68,7 @@ Input::Input() = default;
 void Input::SetValue(const std::string& value) {
     value_ = value;
     ClampCaret();
+    InvalidateMeasureCache();
 }
 
 const std::string& Input::GetValue() const {
@@ -82,6 +85,7 @@ const std::string& Input::GetPlaceholder() const {
 
 void Input::SetStyle(const InputStyle& style) {
     style_ = style;
+    InvalidateMeasureCache();
 }
 
 const InputStyle& Input::GetStyle() const {
@@ -287,6 +291,24 @@ bool Input::MoveCaretRight() {
     }
     caretIndex_ = NextUtf8Boundary(value_, caretIndex_);
     return true;
+}
+
+bool Input::HasMeasureCache(float containerWidth, float pixelScale) const {
+    return measureCache_.valid && std::fabs(measureCache_.containerWidth - containerWidth) < 0.5f &&
+           std::fabs(measureCache_.pixelScale - pixelScale) < 0.001f;
+}
+
+const Input::MeasureCache& Input::GetMeasureCache() const {
+    return measureCache_;
+}
+
+void Input::StoreMeasureCache(MeasureCache cache) const {
+    measureCache_ = std::move(cache);
+    measureCache_.valid = true;
+}
+
+void Input::InvalidateMeasureCache() const {
+    measureCache_.valid = false;
 }
 
 InputVariant ParseInputVariant(const std::string& value) {

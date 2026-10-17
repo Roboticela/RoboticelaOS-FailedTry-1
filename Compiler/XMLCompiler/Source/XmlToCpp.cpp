@@ -258,6 +258,27 @@ std::string XmlToCpp::BindLength(int indent,
            ";\n" + Indent(indent) + object + "." + hasField + " = true;\n";
 }
 
+std::string XmlToCpp::BindPropsLength(int indent, const std::string& object, const std::string& field,
+                                      const std::string& value) const {
+    std::string lengthExpr = "Robo::Length::Auto()";
+    if (value == "auto" || value.empty()) {
+        lengthExpr = "Robo::Length::Auto()";
+    } else if (!value.empty() && value.back() == '%') {
+        lengthExpr = "Robo::Length::Percent(" + FloatLiteral(value.substr(0, value.size() - 1)) + ")";
+    } else if (value.size() > 3 && value.compare(value.size() - 3, 3, "rem") == 0) {
+        lengthExpr = "Robo::Length::Rem(" + FloatLiteral(value.substr(0, value.size() - 3)) + ")";
+    } else if (value.size() > 2 && value.compare(value.size() - 2, 2, "px") == 0) {
+        lengthExpr = "Robo::Length::Px(" + FloatLiteral(value.substr(0, value.size() - 2)) + ")";
+    } else {
+        lengthExpr = "Robo::Length::Px(" + FloatLiteral(value) + ")";
+    }
+    const std::string lengthField = field + "Length";
+    const std::string hasField = "has" + std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(field[0])))) +
+                                 field.substr(1) + "Length";
+    return Indent(indent) + object + "." + field + " = \"" + EscapeCpp(value) + "\";\n" + Indent(indent) + object +
+           "." + lengthField + " = " + lengthExpr + ";\n" + Indent(indent) + object + "." + hasField + " = true;\n";
+}
+
 std::string XmlToCpp::BindWeight(int indent, const std::string& object, const std::string& value, const std::string& element) const {
     const std::string token = ExtractToken(value);
     if (!token.empty()) {
@@ -733,11 +754,68 @@ std::string XmlToCpp::ConvertNode(const XmlNode& node, int indent) const {
             (void)sidebarNode;
         }
 
+        {
+            std::vector<std::string> packNames;
+            for (const XmlNode* pane : lazyPanes) {
+                if (pane->attributes.at("when") != "icons") {
+                    continue;
+                }
+                for (const XmlNode& child : pane->children) {
+                    if (child.isText || child.name != "Flexbox") {
+                        continue;
+                    }
+                    for (const XmlNode& cell : child.children) {
+                        if (cell.isText) {
+                            continue;
+                        }
+                        if (cell.name == "Flexbox") {
+                            for (const XmlNode& part : cell.children) {
+                                if (!part.isText && icons_.find(part.name) != icons_.end()) {
+                                    bool seen = false;
+                                    for (const std::string& existing : packNames) {
+                                        if (existing == part.name) {
+                                            seen = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!seen) {
+                                        packNames.push_back(part.name);
+                                    }
+                                    break;
+                                }
+                            }
+                        } else if (cell.name == "IconButton" && cell.attributes.count("icon") != 0) {
+                            const std::string iconName = cell.attributes.at("icon");
+                            bool seen = false;
+                            for (const std::string& existing : packNames) {
+                                if (existing == iconName) {
+                                    seen = true;
+                                    break;
+                                }
+                            }
+                            if (!seen && icons_.find(iconName) != icons_.end()) {
+                                packNames.push_back(iconName);
+                            }
+                        }
+                    }
+                }
+            }
+            if (!packNames.empty()) {
+                EmitSharedIconPack(code, indent, packNames);
+            }
+        }
+
         for (const XmlNode* pane : lazyPanes) {
             const std::string when = pane->attributes.at("when");
             const std::string fn = "BuildPane_" + SanitizePaneId(when);
             code << Indent(indent) << "static void " << fn << "(Robo::RoboScene& scene) {\n";
-            code << ConvertNode(*pane, indent + 1);
+            if (when == "icons") {
+                EmitIconsPane(code, *pane, indent + 1);
+            } else if (when == "color") {
+                EmitColorPane(code, *pane, indent + 1);
+            } else {
+                code << ConvertNode(*pane, indent + 1);
+            }
             code << Indent(indent) << "}\n\n";
         }
 
@@ -1319,7 +1397,8 @@ void XmlToCpp::EmitScrollbar(std::ostringstream& code, const XmlNode& node, int 
 void XmlToCpp::EmitContainer(std::ostringstream& code,
                              const XmlNode& node,
                              int indent,
-                             const std::string& targetVar) const {
+                             const std::string& targetVar,
+                             bool emitChildren) const {
     const std::string containerVar = (targetVar == "scene") ? "container" : targetVar;
     code << Indent(indent) << "Robo::Container " << containerVar << ";\n";
     code << Indent(indent) << "Robo::ContainerStyle style;\n";
@@ -1443,34 +1522,36 @@ code << BindSides(indent, "style", "paddingY", attribute.second, node.name);
         layout = layoutIt->second;
     }
 
-    if (layout == "flex" || layout == "flexbox") {
-        const std::string flexName = containerVar + "Flex";
-        EmitFlexbox(code, node, indent, flexName);
-        code << Indent(indent) << flexName << ".GetStyle().width = \"auto\";\n";
-        code << Indent(indent) << flexName << ".GetStyle().height = \"auto\";\n";
-        code << Indent(indent) << flexName << ".GetStyle().paddingTop = 0.0f;\n";
-        code << Indent(indent) << flexName << ".GetStyle().paddingRight = 0.0f;\n";
-        code << Indent(indent) << flexName << ".GetStyle().paddingBottom = 0.0f;\n";
-        code << Indent(indent) << flexName << ".GetStyle().paddingLeft = 0.0f;\n";
-        code << Indent(indent) << flexName << ".GetStyle().backgroundColor = Robo::Color::FromRgba(0, 0, 0, 0);\n";
-        code << Indent(indent) << flexName << ".GetStyle().borderWidth = 0.0f;\n";
-        code << Indent(indent) << containerVar << ".SetFlexbox(std::move(" << flexName << "));\n";
-    } else if (layout == "grid") {
-        const std::string gridName = containerVar + "Grid";
-        EmitGrid(code, node, indent, gridName);
-        code << Indent(indent) << gridName << ".GetStyle().width = \"auto\";\n";
-        code << Indent(indent) << gridName << ".GetStyle().height = \"auto\";\n";
-        code << Indent(indent) << gridName << ".GetStyle().paddingTop = 0.0f;\n";
-        code << Indent(indent) << gridName << ".GetStyle().paddingRight = 0.0f;\n";
-        code << Indent(indent) << gridName << ".GetStyle().paddingBottom = 0.0f;\n";
-        code << Indent(indent) << gridName << ".GetStyle().paddingLeft = 0.0f;\n";
-        code << Indent(indent) << gridName << ".GetStyle().backgroundColor = Robo::Color::FromRgba(0, 0, 0, 0);\n";
-        code << Indent(indent) << gridName << ".GetStyle().borderWidth = 0.0f;\n";
-        code << Indent(indent) << containerVar << ".SetGrid(std::move(" << gridName << "));\n";
-    } else {
-        for (const XmlNode& child : node.children) {
-            if (!child.isText) {
-                EmitPositionChild(code, child, indent, containerVar + ".GetContent()");
+    if (emitChildren) {
+        if (layout == "flex" || layout == "flexbox") {
+            const std::string flexName = containerVar + "Flex";
+            EmitFlexbox(code, node, indent, flexName);
+            code << Indent(indent) << flexName << ".GetStyle().width = \"auto\";\n";
+            code << Indent(indent) << flexName << ".GetStyle().height = \"auto\";\n";
+            code << Indent(indent) << flexName << ".GetStyle().paddingTop = 0.0f;\n";
+            code << Indent(indent) << flexName << ".GetStyle().paddingRight = 0.0f;\n";
+            code << Indent(indent) << flexName << ".GetStyle().paddingBottom = 0.0f;\n";
+            code << Indent(indent) << flexName << ".GetStyle().paddingLeft = 0.0f;\n";
+            code << Indent(indent) << flexName << ".GetStyle().backgroundColor = Robo::Color::FromRgba(0, 0, 0, 0);\n";
+            code << Indent(indent) << flexName << ".GetStyle().borderWidth = 0.0f;\n";
+            code << Indent(indent) << containerVar << ".SetFlexbox(std::move(" << flexName << "));\n";
+        } else if (layout == "grid") {
+            const std::string gridName = containerVar + "Grid";
+            EmitGrid(code, node, indent, gridName);
+            code << Indent(indent) << gridName << ".GetStyle().width = \"auto\";\n";
+            code << Indent(indent) << gridName << ".GetStyle().height = \"auto\";\n";
+            code << Indent(indent) << gridName << ".GetStyle().paddingTop = 0.0f;\n";
+            code << Indent(indent) << gridName << ".GetStyle().paddingRight = 0.0f;\n";
+            code << Indent(indent) << gridName << ".GetStyle().paddingBottom = 0.0f;\n";
+            code << Indent(indent) << gridName << ".GetStyle().paddingLeft = 0.0f;\n";
+            code << Indent(indent) << gridName << ".GetStyle().backgroundColor = Robo::Color::FromRgba(0, 0, 0, 0);\n";
+            code << Indent(indent) << gridName << ".GetStyle().borderWidth = 0.0f;\n";
+            code << Indent(indent) << containerVar << ".SetGrid(std::move(" << gridName << "));\n";
+        } else {
+            for (const XmlNode& child : node.children) {
+                if (!child.isText) {
+                    EmitPositionChild(code, child, indent, containerVar + ".GetContent()");
+                }
             }
         }
     }
@@ -1481,7 +1562,7 @@ code << BindSides(indent, "style", "paddingY", attribute.second, node.name);
         }
     }
 
-    if (targetVar == "scene") {
+    if (emitChildren && targetVar == "scene") {
         code << Indent(indent) << "scene.AddContainer(std::move(" << containerVar << "));\n";
     }
 }
@@ -1592,14 +1673,14 @@ void XmlToCpp::EmitFlexChild(std::ostringstream& code, const XmlNode& child, int
                 if (!IsFreeLength(attribute.second)) {
                     WarnLiteral(child.name, "width", attribute.second);
                 }
-                code << Indent(indent + 1) << "props.width = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindPropsLength(indent + 1, "props", "width", attribute.second);
             }
         } else if (attribute.first == "height") {
             if (ExtractToken(attribute.second).empty()) {
                 if (!IsFreeLength(attribute.second)) {
                     WarnLiteral(child.name, "height", attribute.second);
                 }
-                code << Indent(indent + 1) << "props.height = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindPropsLength(indent + 1, "props", "height", attribute.second);
             }
         } else if (attribute.first == "minWidth") {
             code << Indent(indent + 1) << "props.minWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
@@ -1933,14 +2014,14 @@ void XmlToCpp::EmitGridChild(std::ostringstream& code, const XmlNode& child, int
                 if (!IsFreeLength(attribute.second)) {
                     WarnLiteral(child.name, "width", attribute.second);
                 }
-                code << Indent(indent + 1) << "props.width = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindPropsLength(indent + 1, "props", "width", attribute.second);
             }
         } else if (attribute.first == "height") {
             if (ExtractToken(attribute.second).empty()) {
                 if (!IsFreeLength(attribute.second)) {
                     WarnLiteral(child.name, "height", attribute.second);
                 }
-                code << Indent(indent + 1) << "props.height = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindPropsLength(indent + 1, "props", "height", attribute.second);
             }
         } else if (attribute.first == "minWidth") {
             code << Indent(indent + 1) << "props.minWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
@@ -2238,14 +2319,14 @@ void XmlToCpp::EmitPositionChild(std::ostringstream& code, const XmlNode& child,
                 if (!IsFreeLength(attribute.second)) {
                     WarnLiteral(child.name, "width", attribute.second);
                 }
-                code << Indent(indent + 1) << "props.width = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindPropsLength(indent + 1, "props", "width", attribute.second);
             }
         } else if (attribute.first == "height") {
             if (ExtractToken(attribute.second).empty()) {
                 if (!IsFreeLength(attribute.second)) {
                     WarnLiteral(child.name, "height", attribute.second);
                 }
-                code << Indent(indent + 1) << "props.height = \"" << EscapeCpp(attribute.second) << "\";\n";
+                code << BindPropsLength(indent + 1, "props", "height", attribute.second);
             }
         } else if (attribute.first == "minWidth") {
             code << Indent(indent + 1) << "props.minWidth = \"" << EscapeCpp(attribute.second) << "\";\n";
@@ -3499,6 +3580,463 @@ bool XmlToCpp::TryEmitGraphic(std::ostringstream& code,
         code << Indent(indent - 1) << "}\n";
     }
     return true;
+}
+
+namespace {
+
+std::string NodePlainText(const XmlNode& node) {
+    std::string text;
+    for (const XmlNode& child : node.children) {
+        if (child.isText) {
+            text += child.text;
+        }
+    }
+    return text;
+}
+
+std::string BraceToken(const std::string& value) {
+    if (value.size() >= 2 && value.front() == '{' && value.back() == '}') {
+        return value.substr(1, value.size() - 2);
+    }
+    return {};
+}
+
+}  // namespace
+
+void XmlToCpp::EmitSharedIconPack(std::ostringstream& code, int indent, const std::vector<std::string>& names) const {
+    if (names.empty()) {
+        return;
+    }
+    code << Indent(indent) << "typedef void (*RoboIconPackFill)(Robo::Icon&);\n";
+    code << Indent(indent) << "struct RoboIconPackEntry {\n";
+    code << Indent(indent + 1) << "const char* name;\n";
+    code << Indent(indent + 1) << "RoboIconPackFill fill;\n";
+    code << Indent(indent + 1) << "float viewX;\n";
+    code << Indent(indent + 1) << "float viewY;\n";
+    code << Indent(indent + 1) << "float viewWidth;\n";
+    code << Indent(indent + 1) << "float viewHeight;\n";
+    code << Indent(indent) << "};\n\n";
+
+    for (const std::string& name : names) {
+        const auto found = icons_.find(name);
+        if (found == icons_.end()) {
+            continue;
+        }
+        const std::string fn = "RoboFillIcon_" + SanitizePaneId(name);
+        code << Indent(indent) << "static void " << fn << "(Robo::Icon& icon) {\n";
+        code << EmitCompiledShapes(found->second.shapes, indent + 1, "icon", true);
+        code << Indent(indent) << "}\n\n";
+    }
+
+    code << Indent(indent) << "static const RoboIconPackEntry kRoboIconPack[] = {\n";
+    for (const std::string& name : names) {
+        const auto found = icons_.find(name);
+        if (found == icons_.end()) {
+            continue;
+        }
+        const std::string fn = "RoboFillIcon_" + SanitizePaneId(name);
+        code << Indent(indent + 1) << "{\"" << EscapeCpp(name) << "\", &" << fn << ", "
+             << FloatLiteral(std::to_string(found->second.viewX)) << ", "
+             << FloatLiteral(std::to_string(found->second.viewY)) << ", "
+             << FloatLiteral(std::to_string(found->second.viewWidth)) << ", "
+             << FloatLiteral(std::to_string(found->second.viewHeight)) << "},\n";
+    }
+    code << Indent(indent) << "};\n";
+    code << Indent(indent)
+         << "static const int kRoboIconPackCount = "
+            "static_cast<int>(sizeof(kRoboIconPack) / sizeof(kRoboIconPack[0]));\n\n";
+
+    code << Indent(indent) << "static bool RoboFillIconByName(Robo::Icon& icon, const char* name) {\n";
+    code << Indent(indent + 1) << "if (name == nullptr) {\n";
+    code << Indent(indent + 2) << "return false;\n";
+    code << Indent(indent + 1) << "}\n";
+    code << Indent(indent + 1) << "for (int i = 0; i < kRoboIconPackCount; ++i) {\n";
+    code << Indent(indent + 2) << "const char* a = kRoboIconPack[i].name;\n";
+    code << Indent(indent + 2) << "const char* b = name;\n";
+    code << Indent(indent + 2) << "while (*a != '\\0' && *a == *b) {\n";
+    code << Indent(indent + 3) << "++a;\n";
+    code << Indent(indent + 3) << "++b;\n";
+    code << Indent(indent + 2) << "}\n";
+    code << Indent(indent + 2) << "if (*a == '\\0' && *b == '\\0') {\n";
+    code << Indent(indent + 3) << "icon.SetViewBox(kRoboIconPack[i].viewX, kRoboIconPack[i].viewY, "
+                                  "kRoboIconPack[i].viewWidth, kRoboIconPack[i].viewHeight);\n";
+    code << Indent(indent + 3) << "kRoboIconPack[i].fill(icon);\n";
+    code << Indent(indent + 3) << "return true;\n";
+    code << Indent(indent + 2) << "}\n";
+    code << Indent(indent + 1) << "}\n";
+    code << Indent(indent + 1) << "return false;\n";
+    code << Indent(indent) << "}\n\n";
+}
+
+void XmlToCpp::EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int indent) const {
+    std::vector<std::string> galleryNames;
+    std::vector<std::pair<std::string, std::string>> iconButtons;
+    const XmlNode* wrapFlex = nullptr;
+    const XmlNode* buttonFlex = nullptr;
+
+    for (const XmlNode& child : pane.children) {
+        if (child.isText || child.name != "Flexbox") {
+            continue;
+        }
+        bool looksLikeGallery = false;
+        for (const XmlNode& cell : child.children) {
+            if (cell.isText || cell.name != "Flexbox") {
+                continue;
+            }
+            const XmlNode* iconNode = nullptr;
+            for (const XmlNode& part : cell.children) {
+                if (!part.isText) {
+                    iconNode = &part;
+                    break;
+                }
+            }
+            if (iconNode != nullptr && icons_.find(iconNode->name) != icons_.end()) {
+                looksLikeGallery = true;
+                break;
+            }
+        }
+        if (looksLikeGallery && wrapFlex == nullptr) {
+            wrapFlex = &child;
+            for (const XmlNode& cell : child.children) {
+                if (cell.isText || cell.name != "Flexbox") {
+                    continue;
+                }
+                for (const XmlNode& part : cell.children) {
+                    if (!part.isText && icons_.find(part.name) != icons_.end()) {
+                        galleryNames.push_back(part.name);
+                        break;
+                    }
+                }
+            }
+        } else if (buttonFlex == nullptr) {
+            for (const XmlNode& part : child.children) {
+                if (part.isText) {
+                    continue;
+                }
+                if (part.name == "IconButton" && part.attributes.count("icon") != 0) {
+                    const std::string iconName = part.attributes.at("icon");
+                    std::string label = part.attributes.count("label") != 0 ? part.attributes.at("label") : iconName;
+                    iconButtons.emplace_back(iconName, label);
+                }
+            }
+            if (!iconButtons.empty()) {
+                buttonFlex = &child;
+            }
+        }
+    }
+
+    code << Indent(indent) << "{\n";
+    EmitContainer(code, pane, indent + 1, "scene", false);
+
+    for (const XmlNode& child : pane.children) {
+        if (child.isText) {
+            continue;
+        }
+        if (wrapFlex != nullptr && &child == wrapFlex) {
+            code << Indent(indent + 1) << "{\n";
+            code << Indent(indent + 2) << "Robo::PositionItemProps props;\n";
+            code << Indent(indent + 2) << "props.width = \"100%\";\n";
+            code << Indent(indent + 2) << "Robo::Flexbox wrap;\n";
+            code << Indent(indent + 2) << "Robo::FlexboxStyle style;\n";
+            code << Indent(indent + 2) << "style.align = Robo::ParseFlexAlign(\"start\");\n";
+            code << Indent(indent + 2) << "style.tokens[\"gap\"] = \"space.4\";\n";
+            code << Indent(indent + 2) << "style.width = \"100%\";\n";
+            code << Indent(indent + 2) << "style.widthLength = Robo::Length::Percent(100.0f);\n";
+            code << Indent(indent + 2) << "style.hasWidthLength = true;\n";
+            code << Indent(indent + 2) << "style.wrap = Robo::ParseFlexWrap(\"wrap\");\n";
+            code << Indent(indent + 2) << "wrap.SetStyle(style);\n";
+            code << Indent(indent + 2) << "static const char* kRoboIconGallery[] = {\n";
+            for (const std::string& name : galleryNames) {
+                code << Indent(indent + 3) << "\"" << EscapeCpp(name) << "\",\n";
+            }
+            code << Indent(indent + 2) << "};\n";
+            code << Indent(indent + 2)
+                 << "static const int kRoboIconGalleryCount = "
+                    "static_cast<int>(sizeof(kRoboIconGallery) / sizeof(kRoboIconGallery[0]));\n";
+            code << Indent(indent + 2) << "for (int i = 0; i < kRoboIconGalleryCount; ++i) {\n";
+            code << Indent(indent + 3) << "const char* iconName = kRoboIconGallery[i];\n";
+            code << Indent(indent + 3) << "Robo::FlexItemProps cellProps;\n";
+            code << Indent(indent + 3) << "Robo::Flexbox cell;\n";
+            code << Indent(indent + 3) << "Robo::FlexboxStyle cellStyle;\n";
+            code << Indent(indent + 3) << "cellStyle.align = Robo::ParseFlexAlign(\"center\");\n";
+            code << Indent(indent + 3) << "cellStyle.direction = Robo::ParseFlexDirection(\"column\");\n";
+            code << Indent(indent + 3) << "cellStyle.tokens[\"gap\"] = \"space.2\";\n";
+            code << Indent(indent + 3) << "cellStyle.tokens[\"width\"] = \"space.10\";\n";
+            code << Indent(indent + 3) << "cell.SetStyle(cellStyle);\n";
+            code << Indent(indent + 3) << "{\n";
+            code << Indent(indent + 4) << "Robo::FlexItemProps props;\n";
+            code << Indent(indent + 4) << "Robo::Icon icon;\n";
+            code << Indent(indent + 4) << "RoboFillIconByName(icon, iconName);\n";
+            code << Indent(indent + 4) << "icon.SetToken(\"width\", \"space.6\");\n";
+            code << Indent(indent + 4) << "icon.SetToken(\"height\", \"space.6\");\n";
+            code << Indent(indent + 4) << "icon.SetToken(\"color\", \"color.text.primary\");\n";
+            code << Indent(indent + 4) << "cell.AddSvg(icon.Bake(), props);\n";
+            code << Indent(indent + 3) << "}\n";
+            code << Indent(indent + 3) << "{\n";
+            code << Indent(indent + 4) << "Robo::FlexItemProps props;\n";
+            code << Indent(indent + 4) << "Robo::Text text;\n";
+            code << Indent(indent + 4) << "Robo::TextStyle style;\n";
+            code << Indent(indent + 4) << "style.tokens[\"fontSize\"] = \"type.caption.size\";\n";
+            code << Indent(indent + 4) << "style.tokens[\"color\"] = \"color.text.secondary\";\n";
+            code << Indent(indent + 4) << "text.SetStyle(style);\n";
+            code << Indent(indent + 4) << "text.AddPlain(iconName);\n";
+            code << Indent(indent + 4) << "cell.AddText(std::move(text), props);\n";
+            code << Indent(indent + 3) << "}\n";
+            code << Indent(indent + 3) << "wrap.AddFlexbox(std::move(cell), cellProps);\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "container.GetContent().AddFlexbox(std::move(wrap), props);\n";
+            code << Indent(indent + 1) << "}\n";
+            continue;
+        }
+        if (buttonFlex != nullptr && &child == buttonFlex) {
+            code << Indent(indent + 1) << "{\n";
+            code << Indent(indent + 2) << "Robo::PositionItemProps props;\n";
+            code << Indent(indent + 2) << "Robo::Flexbox row;\n";
+            code << Indent(indent + 2) << "Robo::FlexboxStyle style;\n";
+            code << Indent(indent + 2) << "style.align = Robo::ParseFlexAlign(\"center\");\n";
+            code << Indent(indent + 2) << "style.tokens[\"gap\"] = \"space.3\";\n";
+            code << Indent(indent + 2) << "row.SetStyle(style);\n";
+            code << Indent(indent + 2) << "struct RoboIconButtonRow { const char* icon; const char* label; };\n";
+            code << Indent(indent + 2) << "static const RoboIconButtonRow kRoboIconButtons[] = {\n";
+            for (const auto& button : iconButtons) {
+                code << Indent(indent + 3) << "{\"" << EscapeCpp(button.first) << "\", \"" << EscapeCpp(button.second)
+                     << "\"},\n";
+            }
+            code << Indent(indent + 2) << "};\n";
+            code << Indent(indent + 2)
+                 << "static const int kRoboIconButtonCount = "
+                    "static_cast<int>(sizeof(kRoboIconButtons) / sizeof(kRoboIconButtons[0]));\n";
+            code << Indent(indent + 2) << "for (int i = 0; i < kRoboIconButtonCount; ++i) {\n";
+            code << Indent(indent + 3) << "Robo::FlexItemProps props;\n";
+            code << Indent(indent + 3) << "Robo::Button button;\n";
+            code << Indent(indent + 3) << "Robo::ButtonStyle style;\n";
+            code << Indent(indent + 3) << "button.SetStyle(style);\n";
+            code << Indent(indent + 3) << "button.SetLabel(kRoboIconButtons[i].label);\n";
+            code << Indent(indent + 3) << "button.SetIconOnly(true);\n";
+            code << Indent(indent + 3) << "{\n";
+            code << Indent(indent + 4) << "Robo::Icon icon;\n";
+            code << Indent(indent + 4) << "RoboFillIconByName(icon, kRoboIconButtons[i].icon);\n";
+            code << Indent(indent + 4) << "icon.SetWidth(20.0f);\n";
+            code << Indent(indent + 4) << "icon.SetHeight(20.0f);\n";
+            code << Indent(indent + 4) << "button.SetIcon(icon.Bake());\n";
+            code << Indent(indent + 3) << "}\n";
+            code << Indent(indent + 3) << "row.AddButton(std::move(button), props);\n";
+            code << Indent(indent + 2) << "}\n";
+            code << Indent(indent + 2) << "container.GetContent().AddFlexbox(std::move(row), props);\n";
+            code << Indent(indent + 1) << "}\n";
+            continue;
+        }
+        EmitPositionChild(code, child, indent + 1, "container.GetContent()");
+    }
+
+    code << Indent(indent + 1) << "scene.AddContainer(std::move(container));\n";
+    code << Indent(indent) << "}\n";
+}
+
+void XmlToCpp::EmitColorPane(std::ostringstream& code, const XmlNode& pane, int indent) const {
+    struct ColorRow {
+        std::string token;
+        std::string label;
+        std::string hex;
+        std::string borderToken;
+    };
+    struct ColorSection {
+        std::string heading;
+        std::vector<ColorRow> rows;
+        bool hasHeading = false;
+    };
+    std::vector<ColorSection> sections;
+    ColorSection current;
+    std::vector<const XmlNode*> preface;
+    std::vector<const XmlNode*> epilogue;
+    bool collecting = true;
+
+    auto flushSection = [&]() {
+        if (current.hasHeading || !current.rows.empty()) {
+            sections.push_back(current);
+            current = ColorSection{};
+        }
+    };
+
+    for (const XmlNode& child : pane.children) {
+        if (child.isText) {
+            continue;
+        }
+        if (child.name == "H1" || (child.name == "Paragraph" && sections.empty() && current.rows.empty())) {
+            if (collecting && sections.empty() && current.rows.empty()) {
+                preface.push_back(&child);
+            } else {
+                flushSection();
+                collecting = false;
+                epilogue.push_back(&child);
+            }
+            continue;
+        }
+        if (child.name == "H2") {
+            if (!collecting) {
+                epilogue.push_back(&child);
+                continue;
+            }
+            flushSection();
+            current.heading = NodePlainText(child);
+            current.hasHeading = true;
+            continue;
+        }
+        if (child.name == "Flexbox" && collecting) {
+            const XmlNode* swatch = nullptr;
+            const XmlNode* labelNode = nullptr;
+            const XmlNode* hexNode = nullptr;
+            int partIndex = 0;
+            for (const XmlNode& part : child.children) {
+                if (part.isText) {
+                    continue;
+                }
+                if (partIndex == 0) {
+                    swatch = &part;
+                } else if (partIndex == 1) {
+                    labelNode = &part;
+                } else if (partIndex == 2) {
+                    hexNode = &part;
+                }
+                ++partIndex;
+            }
+            std::string bgToken;
+            std::string borderToken = "color.border.subtle";
+            if (swatch != nullptr && swatch->name == "Container") {
+                if (swatch->attributes.count("background") != 0) {
+                    bgToken = BraceToken(swatch->attributes.at("background"));
+                }
+                if (swatch->attributes.count("borderColor") != 0) {
+                    const std::string border = BraceToken(swatch->attributes.at("borderColor"));
+                    if (!border.empty()) {
+                        borderToken = border;
+                    }
+                }
+            }
+            if (!bgToken.empty() && labelNode != nullptr && hexNode != nullptr) {
+                ColorRow row;
+                row.token = bgToken;
+                row.label = NodePlainText(*labelNode);
+                row.hex = NodePlainText(*hexNode);
+                row.borderToken = borderToken;
+                current.rows.push_back(std::move(row));
+                continue;
+            }
+        }
+        flushSection();
+        collecting = false;
+        epilogue.push_back(&child);
+    }
+    flushSection();
+
+    code << Indent(indent) << "{\n";
+    EmitContainer(code, pane, indent + 1, "scene", false);
+
+    for (const XmlNode* node : preface) {
+        EmitPositionChild(code, *node, indent + 1, "container.GetContent()");
+    }
+
+    code << Indent(indent + 1) << "struct RoboColorSwatch {\n";
+    code << Indent(indent + 2) << "const char* token;\n";
+    code << Indent(indent + 2) << "const char* label;\n";
+    code << Indent(indent + 2) << "const char* hex;\n";
+    code << Indent(indent + 2) << "const char* borderToken;\n";
+    code << Indent(indent + 1) << "};\n";
+    code << Indent(indent + 1) << "struct RoboColorSection {\n";
+    code << Indent(indent + 2) << "const char* heading;\n";
+    code << Indent(indent + 2) << "const RoboColorSwatch* rows;\n";
+    code << Indent(indent + 2) << "int count;\n";
+    code << Indent(indent + 1) << "};\n";
+
+    for (std::size_t sectionIndex = 0; sectionIndex < sections.size(); ++sectionIndex) {
+        const ColorSection& section = sections[sectionIndex];
+        code << Indent(indent + 1) << "static const RoboColorSwatch kRoboColorRows" << sectionIndex << "[] = {\n";
+        for (const ColorRow& row : section.rows) {
+            code << Indent(indent + 2) << "{\"" << EscapeCpp(row.token) << "\", \"" << EscapeCpp(row.label)
+                 << "\", \"" << EscapeCpp(row.hex) << "\", \"" << EscapeCpp(row.borderToken) << "\"},\n";
+        }
+        if (section.rows.empty()) {
+            code << Indent(indent + 2) << "{nullptr, nullptr, nullptr, nullptr},\n";
+        }
+        code << Indent(indent + 1) << "};\n";
+    }
+
+    code << Indent(indent + 1) << "static const RoboColorSection kRoboColorSections[] = {\n";
+    for (std::size_t sectionIndex = 0; sectionIndex < sections.size(); ++sectionIndex) {
+        const ColorSection& section = sections[sectionIndex];
+        const int count = section.rows.empty() ? 0 : static_cast<int>(section.rows.size());
+        code << Indent(indent + 2) << "{\"" << EscapeCpp(section.heading) << "\", kRoboColorRows" << sectionIndex
+             << ", " << count << "},\n";
+    }
+    code << Indent(indent + 1) << "};\n";
+    code << Indent(indent + 1)
+         << "static const int kRoboColorSectionCount = "
+            "static_cast<int>(sizeof(kRoboColorSections) / sizeof(kRoboColorSections[0]));\n";
+
+    code << Indent(indent + 1) << "for (int s = 0; s < kRoboColorSectionCount; ++s) {\n";
+    code << Indent(indent + 2) << "const RoboColorSection& section = kRoboColorSections[s];\n";
+    code << Indent(indent + 2) << "if (section.heading != nullptr && section.heading[0] != '\\0') {\n";
+    code << Indent(indent + 3) << "Robo::PositionItemProps props;\n";
+    code << Indent(indent + 3) << "Robo::Heading heading(2);\n";
+    code << Indent(indent + 3) << "Robo::TextStyle style = heading.GetStyle();\n";
+    code << Indent(indent + 3) << "heading.SetStyle(style);\n";
+    code << Indent(indent + 3) << "heading.AddPlain(section.heading);\n";
+    code << Indent(indent + 3) << "container.GetContent().AddText(std::move(heading), props);\n";
+    code << Indent(indent + 2) << "}\n";
+    code << Indent(indent + 2) << "for (int r = 0; r < section.count; ++r) {\n";
+    code << Indent(indent + 3) << "const RoboColorSwatch& row = section.rows[r];\n";
+    code << Indent(indent + 3) << "Robo::PositionItemProps props;\n";
+    code << Indent(indent + 3) << "Robo::Flexbox rowFlex;\n";
+    code << Indent(indent + 3) << "Robo::FlexboxStyle style;\n";
+    code << Indent(indent + 3) << "style.align = Robo::ParseFlexAlign(\"center\");\n";
+    code << Indent(indent + 3) << "style.tokens[\"gap\"] = \"space.3\";\n";
+    code << Indent(indent + 3) << "rowFlex.SetStyle(style);\n";
+    code << Indent(indent + 3) << "{\n";
+    code << Indent(indent + 4) << "Robo::FlexItemProps props;\n";
+    code << Indent(indent + 4) << "Robo::Container swatch;\n";
+    code << Indent(indent + 4) << "Robo::ContainerStyle style;\n";
+    code << Indent(indent + 4) << "style.scrollbarStyle.visibility = Robo::ScrollbarVisibility::Auto;\n";
+    code << Indent(indent + 4) << "style.tokens[\"backgroundColor\"] = row.token;\n";
+    code << Indent(indent + 4) << "style.tokens[\"borderColor\"] = row.borderToken;\n";
+    code << Indent(indent + 4) << "style.borderWidth = 1.0f;\n";
+    code << Indent(indent + 4) << "style.tokens[\"cornerRadius\"] = \"radius.md\";\n";
+    code << Indent(indent + 4) << "style.tokens[\"height\"] = \"space.7\";\n";
+    code << Indent(indent + 4) << "style.tokens[\"width\"] = \"space.7\";\n";
+    code << Indent(indent + 4) << "style.showScrollbar = Robo::ParseBool(\"false\", true);\n";
+    code << Indent(indent + 4) << "swatch.SetStyle(style);\n";
+    code << Indent(indent + 4) << "swatch.RefreshVariantDefaults();\n";
+    code << Indent(indent + 4) << "rowFlex.AddContainer(std::move(swatch), props);\n";
+    code << Indent(indent + 3) << "}\n";
+    code << Indent(indent + 3) << "{\n";
+    code << Indent(indent + 4) << "Robo::FlexItemProps props;\n";
+    code << Indent(indent + 4) << "Robo::Text text;\n";
+    code << Indent(indent + 4) << "Robo::TextStyle style;\n";
+    code << Indent(indent + 4) << "style.tokens[\"color\"] = \"color.text.primary\";\n";
+    code << Indent(indent + 4) << "style.tokens[\"fontSize\"] = \"type.body.size\";\n";
+    code << Indent(indent + 4) << "text.SetStyle(style);\n";
+    code << Indent(indent + 4) << "text.AddPlain(row.label);\n";
+    code << Indent(indent + 4) << "rowFlex.AddText(std::move(text), props);\n";
+    code << Indent(indent + 3) << "}\n";
+    code << Indent(indent + 3) << "{\n";
+    code << Indent(indent + 4) << "Robo::FlexItemProps props;\n";
+    code << Indent(indent + 4) << "Robo::Text text;\n";
+    code << Indent(indent + 4) << "Robo::TextStyle style;\n";
+    code << Indent(indent + 4) << "style.tokens[\"color\"] = \"color.text.secondary\";\n";
+    code << Indent(indent + 4) << "style.tokens[\"fontSize\"] = \"type.caption.size\";\n";
+    code << Indent(indent + 4) << "text.SetStyle(style);\n";
+    code << Indent(indent + 4) << "text.AddPlain(row.hex);\n";
+    code << Indent(indent + 4) << "rowFlex.AddText(std::move(text), props);\n";
+    code << Indent(indent + 3) << "}\n";
+    code << Indent(indent + 3) << "container.GetContent().AddFlexbox(std::move(rowFlex), props);\n";
+    code << Indent(indent + 2) << "}\n";
+    code << Indent(indent + 1) << "}\n";
+
+    for (const XmlNode* node : epilogue) {
+        EmitPositionChild(code, *node, indent + 1, "container.GetContent()");
+    }
+
+    code << Indent(indent + 1) << "scene.AddContainer(std::move(container));\n";
+    code << Indent(indent) << "}\n";
 }
 
 std::string XmlToCpp::Convert(const std::string& xml, const std::string& assetDirectory) const {

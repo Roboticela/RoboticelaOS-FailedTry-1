@@ -45,7 +45,7 @@ void Flexbox::AddSvg(Svg svg, const FlexItemProps& props) {
 void Flexbox::AddBrandLogo(BrandLogo logo, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::BrandLogo;
-    item.brandLogo = std::move(logo);
+    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -53,7 +53,7 @@ void Flexbox::AddBrandLogo(BrandLogo logo, const FlexItemProps& props) {
 void Flexbox::AddTitleBar(TitleBar bar, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::TitleBar;
-    item.titleBar = std::move(bar);
+    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -61,7 +61,7 @@ void Flexbox::AddTitleBar(TitleBar bar, const FlexItemProps& props) {
 void Flexbox::AddSidebar(Sidebar pane, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Sidebar;
-    item.sidebar = std::move(pane);
+    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -69,7 +69,7 @@ void Flexbox::AddSidebar(Sidebar pane, const FlexItemProps& props) {
 void Flexbox::AddSidebarItem(SidebarItem item, const FlexItemProps& props) {
     FlexboxItem entry;
     entry.kind = FlexItemKind::SidebarItem;
-    entry.sidebarItem = std::move(item);
+    entry.sidebarItem = std::make_shared<SidebarItem>(std::move(item));
     entry.props = props;
     items_.push_back(std::move(entry));
 }
@@ -77,7 +77,7 @@ void Flexbox::AddSidebarItem(SidebarItem item, const FlexItemProps& props) {
 void Flexbox::AddThemeToggle(ThemeToggle toggle, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::ThemeToggle;
-    item.themeToggle = std::move(toggle);
+    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -85,7 +85,7 @@ void Flexbox::AddThemeToggle(ThemeToggle toggle, const FlexItemProps& props) {
 void Flexbox::AddThemeIconToggle(ThemeIconToggle toggle, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::ThemeIconToggle;
-    item.themeIconToggle = std::move(toggle);
+    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -93,7 +93,7 @@ void Flexbox::AddThemeIconToggle(ThemeIconToggle toggle, const FlexItemProps& pr
 void Flexbox::AddSeparator(Separator separator, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Separator;
-    item.separator = std::move(separator);
+    item.separator = std::make_shared<Separator>(std::move(separator));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -101,7 +101,7 @@ void Flexbox::AddSeparator(Separator separator, const FlexItemProps& props) {
 void Flexbox::AddMotionShape(MotionShape shape, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::MotionShape;
-    item.motionShape = std::move(shape);
+    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
     item.props = props;
     items_.push_back(std::move(item));
 }

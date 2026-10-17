@@ -5,6 +5,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <memory>
+#include <utility>
 
 namespace Robo {
 
@@ -77,6 +80,7 @@ Position& Position::operator=(Position&& other) noexcept = default;
 
 void Position::SetStyle(const PositionStyle& style) {
     style_ = style;
+    InvalidateLayoutCache();
 }
 
 const PositionStyle& Position::GetStyle() const {
@@ -107,7 +111,7 @@ void Position::AddBrandLogo(BrandLogo logo, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::BrandLogo;
     item.props = props;
-    item.brandLogo = std::move(logo);
+    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
     items_.push_back(std::move(item));
 }
 
@@ -115,7 +119,7 @@ void Position::AddTitleBar(TitleBar bar, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::TitleBar;
     item.props = props;
-    item.titleBar = std::move(bar);
+    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
     items_.push_back(std::move(item));
 }
 
@@ -123,7 +127,7 @@ void Position::AddSidebar(Sidebar pane, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Sidebar;
     item.props = props;
-    item.sidebar = std::move(pane);
+    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
     items_.push_back(std::move(item));
 }
 
@@ -131,7 +135,7 @@ void Position::AddSidebarItem(SidebarItem item, const PositionItemProps& props) 
     PositionItem entry;
     entry.kind = PositionItemKind::SidebarItem;
     entry.props = props;
-    entry.sidebarItem = std::move(item);
+    entry.sidebarItem = std::make_shared<SidebarItem>(std::move(item));
     items_.push_back(std::move(entry));
 }
 
@@ -139,7 +143,7 @@ void Position::AddThemeToggle(ThemeToggle toggle, const PositionItemProps& props
     PositionItem item;
     item.kind = PositionItemKind::ThemeToggle;
     item.props = props;
-    item.themeToggle = std::move(toggle);
+    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -147,7 +151,7 @@ void Position::AddThemeIconToggle(ThemeIconToggle toggle, const PositionItemProp
     PositionItem item;
     item.kind = PositionItemKind::ThemeIconToggle;
     item.props = props;
-    item.themeIconToggle = std::move(toggle);
+    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -155,7 +159,7 @@ void Position::AddSeparator(Separator separator, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::Separator;
     item.props = props;
-    item.separator = std::move(separator);
+    item.separator = std::make_shared<Separator>(std::move(separator));
     items_.push_back(std::move(item));
 }
 
@@ -163,7 +167,7 @@ void Position::AddMotionShape(MotionShape shape, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::MotionShape;
     item.props = props;
-    item.motionShape = std::move(shape);
+    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
     items_.push_back(std::move(item));
 }
 
@@ -241,6 +245,58 @@ const InputBounds& Position::GetBounds() const {
 
 void Position::Clear() {
     items_.clear();
+    InvalidateLayoutCache();
+}
+
+bool Position::HasLayoutCache(float availableWidth, float pixelScale, float forcedWidth,
+                              float forcedHeight) const {
+    return layoutCache_.valid && !needsLayout_ &&
+           std::fabs(layoutCache_.key.availableWidth - availableWidth) < 0.5f &&
+           std::fabs(layoutCache_.key.pixelScale - pixelScale) < 0.001f &&
+           std::fabs(layoutCache_.key.forcedWidth - forcedWidth) < 0.5f &&
+           std::fabs(layoutCache_.key.forcedHeight - forcedHeight) < 0.5f;
+}
+
+const ComputedPositionLayout& Position::LayoutCache() const {
+    return layoutCache_.layout;
+}
+
+void Position::StoreLayoutCache(float availableWidth, float pixelScale, float forcedWidth,
+                                float forcedHeight, ComputedPositionLayout layout) const {
+    layoutCache_.layout = std::move(layout);
+    layoutCache_.key.availableWidth = availableWidth;
+    layoutCache_.key.pixelScale = pixelScale;
+    layoutCache_.key.forcedWidth = forcedWidth;
+    layoutCache_.key.forcedHeight = forcedHeight;
+    layoutCache_.valid = true;
+    needsLayout_ = false;
+}
+
+void Position::InvalidateLayoutCache() const {
+    layoutCache_.valid = false;
+    layoutCache_.layout = ComputedPositionLayout{};
+    needsLayout_ = true;
+    needsPaint_ = true;
+}
+
+bool Position::NeedsLayout() const {
+    return needsLayout_ || !layoutCache_.valid;
+}
+
+void Position::SetNeedsLayout(bool needs) const {
+    needsLayout_ = needs;
+    if (needs) {
+        layoutCache_.valid = false;
+        needsPaint_ = true;
+    }
+}
+
+bool Position::NeedsPaint() const {
+    return needsPaint_;
+}
+
+void Position::SetNeedsPaint(bool needs) const {
+    needsPaint_ = needs;
 }
 
 PositionMode ParsePositionMode(const std::string& str) {

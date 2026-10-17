@@ -12,38 +12,61 @@ namespace Robo {
 
 namespace {
 
-void StrokeRoundedRect(FrameBuffer& buffer, float x, float y, float width, float height, float radius, const Color& color, float thickness, float opacity) {
-    Svg svg;
-    SvgStyle style;
-    style.viewWidth = width;
-    style.viewHeight = height;
-    style.width = width;
-    style.height = height;
-    style.color = color;
-    style.opacity = opacity;
-    svg.SetStyle(style);
-    const float inset = thickness * 0.5f;
-    const float right = width - inset;
-    const float bottom = height - inset;
-    const float rad = std::max(0.0f, radius - inset);
-    const float k = rad * 0.55228475f;
-    SvgShape shape;
-    shape.hasFill = false;
-    shape.hasStroke = true;
-    shape.currentStroke = true;
-    shape.strokeWidth = thickness;
-    shape.commands.push_back(SvgCommand::Move(inset + rad, inset));
-    shape.commands.push_back(SvgCommand::Line(right - rad, inset));
-    shape.commands.push_back(SvgCommand::Cubic(right - rad + k, inset, right, inset + rad - k, right, inset + rad));
-    shape.commands.push_back(SvgCommand::Line(right, bottom - rad));
-    shape.commands.push_back(SvgCommand::Cubic(right, bottom - rad + k, right - rad + k, bottom, right - rad, bottom));
-    shape.commands.push_back(SvgCommand::Line(inset + rad, bottom));
-    shape.commands.push_back(SvgCommand::Cubic(inset + rad - k, bottom, inset, bottom - rad + k, inset, bottom - rad));
-    shape.commands.push_back(SvgCommand::Line(inset, inset + rad));
-    shape.commands.push_back(SvgCommand::Cubic(inset, inset + rad - k, inset + rad - k, inset, inset + rad, inset));
-    shape.commands.push_back(SvgCommand::Close());
-    svg.AddShape(shape);
-    SvgPainter::Paint(buffer, svg, x, y, width, 1.0f);
+// Pixel stroke — no Svg rebuild / allocator on the focus-ring hot path.
+void StrokeRoundedRect(FrameBuffer& buffer, float x, float y, float width, float height, float radius,
+                       const Color& color, float thickness, float opacity) {
+    if (width <= 0.0f || height <= 0.0f || thickness <= 0.0f || color.alpha == 0) {
+        return;
+    }
+    const float cappedRadius = std::max(0.0f, std::min({radius, width * 0.5f, height * 0.5f}));
+    const float half = thickness * 0.5f;
+    const int x0 = static_cast<int>(std::floor(x - half));
+    const int y0 = static_cast<int>(std::floor(y - half));
+    const int x1 = static_cast<int>(std::ceil(x + width + half));
+    const int y1 = static_cast<int>(std::ceil(y + height + half));
+    const float left = x + cappedRadius;
+    const float right = x + width - cappedRadius;
+    const float top = y + cappedRadius;
+    const float bottom = y + height - cappedRadius;
+
+    auto DistanceToRoundedRect = [&](float fx, float fy) -> float {
+        float cx = fx;
+        float cy = fy;
+        if (fx < left) {
+            cx = left;
+        } else if (fx > right) {
+            cx = right;
+        }
+        if (fy < top) {
+            cy = top;
+        } else if (fy > bottom) {
+            cy = bottom;
+        }
+        const float dx = fx - cx;
+        const float dy = fy - cy;
+        return std::sqrt(dx * dx + dy * dy) - cappedRadius;
+    };
+
+    for (int py = y0; py < y1; ++py) {
+        for (int px = x0; px < x1; ++px) {
+            const float fx = static_cast<float>(px) + 0.5f;
+            const float fy = static_cast<float>(py) + 0.5f;
+            float dist = 0.0f;
+            if (fx >= left && fx <= right && fy >= y && fy <= y + height) {
+                dist = -std::min(fy - y, (y + height) - fy);
+            } else if (fy >= top && fy <= bottom && fx >= x && fx <= x + width) {
+                dist = -std::min(fx - x, (x + width) - fx);
+            } else {
+                dist = DistanceToRoundedRect(fx, fy);
+            }
+            const float edgeDist = std::abs(dist + half) - half;
+            if (edgeDist <= 0.0f) {
+                buffer.BlendPixel(px, py, color, opacity);
+            } else if (edgeDist < 1.0f) {
+                buffer.BlendPixel(px, py, color, opacity * (1.0f - edgeDist));
+            }
+        }
+    }
 }
 
 std::string CollapseToSingleLine(const std::string& input) {
@@ -135,6 +158,14 @@ ButtonMeasureResult ButtonPainter::Measure(const FontEngine& fonts,
                                            const Button& button,
                                            float pixelScale) {
     const float scale = std::max(0.5f, pixelScale);
+    if (button.HasMeasureCache(scale)) {
+        const Button::MeasureCache& cached = button.GetMeasureCache();
+        ButtonMeasureResult result;
+        result.width = cached.width;
+        result.height = cached.height;
+        result.advanceY = cached.advanceY;
+        return result;
+    }
     ButtonStyle style = button.GetStyle();
     Resolve(style);
     const std::string label = CollapseToSingleLine(button.GetLabel());
@@ -155,10 +186,23 @@ ButtonMeasureResult ButtonPainter::Measure(const FontEngine& fonts,
     const float paddingY = static_cast<float>(style.paddingY) * scale;
     const float minTarget = 44.0f * scale;
 
+    Button::MeasureCache cache;
+    cache.pixelScale = scale;
+    cache.collapsedLabel = label;
+    cache.textWidth = textWidth;
+    cache.textHeight = textHeight;
+    cache.ascent = ascent;
+    cache.contentWidth = (button.HasIcon() ? iconSize : 0.0f) + iconGap + textWidth;
+    cache.width = button.IsIconOnly() ? minTarget : std::max(minTarget, textWidth + iconSize + iconGap + paddingX * 2.0f);
+    cache.height = button.IsIconOnly() ? minTarget : std::max(minTarget, textHeight + paddingY * 2.0f);
+    cache.advanceY = cache.height + 16.0f * scale;
+    cache.valid = true;
+    button.StoreMeasureCache(std::move(cache));
+
     ButtonMeasureResult result;
-    result.width = button.IsIconOnly() ? minTarget : std::max(minTarget, textWidth + iconSize + iconGap + paddingX * 2.0f);
-    result.height = button.IsIconOnly() ? minTarget : std::max(minTarget, textHeight + paddingY * 2.0f);
-    result.advanceY = result.height + 16.0f * scale;
+    result.width = button.GetMeasureCache().width;
+    result.height = button.GetMeasureCache().height;
+    result.advanceY = button.GetMeasureCache().advanceY;
     return result;
 }
 
@@ -173,9 +217,11 @@ ButtonPaintResult ButtonPainter::Paint(FrameBuffer& buffer,
                                        float forcedHeight) {
     const SelectableScope selection(&button, button.GetStyle().selectable);
     const float scale = std::max(0.5f, pixelScale);
+    // Populate / reuse retained measure (label width, ascent) so Paint does not remesaure.
+    ButtonPainter::Measure(fonts, button, scale);
     ButtonStyle style = button.GetStyle();
     Resolve(style);
-    const std::string label = CollapseToSingleLine(button.GetLabel());
+    const Button::MeasureCache& measured = button.GetMeasureCache();
     const FontFaceId faceId = fonts.ResolveFace(style.fontWeight, style.fontStyle);
     const float fontSize = static_cast<float>(style.fontSize) * scale;
     const float letterSpacing = static_cast<float>(style.letterSpacing) * scale;
@@ -184,20 +230,16 @@ ButtonPaintResult ButtonPainter::Paint(FrameBuffer& buffer,
     const Color textColor = button.ResolveTextColor();
 
     const bool showLabel = !button.IsIconOnly();
-    const std::string visibleLabel = showLabel ? label : std::string();
-    const float textWidth = visibleLabel.empty() ? 0.0f : fonts.MeasureWidth(visibleLabel, fontSize, faceId, letterSpacing);
-    const float ascent = fonts.GetAscent(fontSize, faceId);
-    const float descent = fonts.GetDescent(fontSize, faceId);
-    const float textHeight = std::max(fontSize, ascent + descent);
-    const float iconSize = 20.0f * scale;
+    const std::string visibleLabel = showLabel ? measured.collapsedLabel : std::string();
+    const float ascent = measured.ascent;
+    const float textHeight = measured.textHeight;
+    const float iconSize = button.HasIcon() ? 20.0f * scale : 0.0f;
     const float iconGap = button.HasIcon() && !visibleLabel.empty() ? 8.0f * scale : 0.0f;
-    const float contentWidth = (button.HasIcon() ? iconSize : 0.0f) + iconGap + textWidth;
+    const float contentWidth = measured.contentWidth;
 
     const float paddingX = static_cast<float>(style.paddingX) * scale;
-    const float paddingY = static_cast<float>(style.paddingY) * scale;
-    const float minTarget = 44.0f * scale;
-    const float naturalWidth = button.IsIconOnly() ? minTarget : std::max(minTarget, contentWidth + paddingX * 2.0f);
-    const float naturalHeight = button.IsIconOnly() ? minTarget : std::max(minTarget, textHeight + paddingY * 2.0f);
+    const float naturalWidth = measured.width;
+    const float naturalHeight = measured.height;
 
     const float buttonWidth = forcedWidth > 0.0f ? forcedWidth : naturalWidth;
     const float buttonHeight = forcedHeight > 0.0f ? forcedHeight : naturalHeight;

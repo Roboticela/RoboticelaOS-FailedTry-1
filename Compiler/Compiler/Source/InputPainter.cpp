@@ -163,6 +163,14 @@ InputMeasureResult InputPainter::Measure(const FontEngine& fonts,
                                         float containerWidth,
                                         float pixelScale) {
     const float scale = std::max(0.5f, pixelScale);
+    if (input.HasMeasureCache(containerWidth, scale)) {
+        const Input::MeasureCache& cached = input.GetMeasureCache();
+        InputMeasureResult result;
+        result.width = cached.width;
+        result.height = cached.height;
+        result.advanceY = cached.advanceY;
+        return result;
+    }
     InputStyle style = input.GetStyle();
     Resolve(style);
     const FontFaceId faceId = fonts.ResolveFace(style.fontWeight, style.fontStyle);
@@ -174,12 +182,28 @@ InputMeasureResult InputPainter::Measure(const FontEngine& fonts,
     const float paddingY = static_cast<float>(style.paddingY) * scale;
 
     const float logicalContainer = containerWidth / scale;
-    float fieldWidth = TextPainter::ResolveWidthValue(style.width, logicalContainer) * scale;
+    float fieldWidth;
+    if (style.hasWidthLength) {
+        fieldWidth = style.widthLength.Resolve(logicalContainer, 1.0f) * scale;
+    } else {
+        fieldWidth = TextPainter::ResolveWidthValue(style.width, logicalContainer) * scale;
+    }
     fieldWidth = std::max(fieldWidth, static_cast<float>(style.minWidth) * scale);
     if (containerWidth > 0.0f) {
         fieldWidth = std::min(fieldWidth, containerWidth);
     }
     const float fieldHeight = textHeight + paddingY * 2.0f;
+
+    Input::MeasureCache cache;
+    cache.containerWidth = containerWidth;
+    cache.pixelScale = scale;
+    cache.width = fieldWidth;
+    cache.height = fieldHeight;
+    cache.advanceY = fieldHeight + 16.0f * scale;
+    cache.ascent = ascent;
+    cache.textHeight = textHeight;
+    cache.valid = true;
+    input.StoreMeasureCache(std::move(cache));
 
     InputMeasureResult result;
     result.width = fieldWidth;
@@ -199,8 +223,10 @@ InputPaintResult InputPainter::Paint(FrameBuffer& buffer,
                                      float forcedHeight) {
     const SelectableScope selection(&input, input.GetStyle().selectable);
     const float scale = std::max(0.5f, pixelScale);
+    InputPainter::Measure(fonts, input, containerWidth, scale);
     InputStyle style = input.GetStyle();
     Resolve(style);
+    const Input::MeasureCache& measured = input.GetMeasureCache();
     const FontFaceId faceId = fonts.ResolveFace(style.fontWeight, style.fontStyle);
     const float fontSize = static_cast<float>(style.fontSize) * scale;
     const float letterSpacing = static_cast<float>(style.letterSpacing) * scale;
@@ -209,17 +235,13 @@ InputPaintResult InputPainter::Paint(FrameBuffer& buffer,
     const Color borderColor = input.ResolveBorderColor();
     const float borderWidth = input.ResolveBorderWidth() * scale;
 
-    const float ascent = fonts.GetAscent(fontSize, faceId);
-    const float descent = fonts.GetDescent(fontSize, faceId);
-    const float textHeight = std::max(fontSize, ascent + descent);
+    const float ascent = measured.ascent;
+    const float textHeight = measured.textHeight;
     const float paddingX = static_cast<float>(style.paddingX) * scale;
     const float paddingY = static_cast<float>(style.paddingY) * scale;
 
-    const float logicalContainer = containerWidth / scale;
-    float naturalWidth = TextPainter::ResolveWidthValue(style.width, logicalContainer) * scale;
-    naturalWidth = std::max(naturalWidth, static_cast<float>(style.minWidth) * scale);
-    naturalWidth = std::min(naturalWidth, containerWidth);
-    const float naturalHeight = textHeight + paddingY * 2.0f;
+    const float naturalWidth = measured.width;
+    const float naturalHeight = measured.height;
 
     const float fieldWidth = forcedWidth > 0.0f ? forcedWidth : naturalWidth;
     const float fieldHeight = forcedHeight > 0.0f ? forcedHeight : naturalHeight;

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 namespace Robo {
@@ -182,28 +183,6 @@ void StrokeRoundedRect(FrameBuffer& buffer,
     }
 }
 
-struct PlacedGridChild {
-    std::size_t itemIndex = 0;
-    int colStart = 0;
-    int colSpan = 1;
-    int rowStart = 0;
-    int rowSpan = 1;
-
-    float measuredWidth = 0.0f;
-    float measuredHeight = 0.0f;
-
-    float finalX = 0.0f;
-    float finalY = 0.0f;
-    float finalWidth = 0.0f;
-    float finalHeight = 0.0f;
-};
-
-struct ComputedGridLayout {
-    float containerWidth = 0.0f;
-    float containerHeight = 0.0f;
-    std::vector<PlacedGridChild> children;
-};
-
 ComputedGridLayout ComputeLayout(const FontEngine& fonts,
                                 Grid& grid,
                                 float containerWidth,
@@ -217,6 +196,8 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
     float resolvedW = containerWidth;
     if (forcedWidth > 0.0f) {
         resolvedW = forcedWidth;
+    } else if (style.hasWidthLength && !style.widthLength.IsAuto()) {
+        resolvedW = style.widthLength.Resolve(containerWidth / scale, 1.0f) * scale;
     } else if (!style.width.empty() && style.width != "auto") {
         resolvedW = ParseDimension(style.width, containerWidth, containerWidth, scale);
     }
@@ -343,50 +324,50 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
                 break;
             }
             case GridItemKind::TitleBar: {
-                TitleBarMeasureResult measured = TitleBarPainter::Measure(fonts, item.titleBar, innerW, scale);
+                TitleBarMeasureResult measured = TitleBarPainter::Measure(fonts, *item.titleBar, innerW, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::Sidebar: {
-                SidebarMeasureResult measured = SidebarPainter::Measure(item.sidebar, 0.0f, scale);
+                SidebarMeasureResult measured = SidebarPainter::Measure(*item.sidebar, 0.0f, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::BrandLogo: {
-                BrandLogoMeasureResult measured = BrandLogoPainter::Measure(fonts, item.brandLogo, scale);
+                BrandLogoMeasureResult measured = BrandLogoPainter::Measure(fonts, *item.brandLogo, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::ThemeToggle: {
-                ThemeToggleMeasureResult measured = ThemeTogglePainter::Measure(fonts, item.themeToggle, innerW, scale);
+                ThemeToggleMeasureResult measured = ThemeTogglePainter::Measure(fonts, *item.themeToggle, innerW, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::ThemeIconToggle: {
-                ThemeIconToggleMeasureResult measured = ThemeIconTogglePainter::Measure(item.themeIconToggle, scale);
+                ThemeIconToggleMeasureResult measured = ThemeIconTogglePainter::Measure(*item.themeIconToggle, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::SidebarItem: {
-                SidebarItemMeasureResult measured = SidebarPainter::MeasureItem(fonts, item.sidebarItem, scale);
+                SidebarItemMeasureResult measured = SidebarPainter::MeasureItem(fonts, *item.sidebarItem, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::Separator: {
-                SeparatorMeasureResult measured = SeparatorPainter::Measure(fonts, item.separator, innerW, 0.0f, scale);
+                SeparatorMeasureResult measured = SeparatorPainter::Measure(fonts, *item.separator, innerW, 0.0f, scale);
                 child.measuredWidth = measured.width;
                 child.measuredHeight = measured.height;
                 break;
             }
             case GridItemKind::MotionShape: {
-                child.measuredWidth = item.motionShape.Width() * scale;
-                child.measuredHeight = item.motionShape.Height() * scale;
+                child.measuredWidth = item.motionShape->Width() * scale;
+                child.measuredHeight = item.motionShape->Height() * scale;
                 break;
             }
             case GridItemKind::Button: {
@@ -580,6 +561,8 @@ ComputedGridLayout ComputeLayout(const FontEngine& fonts,
     float resolvedH = naturalGridHeight;
     if (forcedHeight > 0.0f) {
         resolvedH = forcedHeight;
+    } else if (style.hasHeightLength && !style.heightLength.IsAuto()) {
+        resolvedH = style.heightLength.Resolve(containerWidth / scale, 1.0f) * scale;
     } else if (!style.height.empty() && style.height != "auto") {
         resolvedH = ParseDimension(style.height, 0.0f, naturalGridHeight, scale);
     }
@@ -678,11 +661,19 @@ GridMeasureResult GridPainter::Measure(const FontEngine& fonts,
                                       float pixelScale,
                                       float forcedWidth,
                                       float forcedHeight) {
+    const float scale = std::max(0.5f, pixelScale);
+    if (grid.HasLayoutCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+        GridMeasureResult cached;
+        cached.width = grid.LayoutCache().containerWidth;
+        cached.height = grid.LayoutCache().containerHeight;
+        return cached;
+    }
     ComputedGridLayout layout =
         ComputeLayout(fonts, grid, containerWidth, pixelScale, forcedWidth, forcedHeight);
     GridMeasureResult result;
     result.width = layout.containerWidth;
     result.height = layout.containerHeight;
+    grid.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, std::move(layout));
     return result;
 }
 
@@ -700,8 +691,17 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
     GridStyle style = grid.GetStyle();
     Resolve(style);
 
-    ComputedGridLayout layout =
-        ComputeLayout(fonts, grid, containerWidth, pixelScale, forcedWidth, forcedHeight);
+    const ComputedGridLayout* layoutPtr = nullptr;
+    ComputedGridLayout layoutOwned;
+    if (grid.HasLayoutCache(containerWidth, scale, forcedWidth, forcedHeight)) {
+        layoutPtr = &grid.LayoutCache();
+    } else {
+        layoutOwned = ComputeLayout(fonts, grid, containerWidth, scale, forcedWidth, forcedHeight);
+        grid.StoreLayoutCache(containerWidth, scale, forcedWidth, forcedHeight, std::move(layoutOwned));
+        layoutPtr = &grid.LayoutCache();
+    }
+    const ComputedGridLayout& layout = *layoutPtr;
+    grid.SetNeedsPaint(false);
 
     const float containerX = originX;
     const float containerY = originY;
@@ -750,35 +750,35 @@ GridPaintResult GridPainter::Paint(FrameBuffer& buffer,
                 break;
             }
             case GridItemKind::BrandLogo: {
-                BrandLogoPainter::Paint(buffer, fonts, item.brandLogo, childX, childY, scale);
+                BrandLogoPainter::Paint(buffer, fonts, *item.brandLogo, childX, childY, scale);
                 break;
             }
             case GridItemKind::TitleBar: {
-                TitleBarPainter::Paint(buffer, fonts, item.titleBar, childX, childY, childW, scale);
+                TitleBarPainter::Paint(buffer, fonts, *item.titleBar, childX, childY, childW, scale);
                 break;
             }
             case GridItemKind::Sidebar: {
-                SidebarPainter::Paint(buffer, fonts, item.sidebar, childX, childY, childH, scale, 1.0f);
+                SidebarPainter::Paint(buffer, fonts, *item.sidebar, childX, childY, childH, scale, 1.0f);
                 break;
             }
             case GridItemKind::ThemeToggle: {
-                ThemeTogglePainter::Paint(buffer, fonts, item.themeToggle, childX, childY, childW, scale);
+                ThemeTogglePainter::Paint(buffer, fonts, *item.themeToggle, childX, childY, childW, scale);
                 break;
             }
             case GridItemKind::ThemeIconToggle: {
-                ThemeIconTogglePainter::Paint(buffer, item.themeIconToggle, childX, childY, scale);
+                ThemeIconTogglePainter::Paint(buffer, *item.themeIconToggle, childX, childY, scale);
                 break;
             }
             case GridItemKind::SidebarItem: {
-                SidebarPainter::PaintItem(buffer, fonts, item.sidebarItem, childX, childY, childW, childH, scale, false);
+                SidebarPainter::PaintItem(buffer, fonts, *item.sidebarItem, childX, childY, childW, childH, scale, false);
                 break;
             }
             case GridItemKind::Separator: {
-                SeparatorPainter::Paint(buffer, fonts, item.separator, childX, childY, childW, childH, scale);
+                SeparatorPainter::Paint(buffer, fonts, *item.separator, childX, childY, childW, childH, scale);
                 break;
             }
             case GridItemKind::MotionShape: {
-                item.motionShape.Paint(buffer, childX, childY, childW, childH, scale);
+                item.motionShape->Paint(buffer, childX, childY, childW, childH, scale);
                 break;
             }
             case GridItemKind::Button: {

@@ -101,6 +101,21 @@ public:
     bool MoveCaretRight();
     void ClampCaret();
 
+    struct MeasureCache {
+        float containerWidth = -1.0f;
+        float pixelScale = -1.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+        float advanceY = 0.0f;
+        float ascent = 0.0f;
+        float textHeight = 0.0f;
+        bool valid = false;
+    };
+    bool HasMeasureCache(float containerWidth, float pixelScale) const;
+    const MeasureCache& GetMeasureCache() const;
+    void StoreMeasureCache(MeasureCache cache) const;
+    void InvalidateMeasureCache() const;
+
 private:
     std::string value_;
     std::string placeholder_;
@@ -108,6 +123,7 @@ private:
     InputInteraction interaction_ = InputInteraction::Normal;
     InputBounds bounds_;
     std::size_t caretIndex_ = 0;
+    mutable MeasureCache measureCache_{};
 };
 
 InputVariant ParseInputVariant(const std::string& value);
