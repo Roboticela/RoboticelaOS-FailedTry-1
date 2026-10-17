@@ -1,9 +1,17 @@
 #include "Robo/RoboPageTables.hpp"
 
+#include "Robo/Color.hpp"
 #include "Robo/Container.hpp"
 #include "Robo/Flexbox.hpp"
+#include "Robo/FontStyle.hpp"
+#include "Robo/Foundation.hpp"
 #include "Robo/Heading.hpp"
+#include "Robo/Paragraph.hpp"
+#include "Robo/Selectable.hpp"
 #include "Robo/Text.hpp"
+#include "Robo/TextAlign.hpp"
+
+#include <vector>
 
 namespace Robo {
 
@@ -208,6 +216,114 @@ void RoboAddMenuLabels(TopBarMenu& menu, const char* const* labels, int count) {
         item.SetLabel(labels[index] != nullptr ? labels[index] : "");
         menu.AddItem(std::move(item));
     }
+}
+
+void RoboFillTextBlocks(Position& content, const RoboTextBlock* rows, int count) {
+    if (rows == nullptr || count <= 0) {
+        return;
+    }
+    for (int index = 0; index < count; ++index) {
+        const RoboTextBlock& row = rows[index];
+        PositionItemProps props;
+        if (row.headingLevel > 0) {
+            Heading heading(row.headingLevel);
+            heading.AddPlain(row.text != nullptr ? row.text : "");
+            content.AddText(std::move(heading), props);
+            continue;
+        }
+        Paragraph paragraph;
+        if (row.selectable) {
+            TextStyle style = paragraph.GetStyle();
+            style.selectable = SelectableMode::On;
+            paragraph.SetStyle(style);
+        }
+        paragraph.AddPlain(row.text != nullptr ? row.text : "");
+        content.AddText(std::move(paragraph), props);
+    }
+}
+
+void RoboFillContextMenu(ContextMenu& menu, const RoboMenuEntry* rows, int count) {
+    if (rows == nullptr || count <= 0) {
+        return;
+    }
+    std::vector<ContextMenuItem> built(static_cast<std::size_t>(count));
+    std::vector<char> attached(static_cast<std::size_t>(count), 0);
+    for (int index = 0; index < count; ++index) {
+        const RoboMenuEntry& row = rows[index];
+        ContextMenuItem& item = built[static_cast<std::size_t>(index)];
+        if ((row.flags & RoboMenuSeparator) != 0u) {
+            item.SetSeparator(true);
+            continue;
+        }
+        if (row.label != nullptr) {
+            item.SetLabel(row.label);
+        }
+        if ((row.flags & RoboMenuDisabled) != 0u) {
+            item.SetDisabled(true);
+        }
+        if ((row.flags & RoboMenuCheckable) != 0u || (row.flags & RoboMenuChecked) != 0u) {
+            item.SetCheckable(true);
+            item.SetCheckName("Check");
+        }
+        if ((row.flags & RoboMenuChecked) != 0u) {
+            item.SetChecked(true);
+        }
+        if (row.icon != nullptr && row.icon[0] != '\0') {
+            item.SetIconName(row.icon);
+        }
+        if ((row.flags & RoboMenuSubmenu) != 0u) {
+            item.SetChevronName("Chevron");
+        }
+        if (row.shortcut != nullptr && row.shortcut[0] != '\0') {
+            item.SetShortcutSpec(row.shortcut);
+        }
+    }
+    for (int index = count - 1; index >= 0; --index) {
+        const int parent = rows[index].parent;
+        if (parent < 0 || parent >= count || parent == index) {
+            continue;
+        }
+        built[static_cast<std::size_t>(parent)].AddItem(std::move(built[static_cast<std::size_t>(index)]));
+        attached[static_cast<std::size_t>(index)] = 1;
+    }
+    for (int index = 0; index < count; ++index) {
+        if (attached[static_cast<std::size_t>(index)] || rows[index].parent >= 0) {
+            continue;
+        }
+        menu.AddItem(std::move(built[static_cast<std::size_t>(index)]));
+    }
+}
+
+void RoboApplyDesktopChrome(RoboScene& scene) {
+    scene.SetPagePadding(0.0f);
+    Foundation foundationDesktop = Foundation::CopyOf("RoboFoundation");
+    foundationDesktop.SetName("Desktop");
+    Foundation::Register(foundationDesktop);
+    scene.SetFoundation("Desktop");
+    scene.EnableDesktop();
+    scene.SetDesktopBackground(Color::FromHex("#202838"), "color.bg.primary");
+    scene.SetDesktopBackgroundPath("Assets/Background.mp4");
+}
+
+void RoboApplySelectionLabelDefaults(SelectionArea& area) {
+    SelectionLabelStyle labelStyle = area.GetLabelStyle();
+    labelStyle.fontSize = 12.0f;
+    labelStyle.fontWeight = FontWeight::Regular;
+    labelStyle.color = Color::FromHex("#FFFFFF");
+    labelStyle.align = TextAlign::Center;
+    labelStyle.lineHeight = 1.25f;
+    labelStyle.letterSpacing = 0.0f;
+    labelStyle.wrap = true;
+    labelStyle.maxWidth = 100.0f;
+    labelStyle.maxLines = 2;
+    labelStyle.shadowX = 0.0f;
+    labelStyle.shadowY = 1.0f;
+    labelStyle.shadowBlur = 2.0f;
+    labelStyle.shadowColor = Color::FromHex("#000000D9");
+    labelStyle.iconGap = 5.0f;
+    labelStyle.selectionRadius = 4.0f;
+    labelStyle.selectionColor = Color::FromHex("#007AFF");
+    area.SetLabelStyle(labelStyle);
 }
 
 }  // namespace Robo

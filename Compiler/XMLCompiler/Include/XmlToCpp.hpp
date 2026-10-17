@@ -24,6 +24,7 @@ private:
                         float size, const std::string& applyLine) const;
     void EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitColorPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
+    void EmitProsePane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitTypePane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitSpacePane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitRadiusPane(std::ostringstream& code, const XmlNode& pane, int indent) const;

@@ -1,5 +1,7 @@
 #include "Robo/Sidebar.hpp"
 
+#include "Robo/RoboIconPack.hpp"
+
 #include <algorithm>
 #include <cmath>
 
@@ -91,13 +93,29 @@ bool SidebarItem::IsSelected() const {
 void SidebarItem::SetIcon(Svg icon) {
     icon_ = std::move(icon);
     hasIcon_ = true;
+    iconName_.clear();
+}
+
+void SidebarItem::SetIconName(const std::string& name) {
+    iconName_ = name;
+    if (!iconName_.empty()) {
+        hasIcon_ = false;
+        icon_ = Svg();
+    }
 }
 
 bool SidebarItem::HasIcon() const {
-    return hasIcon_;
+    return hasIcon_ || !iconName_.empty();
 }
 
 Svg& SidebarItem::Icon() {
+    if (!hasIcon_ && !iconName_.empty()) {
+        icon_ = RoboBakeNamedIcon(iconName_.c_str(), 20.0f);
+        hasIcon_ = !icon_.GetShapes().empty();
+        if (hasIcon_) {
+            iconName_.clear();
+        }
+    }
     return icon_;
 }
 

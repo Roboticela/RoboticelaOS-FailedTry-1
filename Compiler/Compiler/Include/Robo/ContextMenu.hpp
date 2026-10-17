@@ -44,22 +44,30 @@ public:
     bool IsCheckable() const;
 
     void SetIcon(Svg icon);
+    void SetIconName(const std::string& name);
     bool HasIcon() const;
     Svg& Icon();
     const Svg& Icon() const;
 
     void SetChevron(Svg graphic);
+    void SetChevronName(const std::string& name);
     bool HasChevron() const;
     Svg& Chevron();
 
     void SetCheckGraphic(Svg graphic);
+    void SetCheckName(const std::string& name);
     bool HasCheckGraphic() const;
     Svg& CheckGraphic();
 
     void AddShortcutGlyph(Svg graphic);
     void AddShortcutText(const std::string& text);
+    // Space-separated tokens (Shift, Command/Cmd, or a letter). Baked on EnsureGraphics.
+    void SetShortcutSpec(const std::string& spec);
     const std::vector<ContextMenuGlyph>& Shortcut() const;
     float ShortcutWidth(const FontEngine& fonts, float fontSize, float glyphSize) const;
+
+    // Bakes named icons the first time the menu opens.
+    void EnsureGraphics();
 
     void AddItem(ContextMenuItem item);
     std::vector<ContextMenuItem>& Items();
@@ -81,6 +89,10 @@ private:
     Svg icon_;
     Svg chevron_;
     Svg check_;
+    std::string iconName_;
+    std::string chevronName_;
+    std::string checkName_;
+    std::string shortcutSpec_;
     std::vector<ContextMenuGlyph> shortcut_;
     std::vector<ContextMenuItem> items_;
     ContextMenuBounds bounds_{};

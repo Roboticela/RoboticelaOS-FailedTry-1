@@ -1,7 +1,9 @@
 #include "WebPlatform.hpp"
 #include "Robo/FontEngine.hpp"
 #include "Robo/RenderQuality.hpp"
+#include "Robo/RoboCatalog.hpp"
 #include "Robo/RoboIconPack.hpp"
+#include "Robo/RoboPanePack.hpp"
 #include "Robo/RoboScene.hpp"
 
 #include <emscripten.h>
@@ -73,6 +75,8 @@ bool EnsureApp() {
     }
 
     Robo::RoboIconPackLoad(*gPlatform);
+    Robo::RoboCatalogLoad(*gPlatform);
+    Robo::RoboPaneLoad(*gPlatform);
     BuildPage(gScene);
     gReady = true;
     return true;

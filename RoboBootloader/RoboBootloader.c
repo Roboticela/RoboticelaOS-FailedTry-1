@@ -555,8 +555,12 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     static uint16_t diskPath[] = u"\\ROBODISK.IMG";
     static uint16_t iconPath[] = u"\\ROBOICON.PAK";
     static uint16_t countryPath[] = u"\\ROBOCTRY.PAK";
+    static uint16_t catalogPath[] = u"\\ROBOCAT.PAK";
+    static uint16_t panePath[] = u"\\ROBOPANE.PAK";
     RoboLoadBootFile(boot, root, iconPath, "ROBOICON.PAK", &info);
     RoboLoadBootFile(boot, root, countryPath, "ROBOCTRY.PAK", &info);
+    RoboLoadBootFile(boot, root, catalogPath, "ROBOCAT.PAK", &info);
+    RoboLoadBootFile(boot, root, panePath, "ROBOPANE.PAK", &info);
     RoboLoadBootFile(boot, root, diskPath, "ROBODISK.IMG", &info);
     root->close(root);
     {

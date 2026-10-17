@@ -15,7 +15,9 @@ $RoboEspRequired = @(
     "DESKTOP.BIN",
     "RoboApp.bin",
     "ROBOICON.PAK",
-    "ROBOCTRY.PAK"
+    "ROBOCTRY.PAK",
+    "ROBOCAT.PAK",
+    "ROBOPANE.PAK"
 )
 
 $RoboEspOptional = @(
@@ -40,7 +42,9 @@ $RoboEspArmRequired = @(
     "DESKTOP.BIN",
     "RoboApp.bin",
     "ROBOICON.PAK",
-    "ROBOCTRY.PAK"
+    "ROBOCTRY.PAK",
+    "ROBOCAT.PAK",
+    "ROBOPANE.PAK"
 )
 
 function Assert-RoboEspAssets {

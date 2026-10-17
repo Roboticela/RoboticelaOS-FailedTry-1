@@ -32,17 +32,23 @@ public:
     void SetSidebarAmount(float amount);
     float SidebarAmount() const;
     void SetSidebarIcons(Svg shown, Svg hidden);
+    // Defers bake until ShownIcon/HiddenIcon are first read.
+    void SetSidebarIconNames(const std::string& shown, const std::string& hidden);
     bool HasSidebarIcons() const;
     Svg& ShownIcon();
     Svg& HiddenIcon();
 
 private:
+    void EnsureSidebarIcons();
+
     std::string title_;
     BrandLogo logo_;
     Button sidebarButton_;
     ThemeIconToggle themeIcon_;
     Svg shownIcon_;
     Svg hiddenIcon_;
+    std::string shownIconName_;
+    std::string hiddenIconName_;
     bool hasSidebarIcons_ = false;
     bool sidebarOpen_ = true;
     float sidebarAmount_ = 1.0f;

@@ -25,6 +25,7 @@ struct BakeSlot {
 
 std::vector<std::vector<std::uint8_t>> gPacks;
 std::vector<IconRef> gIcons;
+std::vector<int> gHash;
 bool gLoaded = false;
 BakeSlot gBake[96];
 
@@ -37,6 +38,47 @@ bool SameName(const char* left, const char* right) {
         ++right;
     }
     return *left == '\0' && *right == '\0';
+}
+
+std::uint32_t HashName(const char* name) {
+    std::uint32_t hash = 2166136261u;
+    while (name != nullptr && *name != '\0') {
+        hash ^= static_cast<std::uint8_t>(*name);
+        hash *= 16777619u;
+        ++name;
+    }
+    return hash;
+}
+
+const char* IconNameAt(const IconRef& icon) {
+    if (icon.pack < 0 || static_cast<std::size_t>(icon.pack) >= gPacks.size()) {
+        return nullptr;
+    }
+    const std::vector<std::uint8_t>& pack = gPacks[static_cast<std::size_t>(icon.pack)];
+    if (icon.nameOffset >= pack.size()) {
+        return nullptr;
+    }
+    return reinterpret_cast<const char*>(pack.data() + icon.nameOffset);
+}
+
+void RebuildIconHash() {
+    std::size_t slots = 16u;
+    while (slots < gIcons.size() * 2u + 8u) {
+        slots <<= 1u;
+    }
+    gHash.assign(slots, -1);
+    const std::uint32_t mask = static_cast<std::uint32_t>(slots - 1u);
+    for (int index = 0; index < static_cast<int>(gIcons.size()); ++index) {
+        const char* name = IconNameAt(gIcons[static_cast<std::size_t>(index)]);
+        if (name == nullptr || name[0] == '\0') {
+            continue;
+        }
+        std::uint32_t slot = HashName(name) & mask;
+        while (gHash[slot] >= 0) {
+            slot = (slot + 1u) & mask;
+        }
+        gHash[slot] = index;
+    }
 }
 
 std::uint16_t Read16(const std::uint8_t* data, std::uint32_t size, std::uint32_t offset) {
@@ -71,21 +113,21 @@ std::string ReadText(const std::uint8_t* data, std::uint32_t size, std::uint32_t
 }
 
 const IconRef* FindIcon(const char* name) {
-    if (name == nullptr || name[0] == '\0') {
+    if (name == nullptr || name[0] == '\0' || gHash.empty()) {
         return nullptr;
     }
-    for (const IconRef& icon : gIcons) {
-        if (icon.pack < 0 || static_cast<std::size_t>(icon.pack) >= gPacks.size()) {
-            continue;
+    const std::uint32_t mask = static_cast<std::uint32_t>(gHash.size() - 1u);
+    std::uint32_t slot = HashName(name) & mask;
+    for (std::size_t probe = 0; probe < gHash.size(); ++probe) {
+        const int index = gHash[slot];
+        if (index < 0) {
+            return nullptr;
         }
-        const std::vector<std::uint8_t>& pack = gPacks[static_cast<std::size_t>(icon.pack)];
-        if (icon.nameOffset >= pack.size()) {
-            continue;
-        }
-        const char* stored = reinterpret_cast<const char*>(pack.data() + icon.nameOffset);
+        const char* stored = IconNameAt(gIcons[static_cast<std::size_t>(index)]);
         if (SameName(stored, name)) {
-            return &icon;
+            return &gIcons[static_cast<std::size_t>(index)];
         }
+        slot = (slot + 1u) & mask;
     }
     return nullptr;
 }
@@ -237,6 +279,7 @@ void RoboIconPackAdd(const std::uint8_t* data, std::uint32_t size) {
         }
         gIcons.push_back(ref);
     }
+    RebuildIconHash();
 }
 
 void RoboIconPackLoad(const IPlatform& platform) {

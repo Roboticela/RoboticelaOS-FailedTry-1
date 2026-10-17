@@ -1,4 +1,5 @@
 #include "Robo/TitleBar.hpp"
+#include "Robo/RoboIconPack.hpp"
 
 #include <algorithm>
 
@@ -72,18 +73,43 @@ float TitleBar::SidebarAmount() const {
 void TitleBar::SetSidebarIcons(Svg shown, Svg hidden) {
     shownIcon_ = std::move(shown);
     hiddenIcon_ = std::move(hidden);
+    shownIconName_.clear();
+    hiddenIconName_.clear();
     hasSidebarIcons_ = true;
 }
 
+void TitleBar::SetSidebarIconNames(const std::string& shown, const std::string& hidden) {
+    shownIconName_ = shown;
+    hiddenIconName_ = hidden;
+    hasSidebarIcons_ = false;
+    shownIcon_ = Svg();
+    hiddenIcon_ = Svg();
+}
+
+void TitleBar::EnsureSidebarIcons() {
+    if (hasSidebarIcons_ || shownIconName_.empty() || hiddenIconName_.empty()) {
+        return;
+    }
+    shownIcon_ = RoboBakeNamedIcon(shownIconName_.c_str(), 20.0f);
+    hiddenIcon_ = RoboBakeNamedIcon(hiddenIconName_.c_str(), 20.0f);
+    hasSidebarIcons_ = !shownIcon_.GetShapes().empty() && !hiddenIcon_.GetShapes().empty();
+    if (hasSidebarIcons_) {
+        shownIconName_.clear();
+        hiddenIconName_.clear();
+    }
+}
+
 bool TitleBar::HasSidebarIcons() const {
-    return hasSidebarIcons_;
+    return hasSidebarIcons_ || (!shownIconName_.empty() && !hiddenIconName_.empty());
 }
 
 Svg& TitleBar::ShownIcon() {
+    EnsureSidebarIcons();
     return shownIcon_;
 }
 
 Svg& TitleBar::HiddenIcon() {
+    EnsureSidebarIcons();
     return hiddenIcon_;
 }
 

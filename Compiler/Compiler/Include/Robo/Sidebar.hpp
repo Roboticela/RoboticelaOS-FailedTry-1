@@ -69,6 +69,8 @@ public:
     bool IsSelected() const;
 
     void SetIcon(Svg icon);
+    // Defers bake until Icon() / paint. Name comes from the catalog pack.
+    void SetIconName(const std::string& name);
     bool HasIcon() const;
     Svg& Icon();
     const Svg& Icon() const;
@@ -92,6 +94,7 @@ private:
     bool selected_ = false;
     Svg icon_;
     bool hasIcon_ = false;
+    std::string iconName_;
     std::vector<SidebarItem> children_;
     SidebarItemBounds bounds_;
 };

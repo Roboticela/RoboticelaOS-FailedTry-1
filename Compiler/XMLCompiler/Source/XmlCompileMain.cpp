@@ -14,8 +14,26 @@ int main(int argc, char** argv) {
         }
         return 0;
     }
+    if (argc == 4 && std::string(argv[1]) == "--catalog") {
+        if (!Robo::WriteRuntimeCatalog(argv[2], argv[3])) {
+            std::cerr << "Failed to write catalog image " << argv[3] << "\n";
+            return 1;
+        }
+        return 0;
+    }
+    if ((argc == 4 || argc == 5) && std::string(argv[1]) == "--panes") {
+        const std::string assets = argc == 5 ? argv[4] : "Assets";
+        if (!Robo::WriteRuntimePanes(argv[2], argv[3], assets)) {
+            std::cerr << "Failed to write pane image " << argv[3] << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (argc != 3 && argc != 4) {
         std::cerr << "Usage: XmlCompile <input.xml> <output.cpp> [asset-directory]\n";
+        std::cerr << "       XmlCompile --pack <pack.txt> <out.PAK>\n";
+        std::cerr << "       XmlCompile --catalog <page.xml> <ROBOCAT.PAK>\n";
+        std::cerr << "       XmlCompile --panes <page.xml> <ROBOPANE.PAK> [asset-directory]\n";
         return 1;
     }
 

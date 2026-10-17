@@ -1,6 +1,7 @@
 #include "Robo/ContextMenu.hpp"
 
 #include "Robo/FontEngine.hpp"
+#include "Robo/RoboIconPack.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -148,10 +149,19 @@ bool ContextMenuItem::IsCheckable() const {
 void ContextMenuItem::SetIcon(Svg icon) {
     icon_ = std::move(icon);
     hasIcon_ = true;
+    iconName_.clear();
+}
+
+void ContextMenuItem::SetIconName(const std::string& name) {
+    iconName_ = name;
+    if (!iconName_.empty()) {
+        hasIcon_ = false;
+        icon_ = Svg();
+    }
 }
 
 bool ContextMenuItem::HasIcon() const {
-    return hasIcon_;
+    return hasIcon_ || !iconName_.empty();
 }
 
 Svg& ContextMenuItem::Icon() {
@@ -165,10 +175,19 @@ const Svg& ContextMenuItem::Icon() const {
 void ContextMenuItem::SetChevron(Svg graphic) {
     chevron_ = std::move(graphic);
     hasChevron_ = true;
+    chevronName_.clear();
+}
+
+void ContextMenuItem::SetChevronName(const std::string& name) {
+    chevronName_ = name;
+    if (!chevronName_.empty()) {
+        hasChevron_ = false;
+        chevron_ = Svg();
+    }
 }
 
 bool ContextMenuItem::HasChevron() const {
-    return hasChevron_;
+    return hasChevron_ || !chevronName_.empty();
 }
 
 Svg& ContextMenuItem::Chevron() {
@@ -178,10 +197,19 @@ Svg& ContextMenuItem::Chevron() {
 void ContextMenuItem::SetCheckGraphic(Svg graphic) {
     check_ = std::move(graphic);
     hasCheck_ = true;
+    checkName_.clear();
+}
+
+void ContextMenuItem::SetCheckName(const std::string& name) {
+    checkName_ = name;
+    if (!checkName_.empty()) {
+        hasCheck_ = false;
+        check_ = Svg();
+    }
 }
 
 bool ContextMenuItem::HasCheckGraphic() const {
-    return hasCheck_;
+    return hasCheck_ || !checkName_.empty();
 }
 
 Svg& ContextMenuItem::CheckGraphic() {
@@ -202,6 +230,78 @@ void ContextMenuItem::AddShortcutText(const std::string& text) {
     part.text = true;
     part.label = text;
     shortcut_.push_back(std::move(part));
+}
+
+void ContextMenuItem::SetShortcutSpec(const std::string& spec) {
+    shortcutSpec_ = spec;
+}
+
+void ContextMenuItem::EnsureGraphics() {
+    if (!hasIcon_ && !iconName_.empty()) {
+        icon_ = RoboBakeNamedIcon(iconName_.c_str(), 16.0f);
+        hasIcon_ = !icon_.GetShapes().empty();
+        if (hasIcon_) {
+            iconName_.clear();
+        }
+    }
+    if (!hasChevron_ && !chevronName_.empty()) {
+        chevron_ = RoboBakeNamedIcon(chevronName_.c_str(), 16.0f);
+        hasChevron_ = !chevron_.GetShapes().empty();
+        if (hasChevron_) {
+            chevronName_.clear();
+        }
+    }
+    if (!hasCheck_ && !checkName_.empty()) {
+        check_ = RoboBakeNamedIcon(checkName_.c_str(), 16.0f);
+        hasCheck_ = !check_.GetShapes().empty();
+        if (hasCheck_) {
+            checkName_.clear();
+        }
+    }
+    if (!shortcutSpec_.empty() && shortcut_.empty()) {
+        std::string shortcut = shortcutSpec_;
+        while (!shortcut.empty()) {
+            if (shortcut[0] == ' ') {
+                shortcut.erase(0, 1);
+                continue;
+            }
+            std::string iconName;
+            std::size_t used = 0;
+            if (shortcut.compare(0, 5, "Shift") == 0) {
+                iconName = "Shift";
+                used = 5;
+            } else if (shortcut.compare(0, 7, "Command") == 0) {
+                iconName = "Command";
+                used = 7;
+            } else if (shortcut.compare(0, 3, "Cmd") == 0) {
+                iconName = "Command";
+                used = 3;
+            } else if (shortcut.compare(0, 3, "\xE2\x87\xA7") == 0) {
+                iconName = "Shift";
+                used = 3;
+            } else if (shortcut.compare(0, 3, "\xE2\x8C\x98") == 0) {
+                iconName = "Command";
+                used = 3;
+            }
+            if (!iconName.empty()) {
+                ContextMenuGlyph part;
+                part.graphic = RoboBakeNamedIcon(iconName.c_str(), 13.0f);
+                if (!part.graphic.GetShapes().empty()) {
+                    shortcut_.push_back(std::move(part));
+                }
+                shortcut.erase(0, used);
+                continue;
+            }
+            const std::size_t end = shortcut.find(' ');
+            const std::string piece = shortcut.substr(0, end);
+            AddShortcutText(piece);
+            shortcut.erase(0, piece.size());
+        }
+        shortcutSpec_.clear();
+    }
+    for (ContextMenuItem& child : items_) {
+        child.EnsureGraphics();
+    }
 }
 
 const std::vector<ContextMenuGlyph>& ContextMenuItem::Shortcut() const {
@@ -292,6 +392,9 @@ bool ContextMenu::Open(float x, float y) {
         if (dx * dx + dy * dy < 4.0f) {
             return false;
         }
+    }
+    for (ContextMenuItem& item : items_) {
+        item.EnsureGraphics();
     }
     visible_ = true;
     opening_ = false;

@@ -1,10 +1,63 @@
 #include "Robo/RoboCatalog.hpp"
 
+#include "Robo/Foundation.hpp"
 #include "Robo/RoboIconPack.hpp"
+
+#include <cstring>
+#include <string>
+#include <vector>
 
 namespace Robo {
 
 namespace {
+
+struct StoredRow {
+    std::string id;
+    std::string label;
+    std::string icon;
+    int parent = -1;
+    bool section = false;
+    bool selected = false;
+};
+
+std::vector<std::uint8_t> gPack;
+std::vector<StoredRow> gStored;
+std::vector<RoboCatalogEntry> gRows;
+bool gLoaded = false;
+
+std::uint16_t Read16(const std::uint8_t* data, std::uint32_t size, std::uint32_t offset) {
+    if (offset + 2u > size) {
+        return 0;
+    }
+    return static_cast<std::uint16_t>(data[offset] | (static_cast<std::uint16_t>(data[offset + 1u]) << 8));
+}
+
+std::uint32_t Read32(const std::uint8_t* data, std::uint32_t size, std::uint32_t offset) {
+    if (offset + 4u > size) {
+        return 0;
+    }
+    return static_cast<std::uint32_t>(data[offset]) | (static_cast<std::uint32_t>(data[offset + 1u]) << 8) |
+           (static_cast<std::uint32_t>(data[offset + 2u]) << 16) | (static_cast<std::uint32_t>(data[offset + 3u]) << 24);
+}
+
+std::int32_t ReadI32(const std::uint8_t* data, std::uint32_t size, std::uint32_t offset) {
+    return static_cast<std::int32_t>(Read32(data, size, offset));
+}
+
+void RebuildViews() {
+    gRows.clear();
+    gRows.reserve(gStored.size());
+    for (StoredRow& row : gStored) {
+        RoboCatalogEntry entry;
+        entry.id = row.id.c_str();
+        entry.label = row.label.c_str();
+        entry.icon = row.icon.c_str();
+        entry.parent = row.parent;
+        entry.section = row.section;
+        entry.selected = row.selected;
+        gRows.push_back(entry);
+    }
+}
 
 void FillCatalogItem(SidebarItem& item, const RoboCatalogEntry& entry) {
     if (entry.label != nullptr) {
@@ -19,8 +72,8 @@ void FillCatalogItem(SidebarItem& item, const RoboCatalogEntry& entry) {
     if (entry.selected) {
         item.SetSelected(true);
     }
-    if (entry.icon != nullptr && entry.icon[0] != '\0' && RoboIconPackContains(entry.icon)) {
-        item.SetIcon(RoboBakeNamedIcon(entry.icon, 20.0f));
+    if (entry.icon != nullptr && entry.icon[0] != '\0') {
+        item.SetIconName(entry.icon);
     }
 }
 
@@ -39,6 +92,105 @@ int CatalogRailEntry(const RoboCatalogEntry* rows, int count, int railIndex) {
 }
 
 }  // namespace
+
+void RoboCatalogAdd(const std::uint8_t* data, std::uint32_t size) {
+    if (data == nullptr || size < 12u) {
+        return;
+    }
+    if (data[0] != 'R' || data[1] != 'C' || data[2] != 'A' || data[3] != 'T' || data[4] != '1') {
+        return;
+    }
+    const std::uint32_t count = Read32(data, size, 8u);
+    if (count > 20000u) {
+        return;
+    }
+    gPack.assign(data, data + size);
+    gStored.clear();
+    gStored.reserve(count);
+    std::uint32_t cursor = 12u;
+    for (std::uint32_t index = 0; index < count; ++index) {
+        if (cursor + 2u > size) {
+            break;
+        }
+        StoredRow row;
+        const std::uint16_t idLen = Read16(gPack.data(), size, cursor);
+        cursor += 2u;
+        if (cursor + idLen > size) {
+            break;
+        }
+        if (idLen > 0) {
+            row.id.assign(reinterpret_cast<const char*>(gPack.data() + cursor), idLen);
+            while (!row.id.empty() && row.id.back() == '\0') {
+                row.id.pop_back();
+            }
+        }
+        cursor += idLen;
+        if (cursor + 2u > size) {
+            break;
+        }
+        const std::uint16_t labelLen = Read16(gPack.data(), size, cursor);
+        cursor += 2u;
+        if (cursor + labelLen > size) {
+            break;
+        }
+        if (labelLen > 0) {
+            row.label.assign(reinterpret_cast<const char*>(gPack.data() + cursor), labelLen);
+            while (!row.label.empty() && row.label.back() == '\0') {
+                row.label.pop_back();
+            }
+        }
+        cursor += labelLen;
+        if (cursor + 2u > size) {
+            break;
+        }
+        const std::uint16_t iconLen = Read16(gPack.data(), size, cursor);
+        cursor += 2u;
+        if (cursor + iconLen > size) {
+            break;
+        }
+        if (iconLen > 0) {
+            row.icon.assign(reinterpret_cast<const char*>(gPack.data() + cursor), iconLen);
+            while (!row.icon.empty() && row.icon.back() == '\0') {
+                row.icon.pop_back();
+            }
+        }
+        cursor += iconLen;
+        if (cursor + 5u > size) {
+            break;
+        }
+        row.parent = ReadI32(gPack.data(), size, cursor);
+        cursor += 4u;
+        const std::uint8_t flags = gPack[cursor];
+        cursor += 1u;
+        row.section = (flags & 1u) != 0;
+        row.selected = (flags & 2u) != 0;
+        gStored.push_back(std::move(row));
+    }
+    RebuildViews();
+}
+
+void RoboCatalogLoad(const IPlatform& platform) {
+    if (gLoaded) {
+        return;
+    }
+    gLoaded = true;
+    const char* paths[] = {"ROBOCAT.PAK", "Assets/ROBOCAT.PAK"};
+    for (const char* path : paths) {
+        const std::vector<std::uint8_t> bytes = platform.LoadAsset(path);
+        if (!bytes.empty()) {
+            RoboCatalogAdd(bytes.data(), static_cast<std::uint32_t>(bytes.size()));
+            return;
+        }
+    }
+}
+
+const RoboCatalogEntry* RoboCatalogRows() {
+    return gRows.empty() ? nullptr : gRows.data();
+}
+
+int RoboCatalogCount() {
+    return static_cast<int>(gRows.size());
+}
 
 int RoboCountCatalogRails(const RoboCatalogEntry* rows, int count) {
     int total = 0;
@@ -155,6 +307,52 @@ bool RoboEnsureCatalogChildren(Sidebar& sidebar, int railIndex, const RoboCatalo
         }
     }
     return false;
+}
+
+Sidebar* RoboFindSidebar(RoboScene& scene) {
+    for (SceneItem& item : scene.Items()) {
+        if (item.kind == SceneItemKind::Sidebar && item.sidebar) {
+            return item.sidebar.get();
+        }
+    }
+    return nullptr;
+}
+
+void RoboEnsureActivitySidebar(RoboScene& scene) {
+    if (RoboFindSidebar(scene) != nullptr) {
+        return;
+    }
+    Sidebar sidebar;
+    sidebar.SetVariant(SidebarVariant::Activity);
+    scene.AddSidebar(std::move(sidebar));
+}
+
+int RoboBuildSidebarRailsStep(RoboScene& scene, int railStart, int railBudget) {
+    RoboEnsureActivitySidebar(scene);
+    Sidebar* sidebar = RoboFindSidebar(scene);
+    if (sidebar == nullptr || railBudget <= 0) {
+        return RoboCountCatalogRails(RoboCatalogRows(), RoboCatalogCount());
+    }
+    return RoboBuildCatalogRails(*sidebar, RoboCatalogRows(), RoboCatalogCount(), railStart, railBudget);
+}
+
+void RoboBuildSidebarFromCatalog(RoboScene& scene) {
+    const int total = RoboCountCatalogRails(RoboCatalogRows(), RoboCatalogCount());
+    int next = 0;
+    while (next < total) {
+        next = RoboBuildSidebarRailsStep(scene, next, total);
+    }
+    if (Sidebar* sidebar = RoboFindSidebar(scene)) {
+        sidebar->Select(RoboDefaultCatalogRail(RoboCatalogRows(), RoboCatalogCount()));
+    }
+}
+
+void RoboApplyDevKitChrome(RoboScene& scene) {
+    scene.SetPagePadding(0.0f);
+    Foundation foundationDevKit = Foundation::CopyOf("RoboFoundation");
+    foundationDevKit.SetName("DevKit");
+    Foundation::Register(foundationDevKit);
+    scene.SetFoundation("DevKit");
 }
 
 }  // namespace Robo

@@ -13,7 +13,9 @@
 #include "Robo/Color.hpp"
 #include "Robo/FontEngine.hpp"
 #include "Robo/RenderQuality.hpp"
+#include "Robo/RoboCatalog.hpp"
 #include "Robo/RoboIconPack.hpp"
+#include "Robo/RoboPanePack.hpp"
 #include "Robo/RoboScene.hpp"
 
 #include <stdint.h>
@@ -297,10 +299,10 @@ bool RoboShellStart(RoboDesktop* desktop) {
         gFonts->WarmChrome(pixelScale);
     }
     Robo::RoboIconPackLoad(*gPlatform);
+    Robo::RoboCatalogLoad(*gPlatform);
+    Robo::RoboPaneLoad(*gPlatform);
     BuildPage(*gScene);
     gRoboShellGuard = 1;
-    gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
-    gScene->DamageRect(0.0f, 0.0f, 100000.0f, 100000.0f);
     gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
     gRoboShellGuard = 0;
     RoboDesktopRedrawCursor(desktop);

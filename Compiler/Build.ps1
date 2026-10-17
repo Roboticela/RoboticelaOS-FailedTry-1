@@ -45,6 +45,7 @@ function Get-CoreSources {
         (Join-Path $Root "Compiler\Source\Icon.cpp"),
         (Join-Path $Root "Compiler\Source\RoboIconPack.cpp"),
         (Join-Path $Root "Compiler\Source\RoboCatalog.cpp"),
+        (Join-Path $Root "Compiler\Source\RoboPanePack.cpp"),
         (Join-Path $Root "Compiler\Source\RoboPageTables.cpp"),
         (Join-Path $Root "Compiler\Source\SvgPainter.cpp"),
         (Join-Path $Root "Compiler\Source\BrandLogo.cpp"),
@@ -246,7 +247,15 @@ exit /b %ERRORLEVEL%
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to write ROBOCTRY.PAK"
         }
-        Write-Host "Built: ROBOICON.PAK ROBOCTRY.PAK"
+        & $toolExe --catalog $devKitXml (Join-Path $assetDirectory "ROBOCAT.PAK")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to write ROBOCAT.PAK"
+        }
+        & $toolExe --panes $devKitXml (Join-Path $assetDirectory "ROBOPANE.PAK") $assetDirectory
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to write ROBOPANE.PAK"
+        }
+        Write-Host "Built: ROBOICON.PAK ROBOCTRY.PAK ROBOCAT.PAK ROBOPANE.PAK"
     }
 }
 
@@ -294,11 +303,19 @@ function Invoke-WebBuild {
         }
         $iconPack = Join-Path $Root "Assets\ROBOICON.PAK"
         $countryPack = Join-Path $Root "Assets\ROBOCTRY.PAK"
+        $catalogPack = Join-Path $Root "Assets\ROBOCAT.PAK"
+        $panePack = Join-Path $Root "Assets\ROBOPANE.PAK"
         if (Test-Path $iconPack) {
             $preloadArgs += @("--preload-file", "${iconPack}@/Assets/ROBOICON.PAK")
         }
         if (Test-Path $countryPack) {
             $preloadArgs += @("--preload-file", "${countryPack}@/Assets/ROBOCTRY.PAK")
+        }
+        if (Test-Path $catalogPack) {
+            $preloadArgs += @("--preload-file", "${catalogPack}@/Assets/ROBOCAT.PAK")
+        }
+        if (Test-Path $panePack) {
+            $preloadArgs += @("--preload-file", "${panePack}@/Assets/ROBOPANE.PAK")
         }
     }
 
