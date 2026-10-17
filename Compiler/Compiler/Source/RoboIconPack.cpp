@@ -164,19 +164,27 @@ bool FillFromRef(Icon& icon, const IconRef& ref) {
         const float strokeWidth = ReadFloat(data, size, cursor + 4u);
         const float opacity = ReadFloat(data, size, cursor + 8u);
         cursor += 12u;
-        const std::uint16_t fillLength = Read16(data, size, cursor);
-        const std::uint16_t strokeLength = Read16(data, size, cursor + 2u);
-        const std::uint16_t fillTokenLength = Read16(data, size, cursor + 4u);
-        const std::uint16_t strokeTokenLength = Read16(data, size, cursor + 6u);
-        cursor += 8u;
-        const std::string fill = ReadText(data, size, cursor, fillLength);
-        cursor += fillLength;
-        const std::string stroke = ReadText(data, size, cursor, strokeLength);
-        cursor += strokeLength;
-        const std::string fillToken = ReadText(data, size, cursor, fillTokenLength);
-        cursor += fillTokenLength;
-        const std::string strokeToken = ReadText(data, size, cursor, strokeTokenLength);
-        cursor += strokeTokenLength;
+        // Writer emits WriteText ×4 as [len][bytes] interleaved — not a length table.
+        auto takeText = [&](std::string& out) -> bool {
+            if (cursor + 2u > size) {
+                return false;
+            }
+            const std::uint16_t length = Read16(data, size, cursor);
+            cursor += 2u;
+            if (cursor + length > size) {
+                return false;
+            }
+            out = ReadText(data, size, cursor, length);
+            cursor += length;
+            return true;
+        };
+        std::string fill;
+        std::string stroke;
+        std::string fillToken;
+        std::string strokeToken;
+        if (!takeText(fill) || !takeText(stroke) || !takeText(fillToken) || !takeText(strokeToken)) {
+            return false;
+        }
         if (cursor + 4u > size) {
             return false;
         }
@@ -249,22 +257,28 @@ void RoboIconPackAdd(const std::uint8_t* data, std::uint32_t size) {
         cursor += 4u;
         bool intact = true;
         for (std::uint32_t shapeIndex = 0; shapeIndex < shapeCount; ++shapeIndex) {
-            if (cursor + 20u > size) {
+            if (cursor + 12u > size) {
                 intact = false;
                 break;
             }
             cursor += 12u;
-            const std::uint16_t fillLength = Read16(bytes, size, cursor);
-            const std::uint16_t strokeLength = Read16(bytes, size, cursor + 2u);
-            const std::uint16_t fillTokenLength = Read16(bytes, size, cursor + 4u);
-            const std::uint16_t strokeTokenLength = Read16(bytes, size, cursor + 6u);
-            cursor += 8u;
-            const std::uint32_t textBytes = static_cast<std::uint32_t>(fillLength) + strokeLength + fillTokenLength + strokeTokenLength;
-            if (cursor + textBytes + 4u > size) {
+            // Match WriteText ×4: each field is u16 length then that many bytes.
+            for (int textIndex = 0; textIndex < 4; ++textIndex) {
+                if (cursor + 2u > size) {
+                    intact = false;
+                    break;
+                }
+                const std::uint16_t textLength = Read16(bytes, size, cursor);
+                cursor += 2u + textLength;
+                if (cursor > size) {
+                    intact = false;
+                    break;
+                }
+            }
+            if (!intact || cursor + 4u > size) {
                 intact = false;
                 break;
             }
-            cursor += textBytes;
             const std::uint32_t commandCount = Read32(bytes, size, cursor);
             cursor += 4u;
             const std::uint32_t blobBytes = commandCount * 28u;
@@ -283,10 +297,10 @@ void RoboIconPackAdd(const std::uint8_t* data, std::uint32_t size) {
 }
 
 void RoboIconPackLoad(const IPlatform& platform) {
-    if (gLoaded) {
+    if (gLoaded && !gIcons.empty()) {
         return;
     }
-    gLoaded = true;
+    const std::size_t before = gIcons.size();
     const char* paths[] = {"ROBOICON.PAK", "Assets/ROBOICON.PAK", "ROBOCTRY.PAK", "Assets/ROBOCTRY.PAK"};
     for (const char* path : paths) {
         const std::vector<std::uint8_t> bytes = platform.LoadAsset(path);
@@ -294,6 +308,9 @@ void RoboIconPackLoad(const IPlatform& platform) {
             RoboIconPackAdd(bytes.data(), static_cast<std::uint32_t>(bytes.size()));
         }
     }
+    // Only lock the pack when at least one icon landed — empty load must retry
+    // (Web preload can race the first EnsureApp call).
+    gLoaded = gIcons.size() > before || !gIcons.empty();
 }
 
 bool RoboIconPackContains(const char* name) {

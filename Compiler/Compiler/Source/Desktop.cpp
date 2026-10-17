@@ -1,4 +1,5 @@
 #include "Robo/Desktop.hpp"
+#include "Robo/RoboIconPack.hpp"
 
 namespace Robo {
 
@@ -25,13 +26,29 @@ bool DockItem::IsSelected() const {
 void DockItem::SetIcon(Svg icon) {
     icon_ = std::move(icon);
     hasIcon_ = true;
+    iconName_.clear();
+}
+
+void DockItem::SetIconName(const std::string& name) {
+    iconName_ = name;
+    if (!iconName_.empty()) {
+        hasIcon_ = false;
+        icon_ = Svg();
+    }
 }
 
 bool DockItem::HasIcon() const {
-    return hasIcon_;
+    return hasIcon_ || !iconName_.empty();
 }
 
 Svg& DockItem::Icon() {
+    if (!hasIcon_ && !iconName_.empty()) {
+        icon_ = RoboBakeNamedIcon(iconName_.c_str(), 22.0f);
+        hasIcon_ = !icon_.GetShapes().empty();
+        if (hasIcon_) {
+            iconName_.clear();
+        }
+    }
     return icon_;
 }
 

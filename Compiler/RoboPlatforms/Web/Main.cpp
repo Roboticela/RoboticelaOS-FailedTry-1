@@ -94,6 +94,10 @@ bool EnsureApp() {
     }
 
     Robo::RoboIconPackLoad(*gPlatform);
+    // Retry once — first LoadAsset can miss preloaded packs on a cold FS.
+    if (!Robo::RoboIconPackContains("Home")) {
+        Robo::RoboIconPackLoad(*gPlatform);
+    }
     Robo::RoboCatalogLoad(*gPlatform);
     Robo::RoboPaneLoad(*gPlatform);
     gScene.SetAppBuildStep(RoboWebAppBuildStep);
@@ -126,7 +130,10 @@ bool PointerMove(float x, float y) {
         return false;
     }
     const bool changed = gScene.PointerMove(x, y);
-    SchedulePresent();
+    // Index.html sync-paints on changed; only schedule when dirty and not already painted.
+    if (gScene.NeedsRender()) {
+        SchedulePresent();
+    }
     return changed;
 }
 
@@ -135,7 +142,9 @@ bool PointerDown(float x, float y, bool fromTouch, int clicks) {
         return false;
     }
     const bool changed = gScene.PointerDown(x, y, fromTouch, clicks);
-    SchedulePresent();
+    if (gScene.NeedsRender()) {
+        SchedulePresent();
+    }
     return changed;
 }
 
@@ -178,7 +187,9 @@ bool PointerUp(float x, float y) {
         return false;
     }
     const bool changed = gScene.PointerUp(x, y);
-    SchedulePresent();
+    if (gScene.NeedsRender()) {
+        SchedulePresent();
+    }
     return changed;
 }
 

@@ -84,6 +84,7 @@ public:
     bool IsFocusVisible() const;
 
     void SetIcon(Svg icon);
+    void SetIconName(const std::string& name);
     bool HasIcon() const;
     Svg& GetIcon();
     const Svg& GetIcon() const;
@@ -118,6 +119,7 @@ private:
     ButtonInteraction interaction_ = ButtonInteraction::Normal;
     ButtonBounds bounds_;
     Svg icon_;
+    std::string iconName_;
     bool hasIcon_ = false;
     bool iconOnly_ = false;
     bool disabled_ = false;

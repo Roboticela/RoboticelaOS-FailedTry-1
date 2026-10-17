@@ -30,6 +30,7 @@ public:
     bool IsSelected() const;
 
     void SetIcon(Svg icon);
+    void SetIconName(const std::string& name);
     bool HasIcon() const;
     Svg& Icon();
     const Svg& Icon() const;
@@ -41,6 +42,7 @@ private:
     std::string label_;
     bool selected_ = false;
     bool hasIcon_ = false;
+    std::string iconName_;
     Svg icon_;
     DockItemBounds bounds_{};
 };

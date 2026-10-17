@@ -2804,10 +2804,9 @@ void XmlToCpp::EmitSidebarItem(std::ostringstream& code,
     if (loading != node.attributes.end() && (loading->second == "true" || loading->second == "1")) {
         code << Indent(indent) << variable << ".SetLoading(true);\n";
     }
-    const auto icon = icons_.find(iconName);
-    // Nested PaneItem icons are deferred: baking thousands of SVGs on open freezes the OS BSP.
-    // Top-level rail icons (nestDepth == 0) still bake so the activity sidebar has marks.
-    if (nestDepth == 0 && !iconName.empty() && icon != icons_.end()) {
+    // Nested PaneItem icons stay deferred via catalog. Top-level rail uses SetIconName
+    // so runtime pack load always wins (eager bake + empty-skip dropped Web icons).
+    if (nestDepth == 0 && !iconName.empty()) {
         EmitPackedIcon(code, indent, "icon", iconName, 20.0f, variable + ".SetIcon(std::move(icon));");
     }
     int childIndex = 0;
@@ -2935,8 +2934,7 @@ void XmlToCpp::EmitDockItem(std::ostringstream& code,
     if (selected) {
         code << Indent(indent) << variable << ".SetSelected(true);\n";
     }
-    const auto icon = icons_.find(iconName);
-    if (!iconName.empty() && icon != icons_.end()) {
+    if (!iconName.empty()) {
         EmitPackedIcon(code, indent, "icon", iconName, 22.0f, variable + ".SetIcon(std::move(icon));");
     }
 }
@@ -3690,8 +3688,7 @@ void XmlToCpp::EmitButtonFlags(std::ostringstream& code, int indent, const XmlNo
     if (loading) {
         code << Indent(indent) << "button.SetLoading(true);\n";
     }
-    const auto icon = icons_.find(iconName);
-    if (!iconName.empty() && icon != icons_.end()) {
+    if (!iconName.empty()) {
         EmitPackedIcon(code, indent, "icon", iconName, 20.0f, "button.SetIcon(std::move(icon));");
     }
 }
@@ -3742,19 +3739,25 @@ bool XmlToCpp::TryEmitGraphic(std::ostringstream& code,
     };
 
     if (isIcon) {
-        code << Indent(indent) << "Robo::Icon icon;\n";
-        code << Indent(indent) << "if (Robo::RoboFillIconByName(icon, \"" << EscapeCpp(node.name) << "\")) {\n";
-        code << Indent(indent + 1) << "Robo::SvgStyle packedStyle;\n";
+        code << Indent(indent) << "{\n";
+        code << Indent(indent + 1) << "float iconSize = 24.0f;\n";
+        if (node.attributes.count("size") != 0) {
+            code << Indent(indent + 1) << "iconSize = " << FloatLiteral(node.attributes.at("size")) << ";\n";
+        }
+        code << Indent(indent + 1) << "Robo::Svg baked = Robo::RoboBakeNamedIcon(\"" << EscapeCpp(node.name)
+             << "\", iconSize);\n";
+        code << Indent(indent + 1) << "if (baked.GetShapes().empty()) {\n";
+        code << Indent(indent + 2) << "Robo::Icon icon;\n";
+        code << Indent(indent + 2) << "if (Robo::RoboFillIconByName(icon, \"" << EscapeCpp(node.name) << "\")) {\n";
+        code << Indent(indent + 3) << "baked = icon.Bake();\n";
+        code << Indent(indent + 2) << "}\n";
+        code << Indent(indent + 1) << "}\n";
+        code << Indent(indent + 1) << "if (!baked.GetShapes().empty()) {\n";
+        code << Indent(indent + 2) << "Robo::SvgStyle packedStyle = baked.GetStyle();\n";
         emitBox("packedStyle");
-        code << Indent(indent + 1) << "if (packedStyle.width > 0.0f) icon.SetWidth(packedStyle.width);\n";
-        code << Indent(indent + 1) << "if (packedStyle.height > 0.0f) icon.SetHeight(packedStyle.height);\n";
-        code << Indent(indent + 1) << "if (!packedStyle.widthSpec.empty()) icon.SetWidthSpec(packedStyle.widthSpec);\n";
-        code << Indent(indent + 1) << "if (!packedStyle.heightSpec.empty()) icon.SetHeightSpec(packedStyle.heightSpec);\n";
-        code << Indent(indent + 1) << "for (const auto& token : packedStyle.tokens) icon.SetToken(token.first, token.second);\n";
-        code << Indent(indent + 1) << "icon.SetColor(packedStyle.color);\n";
-        code << Indent(indent + 1) << "icon.SetOpacity(packedStyle.opacity);\n";
-        code << Indent(indent + 1) << "icon.SetAlign(packedStyle.align);\n";
-        code << Indent(indent + 1) << parent << ".AddSvg(icon.Bake()" << props << ");\n";
+        code << Indent(indent + 2) << "baked.SetStyle(packedStyle);\n";
+        code << Indent(indent + 2) << parent << ".AddSvg(std::move(baked)" << props << ");\n";
+        code << Indent(indent + 1) << "}\n";
         code << Indent(indent) << "}\n";
     } else {
         const CompiledSvg graphic = CompileSvgElement(node, false);
@@ -3800,6 +3803,14 @@ std::string BraceToken(const std::string& value) {
 
 void XmlToCpp::EmitPackedIcon(std::ostringstream& code, int indent, const std::string& iconVar, const std::string& iconName,
                                float size, const std::string& applyLine) const {
+    // Deferred SetIconName: bake when painted so a late RoboIconPackLoad still wins.
+    // Eager bake + empty-skip permanently dropped icons when the pack was not ready.
+    const std::string marker = ".SetIcon(std::move(" + iconVar + "));";
+    const auto at = applyLine.find(marker);
+    if (at != std::string::npos) {
+        code << Indent(indent) << applyLine.substr(0, at) << ".SetIconName(\"" << EscapeCpp(iconName) << "\");\n";
+        return;
+    }
     code << Indent(indent) << "{\n";
     code << Indent(indent + 1) << "Robo::Svg " << iconVar << " = Robo::RoboBakeNamedIcon(\"" << EscapeCpp(iconName)
          << "\", " << FloatLiteral(std::to_string(static_cast<int>(size))) << ");\n";
@@ -3961,7 +3972,7 @@ void XmlToCpp::EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int 
             code << Indent(indent + 3) << "button.SetStyle(style);\n";
             code << Indent(indent + 3) << "button.SetLabel(kRoboIconButtons[i].label);\n";
             code << Indent(indent + 3) << "button.SetIconOnly(true);\n";
-            code << Indent(indent + 3) << "button.SetIcon(Robo::RoboBakeNamedIcon(kRoboIconButtons[i].icon, 20.0f));\n";
+            code << Indent(indent + 3) << "button.SetIconName(kRoboIconButtons[i].icon);\n";
             code << Indent(indent + 3) << "row.AddButton(std::move(button), props);\n";
             code << Indent(indent + 2) << "}\n";
             code << Indent(indent + 2) << "container.GetContent().AddFlexbox(std::move(row), props);\n";

@@ -2427,14 +2427,10 @@ bool RoboScene::CanPaintPartial(float paintScale, int width, int height) const {
     if (std::fabs(paintScale - paintedScale_) > 0.001f) {
         return false;
     }
-    // Scroll moves content; only full-surface damage is safe (MarkSurfaceDirty).
+    // Scroll must be applied via ShiftPaintedScroll before paint; a pending delta means
+    // the damage rect is not aligned with the framebuffer yet.
     if (std::fabs(scrollX_ - paintedScrollX_) > 0.5f || std::fabs(scrollY_ - paintedScrollY_) > 0.5f) {
-        const bool fullSurface =
-            dirtyLeft_ <= 0.5f && dirtyTop_ <= 0.5f && dirtyRight_ + 0.5f >= static_cast<float>(paintedWidth_) &&
-            dirtyBottom_ + 0.5f >= static_cast<float>(paintedHeight_);
-        if (!fullSurface) {
-            return false;
-        }
+        return false;
     }
     return dirtyRight_ > dirtyLeft_ && dirtyBottom_ > dirtyTop_;
 }
@@ -2815,6 +2811,8 @@ void RoboScene::ShiftPaintedScroll() {
         paintedScrollY_ = scrollY_;
         return;
     }
+    // Prefer the scrollable content AABB (below TitleBar, right of Sidebar). Shifting the
+    // full surface moves pinned chrome and leaves TitleBar/Sidebar trails.
     int clipX = static_cast<int>(paintedContentX_);
     int clipY = static_cast<int>(paintedContentY_);
     int clipW = static_cast<int>(paintedContentW_);
@@ -3074,10 +3072,24 @@ bool RoboScene::ForwardAppPointer(float x, float y, bool down, bool up, bool fro
     appHost_.scene->SetModifiers(modifiers_);
     bool changed = false;
     if (down) {
+        int sidebarSelected = -1;
+        for (const SceneItem& item : appHost_.scene->Items()) {
+            if (item.kind == SceneItemKind::Sidebar && item.sidebar) {
+                sidebarSelected = item.sidebar->Selected();
+                break;
+            }
+        }
         changed = appHost_.scene->PointerDown(x - left, y - top, fromTouch, clicks);
-        // Rail/pane clicks may leave budgeted child fills unfinished.
+        // Only sidebar selection changes need budgeted rail fills — every button click
+        // used to set this and Soft-Present every Tick (Web flicker).
         if (changed) {
-            appHost_.railFillPending = true;
+            for (const SceneItem& item : appHost_.scene->Items()) {
+                if (item.kind == SceneItemKind::Sidebar && item.sidebar &&
+                    item.sidebar->Selected() != sidebarSelected) {
+                    appHost_.railFillPending = true;
+                    break;
+                }
+            }
         }
     }
     if (up) {
@@ -3141,24 +3153,32 @@ void RoboScene::CompositeAppWindow() {
               ROBO_APP_HOST_RADIUS * scale);
     host.SetSurfaceSize(surfaceW, surfaceH);
     host.SetPixelScale(scale);
-    // Parent painted into the window hole (wallpaper / large damage): restore every pixel.
-    const bool wipeRestore = appHost_.parentWiped || parentHitsApp;
-    host.SetForceFullBlit(wipeRestore);
+    // Hosted window: always full-blit. Partial HostPlatform Present left stale chrome
+    // in the parent AABB (TitleBar trails) whenever nested damage was smaller than the window.
+    host.SetForceFullBlit(true);
     frame_.PushClipRect(x, y, width, height);
     // Forward shell pump so nested paint/blit cannot freeze the cursor.
     appHost_.scene->SetPaintPump(paintPump_, paintPumpCookie_);
     if (nestedNeeds) {
         const Color page = appHost_.scene->GetBackground();
         // Do not EnsureRailChildren / EnsurePaneContent here — Tick micro-steps own that work.
-        // Full blit when the hole was wiped or the retained surface is invalid.
-        // Soft/motion damage (no parent hit) uses the nested PresentRect.
-        host.SetForceFullBlit(!appHost_.surfaceValid || wipeRestore || appHost_.scene->fullDirty_);
+        // Full clear only when the nested surface is invalid or explicitly wiped — not on every
+        // scroll strip (that made hosted scroll stutter while Soft Present stayed correct).
+        if (appHost_.paintDirty || !appHost_.surfaceValid || appHost_.scene->fullDirty_) {
+            for (const SceneItem& item : appHost_.scene->Items()) {
+                if (item.kind == SceneItemKind::TitleBar || item.kind == SceneItemKind::Sidebar) {
+                    appHost_.scene->DamageRect(0.0f, 0.0f, static_cast<float>(surfaceW),
+                                               static_cast<float>(surfaceH));
+                    break;
+                }
+            }
+        }
+        host.SetForceFullBlit(true);
         if (appHost_.scene->items_.empty()) {
-            // Stub fill while micro-steps load — do not mark surfaceValid or a later
-            // wipe-restore can Present this blank instead of a real nested frame.
-            frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
-                            static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
-                            page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
+            // Stub fill while micro-steps load — rounded so corner ears stay wallpaper.
+            // Do not mark surfaceValid or a later wipe-restore can Present this blank.
+            frame_.FillRoundedRect(x, y, width, height, ROBO_APP_HOST_RADIUS * scale,
+                                   page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
             PumpPaint();
             appHost_.paintDirty = false;
             appHost_.surfaceValid = false;
@@ -3177,9 +3197,8 @@ void RoboScene::CompositeAppWindow() {
         const Color page = appHost_.scene->GetBackground();
         host.SetForceFullBlit(true);
         if (appHost_.scene->items_.empty()) {
-            frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
-                            static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
-                            page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
+            frame_.FillRoundedRect(x, y, width, height, ROBO_APP_HOST_RADIUS * scale,
+                                   page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
             PumpPaint();
             appHost_.paintDirty = false;
             appHost_.surfaceValid = false;
@@ -3190,7 +3209,67 @@ void RoboScene::CompositeAppWindow() {
         }
     }
     frame_.PopClip();
+    // HostPlatform skips ear pixels; restore wallpaper there so Soft AABB Present stays round.
+    RestoreAppWindowCorners();
     appHost_.parentWiped = false;
+}
+
+void RoboScene::RestoreAppWindowCorners() {
+    if (!appHost_.open || platform_ == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
+        return;
+    }
+    if (frame_.GetWidth() != paintedWidth_ || frame_.GetHeight() != paintedHeight_) {
+        return;
+    }
+    float x = 0.0f;
+    float y = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
+    AppHostFrame(x, y, width, height);
+    const float scale = SceneScale();
+    const float radius = ROBO_APP_HOST_RADIUS * scale;
+    if (radius <= 0.5f || width <= 1.0f || height <= 1.0f) {
+        return;
+    }
+    // Match CompositeAppWindow HostPlatform bind (lround) so re-blit lines up.
+    const int left = static_cast<int>(std::lround(x));
+    const int top = static_cast<int>(std::lround(y));
+    const int surfaceW = std::max(1, static_cast<int>(std::lround(width)));
+    const int surfaceH = std::max(1, static_cast<int>(std::lround(height)));
+    const int band = std::max(1, static_cast<int>(std::ceil(radius)));
+    if (left < 0 || top < 0 || left + surfaceW > paintedWidth_ || top + surfaceH > paintedHeight_) {
+        return;
+    }
+    const bool media = desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia();
+    auto paintStrip = [&](int sx, int sy, int sw, int sh) {
+        if (sw <= 0 || sh <= 0) {
+            return;
+        }
+        if (media) {
+            BackgroundPainter::Paint(frame_, desktop_.GetBackgroundSource(), paintedWidth_, paintedHeight_, sx, sy, sw,
+                                     sh);
+        } else {
+            frame_.ClearRect(sx, sy, sw, sh, background_);
+        }
+        ApplyChromeRect(frame_, sx, sy, sw, sh);
+    };
+    // Top / bottom strips cover all four ears (and temporarily the round rim).
+    paintStrip(left, top, surfaceW, std::min(band, surfaceH));
+    paintStrip(left, top + surfaceH - std::min(band, surfaceH), surfaceW, std::min(band, surfaceH));
+    // Re-blit nested pixels with rounded skip so the rim interior returns.
+    if (appHost_.scene != nullptr && appHost_.scene->frame_.GetPixels() != nullptr &&
+        appHost_.scene->frame_.GetWidth() == surfaceW && appHost_.scene->frame_.GetHeight() == surfaceH) {
+        HostPlatform host;
+        host.Bind(platform_, &frame_, left, top, radius);
+        host.SetSurfaceSize(surfaceW, surfaceH);
+        host.SetPixelScale(scale);
+        host.SetForceFullBlit(true);
+        appHost_.scene->frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
+        host.Present(appHost_.scene->frame_);
+    } else if (!appHost_.surfaceValid && appHost_.scene != nullptr && appHost_.scene->items_.empty()) {
+        const Color page = appHost_.scene->GetBackground();
+        frame_.FillRoundedRect(x, y, width, height, radius, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
+    }
 }
 
 void RoboScene::EnsureFolderIcon() {
@@ -3372,7 +3451,7 @@ void RoboScene::ApplyChromeRect(FrameBuffer& frame, int x, int y, int width, int
 }
 
 bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
-    if (!chromeReady_ || platform_ == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
+    if (platform_ == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
         return false;
     }
     if (frame_.GetWidth() != paintedWidth_ || frame_.GetHeight() != paintedHeight_) {
@@ -3390,12 +3469,16 @@ bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
     const int right = std::min(surfaceW, static_cast<int>(std::ceil(appX + appW)));
     const int bottom = std::min(surfaceH, static_cast<int>(std::ceil(appY + appH)));
     if (appW <= 1.0f || appH <= 1.0f || right <= left || bottom <= top) {
-        return PresentVideoFrame(platform);
+        return chromeReady_ ? PresentVideoFrame(platform) : false;
     }
 
     const bool windowOnly = appPresentWindowOnly_;
     // Soft + parent damage (icon hover): still refresh L-bands, never fill the hole.
-    const bool paintOutside = !windowOnly || damageOpen_;
+    // Window-only Soft works without chromeReady_ (avoids Soft→full flicker on Web).
+    const bool paintOutside = chromeReady_ && (!windowOnly || damageOpen_);
+    if (!chromeReady_ && !windowOnly) {
+        return false;
+    }
     appPresentWindowOnly_ = false;
 
     if (paintOutside) {
@@ -3617,9 +3700,11 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
 
     float verticalReserve = paintedVerticalReserve_;
     float horizontalReserve = paintedHorizontalReserve_;
-    float titleBarBottom = 0.0f;
-    for (int pass = 0; pass < 2; ++pass) {
+        float titleBarBottom = 0.0f;
+        float pinnedContentLeft = 0.0f;
+        for (int pass = 0; pass < 2; ++pass) {
         titleBarBottom = 0.0f;
+        pinnedContentLeft = 0.0f;
         scrollX_ = std::max(0.0f, std::min(scrollX_, maxScrollX_));
         scrollY_ = std::max(0.0f, std::min(scrollY_, maxScrollY_));
 
@@ -3834,6 +3919,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                     frame.PopClip();
                     columnX += paneWidth;
                     columnW = std::max(0.0f, columnW - paneWidth);
+                    pinnedContentLeft = columnX;
                 }
                 cursorY = flowEdge;
                 edgeSet = true;
@@ -3932,6 +4018,13 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         }
         verticalReserve = nextVertical;
         horizontalReserve = nextHorizontal;
+        // Hosted apps with pinned TitleBar/Sidebar: scroll shift uses this AABB only.
+        if (!desktop_.IsEnabled() && (titleBarBottom > 0.5f || pinnedContentLeft > 0.5f)) {
+            paintedContentX_ = pinnedContentLeft;
+            paintedContentY_ = titleBarBottom;
+            paintedContentW_ = std::max(0.0f, static_cast<float>(width) - pinnedContentLeft - verticalReserve);
+            paintedContentH_ = std::max(0.0f, static_cast<float>(height) - titleBarBottom - horizontalReserve);
+        }
         break;
     }
 

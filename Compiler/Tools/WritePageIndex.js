@@ -42,7 +42,9 @@ function WritePageIndex(outDir, title, assetBase) {
         app.Render(Math.max(1, Math.round(window.innerWidth * scale)), Math.max(1, Math.round(window.innerHeight * scale)), scale);
       };
       const follow = (changed) => {
-        if (changed) {
+        // Paint whenever the scene is dirty (Soft Present after in-app clicks), not only
+        // when the handler returned true — avoids a second async Present racing this one.
+        if (changed || app.NeedsRender()) {
           paint();
         }
       };

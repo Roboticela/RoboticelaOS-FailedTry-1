@@ -290,6 +290,7 @@ private:
     void PumpPaint();
     void PaintAppWindow();
     void CompositeAppWindow();
+    void RestoreAppWindowCorners();
     bool AppNeedsPaint() const;
     bool ForwardAppPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks);
     bool ForwardAppMove(float x, float y);

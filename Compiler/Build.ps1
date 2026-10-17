@@ -306,8 +306,16 @@ function Invoke-WebBuild {
         if (Test-Path $folderIcon) {
             $preloadArgs += @("--preload-file", "${folderIcon}@/Assets/EmptyFolder.svg")
         }
-        $iconPack = Join-Path $Root "Build\Generated\ROBOICON.PAK"
-        $countryPack = Join-Path $Root "Build\Generated\ROBOCTRY.PAK"
+        # Prefer full runtime packs so hosted apps (TestApp) always resolve pack icons.
+        $assetsDir = Join-Path $Root "Assets"
+        $iconPack = Join-Path $assetsDir "ROBOICON.PAK"
+        if (-not (Test-Path $iconPack)) {
+            $iconPack = Join-Path $Root "Build\Generated\ROBOICON.PAK"
+        }
+        $countryPack = Join-Path $assetsDir "ROBOCTRY.PAK"
+        if (-not (Test-Path $countryPack)) {
+            $countryPack = Join-Path $Root "Build\Generated\ROBOCTRY.PAK"
+        }
         $catalogPack = Join-Path $Root "Build\Generated\ROBOCAT.PAK"
         $panePack = Join-Path $Root "Build\Generated\ROBOPANE.PAK"
         if (Test-Path $iconPack) {

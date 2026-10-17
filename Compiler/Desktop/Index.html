@@ -29,7 +29,9 @@
         app.Render(Math.max(1, Math.round(window.innerWidth * scale)), Math.max(1, Math.round(window.innerHeight * scale)), scale);
       };
       const follow = (changed) => {
-        if (changed) {
+        // Paint whenever the scene is dirty (Soft Present after in-app clicks), not only
+        // when the handler returned true — avoids a second async Present racing this one.
+        if (changed || app.NeedsRender()) {
           paint();
         }
       };
@@ -39,7 +41,7 @@
       const frame = (now) => {
         const delta = now - last;
         last = now;
-        // Tick may Soft-dirty the hosted app. Paint only when NeedsRender — never on
+        // Tick may Soft-dirty a hosted app. Paint only when NeedsRender — never on
         // NeedsTick alone (that double-painted Soft then full and flickered TestApp).
         app.Tick(delta);
         if (app.NeedsRender()) {

@@ -1,5 +1,6 @@
 #include "Robo/Button.hpp"
 #include "Robo/Foundation.hpp"
+#include "Robo/RoboIconPack.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -188,13 +189,29 @@ bool Button::IsFocusVisible() const {
 void Button::SetIcon(Svg icon) {
     icon_ = std::move(icon);
     hasIcon_ = true;
+    iconName_.clear();
+}
+
+void Button::SetIconName(const std::string& name) {
+    iconName_ = name;
+    if (!iconName_.empty()) {
+        hasIcon_ = false;
+        icon_ = Svg();
+    }
 }
 
 bool Button::HasIcon() const {
-    return hasIcon_;
+    return hasIcon_ || !iconName_.empty();
 }
 
 Svg& Button::GetIcon() {
+    if (!hasIcon_ && !iconName_.empty()) {
+        icon_ = RoboBakeNamedIcon(iconName_.c_str(), 20.0f);
+        hasIcon_ = !icon_.GetShapes().empty();
+        if (hasIcon_) {
+            iconName_.clear();
+        }
+    }
     return icon_;
 }
 
