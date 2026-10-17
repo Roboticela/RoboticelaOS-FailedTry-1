@@ -6,7 +6,7 @@
 
 namespace {
 
-constexpr uint32_t ROBO_INPUT_CAPACITY = 64;
+constexpr uint32_t ROBO_INPUT_CAPACITY = 256;
 
 RoboInputEvent gEvents[ROBO_INPUT_CAPACITY];
 uint32_t gEventHead = 0;

@@ -65,6 +65,14 @@ if (-not (Test-Path $devKitXml)) {
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
+& $toolExe --pack (Join-Path $assets "RoboIcons.pack") (Join-Path $assets "ROBOICON.PAK")
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+& $toolExe --pack (Join-Path $assets "RoboCountry.pack") (Join-Path $assets "ROBOCTRY.PAK")
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 $devKitText = [IO.File]::ReadAllText($devKitGenerated)
 $devKitText = $devKitText.Replace("void BuildPage(", "void BuildDevKitPage(")
 $devKitText = $devKitText.Replace("BuildPage(scene)", "BuildDevKitPage(scene)")
@@ -153,6 +161,10 @@ Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")
 Copy-Item -Force (Join-Path $esp "INTERB.TTF") (Join-Path $espArm "INTERB.TTF")
 Copy-Item -Force (Join-Path $esp "INTERI.TTF") (Join-Path $espArm "INTERI.TTF")
+Copy-Item -Force (Join-Path $assets "ROBOICON.PAK") (Join-Path $esp "ROBOICON.PAK")
+Copy-Item -Force (Join-Path $assets "ROBOCTRY.PAK") (Join-Path $esp "ROBOCTRY.PAK")
+Copy-Item -Force (Join-Path $assets "ROBOICON.PAK") (Join-Path $espArm "ROBOICON.PAK")
+Copy-Item -Force (Join-Path $assets "ROBOCTRY.PAK") (Join-Path $espArm "ROBOCTRY.PAK")
 $video = Join-Path $Root "Assets\Background.mp4"
 if (Test-Path $video) {
     Copy-Item -Force $video (Join-Path $esp "BACKGROU.MP4")
@@ -166,7 +178,7 @@ if (Test-Path $video) {
 # Stage list must stay aligned with RoboEspAssets.ps1 (fonts, logos, DESKTOP.BIN, BACKGROU.RJP).
 $stagedRequired = @(
     "INTERR.TTF", "INTERM.TTF", "INTERS.TTF", "INTERB.TTF", "INTERI.TTF",
-    "ROBOLOGO.SVG", "EMPTYFOL.SVG", "DESKTOP.BIN"
+    "ROBOLOGO.SVG", "EMPTYFOL.SVG", "DESKTOP.BIN", "ROBOICON.PAK", "ROBOCTRY.PAK"
 )
 Assert-RoboEspAssets -EspRoot $esp -Required $stagedRequired
 if (Test-Path (Join-Path $esp "BACKGROU.RJP")) {

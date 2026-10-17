@@ -1,3 +1,4 @@
+#include "Robo/RoboPool.hpp"
 #include "Robo/RoboScene.hpp"
 #include "Robo/Motion.hpp"
 #include "Robo/TextSelection.hpp"
@@ -1884,35 +1885,35 @@ void RoboScene::Clear() {
 void RoboScene::AddText(Text text) {
     SceneItem item;
     item.kind = SceneItemKind::Text;
-    item.text = std::make_shared<Text>(std::move(text));
+    item.text = RoboMake<Text>(std::move(text));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddButton(Button button) {
     SceneItem item;
     item.kind = SceneItemKind::Button;
-    item.button = std::make_shared<Button>(std::move(button));
+    item.button = RoboMake<Button>(std::move(button));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddInput(Input input) {
     SceneItem item;
     item.kind = SceneItemKind::Input;
-    item.input = std::make_shared<Input>(std::move(input));
+    item.input = RoboMake<Input>(std::move(input));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddScrollbar(Scrollbar scrollbar) {
     SceneItem item;
     item.kind = SceneItemKind::Scrollbar;
-    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
+    item.scrollbar = RoboMake<Scrollbar>(std::move(scrollbar));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddContainer(Container container) {
     SceneItem item;
     item.kind = SceneItemKind::Container;
-    item.container = std::make_shared<Container>(std::move(container));
+    item.container = RoboMake<Container>(std::move(container));
     items_.push_back(std::move(item));
 }
 
@@ -1930,77 +1931,77 @@ void RoboScene::SetModifiers(int modifiers) {
 void RoboScene::AddFlexbox(Flexbox flexbox) {
     SceneItem item;
     item.kind = SceneItemKind::Flexbox;
-    item.flexbox = std::make_shared<Flexbox>(std::move(flexbox));
+    item.flexbox = RoboMake<Flexbox>(std::move(flexbox));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddGrid(Grid grid) {
     SceneItem item;
     item.kind = SceneItemKind::Grid;
-    item.grid = std::make_shared<Grid>(std::move(grid));
+    item.grid = RoboMake<Grid>(std::move(grid));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddPosition(Position position) {
     SceneItem item;
     item.kind = SceneItemKind::Position;
-    item.position = std::make_shared<Position>(std::move(position));
+    item.position = RoboMake<Position>(std::move(position));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSvg(Svg svg) {
     SceneItem item;
     item.kind = SceneItemKind::Svg;
-    item.svg = std::make_shared<Svg>(std::move(svg));
+    item.svg = RoboMake<Svg>(std::move(svg));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddBrandLogo(BrandLogo logo) {
     SceneItem item;
     item.kind = SceneItemKind::BrandLogo;
-    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
+    item.brandLogo = RoboMake<BrandLogo>(std::move(logo));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddTitleBar(TitleBar bar) {
     SceneItem item;
     item.kind = SceneItemKind::TitleBar;
-    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
+    item.titleBar = RoboMake<TitleBar>(std::move(bar));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSidebar(Sidebar pane) {
     SceneItem item;
     item.kind = SceneItemKind::Sidebar;
-    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
+    item.sidebar = RoboMake<Sidebar>(std::move(pane));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSidebarItem(SidebarItem entry) {
     SceneItem item;
     item.kind = SceneItemKind::SidebarItem;
-    item.sidebarItem = std::make_shared<SidebarItem>(std::move(entry));
+    item.sidebarItem = RoboMake<SidebarItem>(std::move(entry));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddThemeToggle(ThemeToggle toggle) {
     SceneItem item;
     item.kind = SceneItemKind::ThemeToggle;
-    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
+    item.themeToggle = RoboMake<ThemeToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddThemeIconToggle(ThemeIconToggle toggle) {
     SceneItem item;
     item.kind = SceneItemKind::ThemeIconToggle;
-    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
+    item.themeIconToggle = RoboMake<ThemeIconToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
 void RoboScene::AddSeparator(Separator separator) {
     SceneItem item;
     item.kind = SceneItemKind::Separator;
-    item.separator = std::make_shared<Separator>(std::move(separator));
+    item.separator = RoboMake<Separator>(std::move(separator));
     items_.push_back(std::move(item));
 }
 
@@ -2201,7 +2202,7 @@ bool RoboScene::PointerContext(float x, float y) {
 void RoboScene::AddMotionShape(MotionShape shape) {
     SceneItem item;
     item.kind = SceneItemKind::MotionShape;
-    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
+    item.motionShape = RoboMake<MotionShape>(std::move(shape));
     items_.push_back(std::move(item));
 }
 
@@ -2209,9 +2210,15 @@ bool RoboScene::RerenderIfPossible() {
     if (!hasRenderContext_ || !platform_ || !fonts_) {
         return false;
     }
-    // Scroll / localized invalidation: surface damage keeps retained layout caches.
-    // Theme and foundation callers still use MarkFullDirty directly.
-    MarkSurfaceDirty();
+    const float beforeX = scrollX_;
+    const float beforeY = scrollY_;
+    PullPageScroll();
+    if (std::fabs(scrollX_ - beforeX) > 0.01f || std::fabs(scrollY_ - beforeY) > 0.01f ||
+        std::fabs(scrollX_ - paintedScrollX_) > 0.01f || std::fabs(scrollY_ - paintedScrollY_) > 0.01f) {
+        ShiftPaintedScroll();
+        return true;
+    }
+    MarkContentDirty();
     return true;
 }
 
@@ -2315,7 +2322,13 @@ void RoboScene::DirtyInput(const Input* input) {
         return;
     }
     const InputBounds& bounds = input->GetBounds();
-    MarkDirty(bounds.x, bounds.y, bounds.width, bounds.height);
+    float line = static_cast<float>(input->GetStyle().fontSize) * 1.4f;
+    if (line < 8.0f || line >= bounds.height) {
+        MarkDirty(bounds.x, bounds.y, bounds.width, bounds.height);
+        return;
+    }
+    const float y = bounds.y + (bounds.height - line) * 0.5f;
+    MarkDirty(bounds.x, y, bounds.width, line);
 }
 
 void RoboScene::DirtyScrollbar(const Scrollbar* scrollbar) {
@@ -2396,6 +2409,15 @@ void RoboScene::DirtyThemeBounds(float x, float y, float width, float height) {
 }
 
 void RoboScene::GetLastPresentRect(int& x, int& y, int& width, int& height) const {
+    if (platform_ != nullptr) {
+        x = platform_->GetPresentX();
+        y = platform_->GetPresentY();
+        width = platform_->GetPresentWidth();
+        height = platform_->GetPresentHeight();
+        if (width > 0 && height > 0) {
+            return;
+        }
+    }
     x = frame_.GetPresentX();
     y = frame_.GetPresentY();
     width = frame_.GetPresentWidth();
@@ -2734,33 +2756,145 @@ void RoboScene::SetGalleryCount(int count) {
     galleryCount_ = count;
 }
 
+int RoboScene::GalleryFirst() const {
+    return galleryFirst_;
+}
+
+void RoboScene::OpenLauncher(const char* names, int stride, int count) {
+    launcherCount_ = 0;
+    launcherOpen_ = false;
+    if (names == nullptr || stride < 40 || count <= 1) {
+        return;
+    }
+    if (count > 8) {
+        count = 8;
+    }
+    for (int index = 0; index < count; ++index) {
+        const char* name = names + index * stride;
+        for (int letter = 0; letter < 47; ++letter) {
+            launcherNames_[index][letter] = name[letter];
+            if (name[letter] == 0) {
+                break;
+            }
+        }
+        launcherNames_[index][47] = 0;
+        launcherCount_ += 1;
+    }
+    launcherOpen_ = launcherCount_ > 1;
+    if (launcherOpen_) {
+        MarkDirty(32.0f, 72.0f, 320.0f, static_cast<float>(36 * launcherCount_ + 16));
+    }
+}
+
+void RoboScene::SetLauncherPick(void (*pick)(int index)) {
+    launcherPick_ = pick;
+}
+
+bool RoboScene::WallpaperOnly() const {
+    return wallpaperOnly_;
+}
+
+bool RoboScene::WallpaperDue() const {
+    return wallpaperClockMs_ >= wallpaperPresentDueMs_;
+}
+
+void RoboScene::AdvanceClock(double deltaMs) {
+    if (deltaMs > 0.0) {
+        wallpaperClockMs_ += deltaMs;
+    }
+}
+
+void RoboScene::MarkContentDirty() {
+    if (paintedContentW_ > 1.0f && paintedContentH_ > 1.0f) {
+        MarkDirty(paintedContentX_, paintedContentY_, paintedContentW_, paintedContentH_);
+        return;
+    }
+    MarkDirty(0.0f, 0.0f, static_cast<float>(paintedWidth_), static_cast<float>(paintedHeight_));
+}
+
 void RoboScene::ShiftPaintedScroll() {
     const float dy = scrollY_ - paintedScrollY_;
     const float dx = scrollX_ - paintedScrollX_;
-    if (!frameReady_ || frame_.GetPixels() == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0 ||
-        std::fabs(dx) > 0.5f) {
-        MarkSurfaceDirty();
+    const int shiftY = static_cast<int>(std::lround(dy));
+    const int shiftX = static_cast<int>(std::lround(dx));
+    if (shiftX == 0 && shiftY == 0) {
+        paintedScrollX_ = scrollX_;
+        paintedScrollY_ = scrollY_;
         return;
     }
-    const int shift = static_cast<int>(std::lround(dy));
-    const int height = frame_.GetHeight();
-    const int width = frame_.GetWidth();
-    if (shift == 0 || shift <= -height || shift >= height || width <= 0) {
-        MarkSurfaceDirty();
+    if (!frameReady_ || frame_.GetPixels() == nullptr || paintedWidth_ <= 0 || paintedHeight_ <= 0) {
+        MarkContentDirty();
+        paintedScrollX_ = scrollX_;
+        paintedScrollY_ = scrollY_;
         return;
     }
-    const int rows = shift > 0 ? shift : -shift;
-    const std::size_t stride = static_cast<std::size_t>(width) * 4u;
+    int clipX = static_cast<int>(paintedContentX_);
+    int clipY = static_cast<int>(paintedContentY_);
+    int clipW = static_cast<int>(paintedContentW_);
+    int clipH = static_cast<int>(paintedContentH_);
+    if (clipW <= 0 || clipH <= 0) {
+        clipX = 0;
+        clipY = 0;
+        clipW = paintedWidth_;
+        clipH = paintedHeight_;
+    }
+    if (clipX < 0) {
+        clipW += clipX;
+        clipX = 0;
+    }
+    if (clipY < 0) {
+        clipH += clipY;
+        clipY = 0;
+    }
+    if (clipX + clipW > paintedWidth_) {
+        clipW = paintedWidth_ - clipX;
+    }
+    if (clipY + clipH > paintedHeight_) {
+        clipH = paintedHeight_ - clipY;
+    }
+    const bool bothAxes = shiftX != 0 && shiftY != 0;
+    if (clipW <= 0 || clipH <= 0 || bothAxes || shiftY <= -clipH || shiftY >= clipH || shiftX <= -clipW || shiftX >= clipW) {
+        MarkDirty(static_cast<float>(clipX), static_cast<float>(clipY), static_cast<float>(clipW), static_cast<float>(clipH));
+        paintedScrollX_ = scrollX_;
+        paintedScrollY_ = scrollY_;
+        return;
+    }
     uint8_t* pixels = frame_.GetPixels();
-    if (shift > 0) {
-        std::memmove(pixels, pixels + static_cast<std::size_t>(rows) * stride,
-                     static_cast<std::size_t>(height - rows) * stride);
-        MarkDirty(0.0f, static_cast<float>(height - rows), static_cast<float>(width), static_cast<float>(rows));
+    const std::size_t stride = static_cast<std::size_t>(paintedWidth_) * 4u;
+    if (shiftY != 0) {
+        const int rows = shiftY > 0 ? shiftY : -shiftY;
+        const std::size_t rowBytes = static_cast<std::size_t>(clipW) * 4u;
+        uint8_t* base = pixels + static_cast<std::size_t>(clipY) * stride + static_cast<std::size_t>(clipX) * 4u;
+        if (shiftY > 0) {
+            for (int row = 0; row < clipH - rows; ++row) {
+                memmove(base + static_cast<std::size_t>(row) * stride, base + static_cast<std::size_t>(row + rows) * stride, rowBytes);
+            }
+            MarkDirty(static_cast<float>(clipX), static_cast<float>(clipY + clipH - rows), static_cast<float>(clipW), static_cast<float>(rows));
+        } else {
+            for (int row = clipH - 1; row >= rows; --row) {
+                memmove(base + static_cast<std::size_t>(row) * stride, base + static_cast<std::size_t>(row - rows) * stride, rowBytes);
+            }
+            MarkDirty(static_cast<float>(clipX), static_cast<float>(clipY), static_cast<float>(clipW), static_cast<float>(rows));
+        }
     } else {
-        std::memmove(pixels + static_cast<std::size_t>(rows) * stride, pixels,
-                     static_cast<std::size_t>(height - rows) * stride);
-        MarkDirty(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(rows));
+        const int columns = shiftX > 0 ? shiftX : -shiftX;
+        const std::size_t keep = static_cast<std::size_t>(clipW - columns) * 4u;
+        uint8_t* base = pixels + static_cast<std::size_t>(clipY) * stride + static_cast<std::size_t>(clipX) * 4u;
+        if (shiftX > 0) {
+            for (int row = 0; row < clipH; ++row) {
+                uint8_t* line = base + static_cast<std::size_t>(row) * stride;
+                memmove(line, line + static_cast<std::size_t>(columns) * 4u, keep);
+            }
+            MarkDirty(static_cast<float>(clipX + clipW - columns), static_cast<float>(clipY), static_cast<float>(columns), static_cast<float>(clipH));
+        } else {
+            for (int row = 0; row < clipH; ++row) {
+                uint8_t* line = base + static_cast<std::size_t>(row) * stride;
+                memmove(line + static_cast<std::size_t>(columns) * 4u, line, keep);
+            }
+            MarkDirty(static_cast<float>(clipX), static_cast<float>(clipY), static_cast<float>(columns), static_cast<float>(clipH));
+        }
     }
+    paintedScrollX_ = scrollX_;
     paintedScrollY_ = scrollY_;
 }
 
@@ -3387,6 +3521,10 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                                                    !desktop_.Dock().empty());
             frame.PushClipRect(0.0f, desktopChrome.contentY, static_cast<float>(width), desktopChrome.contentHeight);
             desktopClip = true;
+            paintedContentX_ = 0.0f;
+            paintedContentY_ = desktopChrome.contentY;
+            paintedContentW_ = static_cast<float>(width);
+            paintedContentH_ = desktopChrome.contentHeight;
             cursorY = desktopChrome.contentY + pad - scrollY_;
             flowEdge = cursorY;
         }
@@ -3397,15 +3535,42 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
             const float yBefore = cursorY;
             bool edgeSet = false;
             if (item.kind == SceneItemKind::Text) {
+                if (partial && item.text) {
+                    const TextLayoutCache& cache = item.text->LayoutCache();
+                    if (cache.valid && cache.width > 1.0f && cache.height > 1.0f &&
+                        frame.MissesClip(static_cast<int>(cache.originX), static_cast<int>(cache.originY),
+                                         static_cast<int>(cache.width), static_cast<int>(std::max(cache.height, cache.advanceY)))) {
+                        cursorY += cache.advanceY > 0.0f ? cache.advanceY : cache.height;
+                        continue;
+                    }
+                }
                 cursorY += TextPainter::Paint(frame, fonts, *item.text, columnX, cursorY, columnW, paintScale);
                 contentRight = std::max(contentRight, columnX + columnW + scrollX_);
             } else if (item.kind == SceneItemKind::Button) {
+                if (partial && item.button) {
+                    const ButtonBounds& prior = item.button->GetBounds();
+                    if (prior.width > 1.0f && prior.height > 1.0f &&
+                        frame.MissesClip(static_cast<int>(prior.x), static_cast<int>(prior.y), static_cast<int>(prior.width),
+                                         static_cast<int>(prior.height))) {
+                        cursorY += prior.height;
+                        continue;
+                    }
+                }
                 const ButtonPaintResult painted =
                     ButtonPainter::Paint(frame, fonts, *item.button, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
                 const ButtonBounds& bounds = item.button->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
             } else if (item.kind == SceneItemKind::Input) {
+                if (partial && item.input) {
+                    const InputBounds& prior = item.input->GetBounds();
+                    if (prior.width > 1.0f && prior.height > 1.0f &&
+                        frame.MissesClip(static_cast<int>(prior.x), static_cast<int>(prior.y), static_cast<int>(prior.width),
+                                         static_cast<int>(prior.height))) {
+                        cursorY += prior.height;
+                        continue;
+                    }
+                }
                 if (item.input.get() == focusedInput_) {
                     item.input->SetInteraction(InputInteraction::Focused);
                 } else if (item.input.get() == hoveredInput_ && item.input->GetInteraction() != InputInteraction::Focused) {
@@ -3486,6 +3651,15 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                 const GridBounds& bounds = item.grid->GetBounds();
                 contentRight = std::max(contentRight, bounds.x + bounds.width + scrollX_);
             } else if (item.kind == SceneItemKind::Svg) {
+                if (partial && item.svg) {
+                    const SvgBounds& prior = item.svg->GetBounds();
+                    if (prior.width > 1.0f && prior.height > 1.0f &&
+                        frame.MissesClip(static_cast<int>(prior.x), static_cast<int>(prior.y), static_cast<int>(prior.width),
+                                         static_cast<int>(prior.height))) {
+                        cursorY += prior.height;
+                        continue;
+                    }
+                }
                 const SvgPaintResult painted =
                     SvgPainter::Paint(frame, *item.svg, columnX, cursorY, columnW, paintScale);
                 cursorY += painted.advanceY;
@@ -3712,9 +3886,15 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         damageWidth = width;
         damageHeight = height;
     }
+    if (launcherOpen_ && launcherCount_ > 0) {
+        frame.FillRect(32, 72, 320, 36 * launcherCount_ + 16, Color::FromHex("#1C1C1E"), 0.94f);
+        for (int index = 0; index < launcherCount_; ++index) {
+            fonts.DrawString(frame, 48.0f, 100.0f + static_cast<float>(index) * 36.0f, launcherNames_[index], 16.0f,
+                             FontFaceId::Medium, Color::FromHex("#F5F5F7"), 1.0f, 0.0f, true);
+        }
+    }
     frame.SetPump(nullptr, nullptr);
     frame.EndDisplayList();
-    (void)frame.DisplayOpCount();
     frame.SetPresentRect(damageX, damageY, damageWidth, damageHeight);
     fullDirty_ = false;
     damageOpen_ = false;
@@ -4570,7 +4750,7 @@ bool RoboScene::Wheel(float x, float y, float deltaX, float deltaY) {
     if (std::fabs(deltaY) >= std::fabs(deltaX)) {
         for (SceneItem& item : items_) {
             if (item.kind == SceneItemKind::Sidebar && item.sidebar->Contains(x, y) && item.sidebar->ScrollBy(deltaY, x)) {
-                MarkSurfaceDirty();
+                MarkContentDirty();
                 return true;
             }
         }
@@ -5642,6 +5822,20 @@ bool RoboScene::LongPressSelect(float x, float y) {
 }
 
 bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
+    if (launcherOpen_) {
+        const float row = (y - 80.0f) / 36.0f;
+        if (x >= 32.0f && x <= 352.0f && row >= 0.0f && row < static_cast<float>(launcherCount_)) {
+            const int index = static_cast<int>(row);
+            if (launcherPick_ != nullptr) {
+                launcherPick_(index);
+            }
+            launcherOpen_ = false;
+            MarkDirty(32.0f, 72.0f, 320.0f, static_cast<float>(36 * launcherCount_ + 16));
+            return true;
+        }
+        launcherOpen_ = false;
+        MarkDirty(32.0f, 72.0f, 320.0f, static_cast<float>(36 * launcherCount_ + 16));
+    }
     if (desktop_.HasContextMenu() && desktop_.GetContextMenu().IsVisible()) {
         ContextMenu& contextMenu = desktop_.GetContextMenu();
         if (contextMenu.Panel().width < 1.0f || contextGuardMs_ > 0.0f) {
@@ -5815,7 +6009,11 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
             PullSidebarScroll(scrollbar);
         }
         DirtyScrollbar(scrollbar);
-        MarkSurfaceDirty();
+        if (scrollbar == &pageVertical_ || scrollbar == &pageHorizontal_) {
+            ShiftPaintedScroll();
+        } else {
+            MarkContentDirty();
+        }
         changed = true;
     } else if (themeToggle || themeIcon) {
         changed = SetHoveredScrollbar(nullptr) || changed;
@@ -6243,12 +6441,33 @@ bool RoboScene::Tick(double deltaMs) {
     if (contentMoved) {
         ShiftPaintedScroll();
     }
-    if (activePaneId_ == "icons" && galleryLimit_ < galleryCount_ && maxScrollY_ > 1.0f &&
-        scrollY_ > maxScrollY_ * 0.75f) {
-        galleryLimit_ += 48;
-        DropPane("icons");
-        EnsurePaneContent();
-        MarkSurfaceDirty();
+    if (activePaneId_ == "icons" && galleryCount_ > galleryLimit_ && maxScrollY_ > 1.0f) {
+        bool slide = false;
+        if (scrollY_ > maxScrollY_ * 0.75f && galleryFirst_ + galleryLimit_ < galleryCount_) {
+            galleryFirst_ += galleryLimit_;
+            if (galleryFirst_ + galleryLimit_ > galleryCount_) {
+                galleryFirst_ = galleryCount_ - galleryLimit_;
+            }
+            if (galleryFirst_ < 0) {
+                galleryFirst_ = 0;
+            }
+            scrollY_ = maxScrollY_ * 0.2f;
+            slide = true;
+        } else if (scrollY_ < maxScrollY_ * 0.12f && galleryFirst_ > 0) {
+            galleryFirst_ -= galleryLimit_;
+            if (galleryFirst_ < 0) {
+                galleryFirst_ = 0;
+            }
+            scrollY_ = maxScrollY_ * 0.55f;
+            slide = true;
+        }
+        if (slide) {
+            pageVertical_.SetValue(maxScrollY_ > 0.0f ? static_cast<double>(scrollY_ / maxScrollY_) : 0.0);
+            paintedScrollY_ = scrollY_;
+            DropPane("icons");
+            EnsurePaneContent();
+            MarkContentDirty();
+        }
     }
     if (videoAdvanced) {
         changed = true;
@@ -6280,6 +6499,7 @@ bool RoboScene::Tick(double deltaMs) {
 }
 
 bool RoboScene::NeedsTick() {
+    wallpaperOnly_ = false;
     if (devKitOpen_ && devKitBuildStep_ >= 0) {
         return true;
     }
@@ -6287,11 +6507,6 @@ bool RoboScene::NeedsTick() {
         return true;
     }
     if (devKitOpen_ && devKitScene_ != nullptr && devKitScene_->NeedsTick()) {
-        return true;
-    }
-    // Animated wallpaper keeps Tick warm only when not frozen under focused DevKit.
-    if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() &&
-        !(devKitOpen_ && devKitFocus_)) {
         return true;
     }
     bool needsTick = false;
@@ -6336,7 +6551,12 @@ bool RoboScene::NeedsTick() {
         };
         VisitSceneThemes(items_, activePaneId_, themeVisit);
     }
-    return needsTick;
+    const bool wallpaper = desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() && !(devKitOpen_ && devKitFocus_);
+    wallpaperOnly_ = wallpaper && !needsTick;
+    if (needsTick) {
+        return true;
+    }
+    return wallpaper && wallpaperClockMs_ >= wallpaperPresentDueMs_;
 }
 
 bool RoboScene::HasFocusedInput() const {

@@ -13,7 +13,9 @@ $RoboEspRequired = @(
     "EMPTYFOL.SVG",
     "BACKGROU.RJP",
     "DESKTOP.BIN",
-    "RoboApp.bin"
+    "RoboApp.bin",
+    "ROBOICON.PAK",
+    "ROBOCTRY.PAK"
 )
 
 $RoboEspOptional = @(
@@ -36,7 +38,9 @@ $RoboEspArmRequired = @(
     "EMPTYFOL.SVG",
     "BACKGROU.RJP",
     "DESKTOP.BIN",
-    "RoboApp.bin"
+    "RoboApp.bin",
+    "ROBOICON.PAK",
+    "ROBOCTRY.PAK"
 )
 
 function Assert-RoboEspAssets {

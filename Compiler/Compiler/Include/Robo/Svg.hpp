@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,16 @@ struct SvgCommand {
 
 struct SvgShape {
     std::vector<SvgCommand> commands;
+    std::shared_ptr<std::vector<SvgCommand>> sharedCommands;
+
+    void ShareCommands() {
+        if (sharedCommands || commands.empty()) {
+            return;
+        }
+        sharedCommands = std::make_shared<std::vector<SvgCommand>>(std::move(commands));
+        commands.clear();
+    }
+
     Color fill = Color::FromHex("#000000");
     Color stroke = Color::FromHex("#000000");
     bool hasFill = true;
@@ -54,6 +65,13 @@ struct SvgShape {
     std::string fillToken;
     std::string strokeToken;
 };
+
+inline const std::vector<SvgCommand>& SvgCommands(const SvgShape& shape) {
+    if (shape.sharedCommands && !shape.sharedCommands->empty()) {
+        return *shape.sharedCommands;
+    }
+    return shape.commands;
+}
 
 struct SvgStyle {
     float width = 0.0f;

@@ -1,3 +1,4 @@
+#include "Robo/RoboPool.hpp"
 #include "Robo/Position.hpp"
 #include "Robo/Container.hpp"
 #include "Robo/Flexbox.hpp"
@@ -39,13 +40,13 @@ Position::Position(const Position& other) : style_(other.style_), bounds_(other.
     for (const PositionItem& item : other.items_) {
         PositionItem copy = item;
         if (item.flexbox) {
-            copy.flexbox = std::make_shared<Flexbox>(*item.flexbox);
+            copy.flexbox = RoboMake<Flexbox>(*item.flexbox);
         }
         if (item.grid) {
-            copy.grid = std::make_shared<Grid>(*item.grid);
+            copy.grid = RoboMake<Grid>(*item.grid);
         }
         if (item.position) {
-            copy.position = std::make_shared<Position>(*item.position);
+            copy.position = RoboMake<Position>(*item.position);
         }
         items_.push_back(std::move(copy));
     }
@@ -62,13 +63,13 @@ Position& Position::operator=(const Position& other) {
     for (const PositionItem& item : other.items_) {
         PositionItem copy = item;
         if (item.flexbox) {
-            copy.flexbox = std::make_shared<Flexbox>(*item.flexbox);
+            copy.flexbox = RoboMake<Flexbox>(*item.flexbox);
         }
         if (item.grid) {
-            copy.grid = std::make_shared<Grid>(*item.grid);
+            copy.grid = RoboMake<Grid>(*item.grid);
         }
         if (item.position) {
-            copy.position = std::make_shared<Position>(*item.position);
+            copy.position = RoboMake<Position>(*item.position);
         }
         items_.push_back(std::move(copy));
     }
@@ -95,7 +96,7 @@ void Position::AddText(Text text, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Text;
     item.props = props;
-    item.text = std::make_shared<Text>(std::move(text));
+    item.text = RoboMake<Text>(std::move(text));
     items_.push_back(std::move(item));
 }
 
@@ -103,7 +104,7 @@ void Position::AddSvg(Svg svg, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Svg;
     item.props = props;
-    item.svg = std::make_shared<Svg>(std::move(svg));
+    item.svg = RoboMake<Svg>(std::move(svg));
     items_.push_back(std::move(item));
 }
 
@@ -111,7 +112,7 @@ void Position::AddBrandLogo(BrandLogo logo, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::BrandLogo;
     item.props = props;
-    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
+    item.brandLogo = RoboMake<BrandLogo>(std::move(logo));
     items_.push_back(std::move(item));
 }
 
@@ -119,7 +120,7 @@ void Position::AddTitleBar(TitleBar bar, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::TitleBar;
     item.props = props;
-    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
+    item.titleBar = RoboMake<TitleBar>(std::move(bar));
     items_.push_back(std::move(item));
 }
 
@@ -127,7 +128,7 @@ void Position::AddSidebar(Sidebar pane, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Sidebar;
     item.props = props;
-    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
+    item.sidebar = RoboMake<Sidebar>(std::move(pane));
     items_.push_back(std::move(item));
 }
 
@@ -135,7 +136,7 @@ void Position::AddSidebarItem(SidebarItem item, const PositionItemProps& props) 
     PositionItem entry;
     entry.kind = PositionItemKind::SidebarItem;
     entry.props = props;
-    entry.sidebarItem = std::make_shared<SidebarItem>(std::move(item));
+    entry.sidebarItem = RoboMake<SidebarItem>(std::move(item));
     items_.push_back(std::move(entry));
 }
 
@@ -143,7 +144,7 @@ void Position::AddThemeToggle(ThemeToggle toggle, const PositionItemProps& props
     PositionItem item;
     item.kind = PositionItemKind::ThemeToggle;
     item.props = props;
-    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
+    item.themeToggle = RoboMake<ThemeToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -151,7 +152,7 @@ void Position::AddThemeIconToggle(ThemeIconToggle toggle, const PositionItemProp
     PositionItem item;
     item.kind = PositionItemKind::ThemeIconToggle;
     item.props = props;
-    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
+    item.themeIconToggle = RoboMake<ThemeIconToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -159,7 +160,7 @@ void Position::AddSeparator(Separator separator, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::Separator;
     item.props = props;
-    item.separator = std::make_shared<Separator>(std::move(separator));
+    item.separator = RoboMake<Separator>(std::move(separator));
     items_.push_back(std::move(item));
 }
 
@@ -167,7 +168,7 @@ void Position::AddMotionShape(MotionShape shape, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::MotionShape;
     item.props = props;
-    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
+    item.motionShape = RoboMake<MotionShape>(std::move(shape));
     items_.push_back(std::move(item));
 }
 
@@ -175,7 +176,7 @@ void Position::AddButton(Button button, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Button;
     item.props = props;
-    item.button = std::make_shared<Button>(std::move(button));
+    item.button = RoboMake<Button>(std::move(button));
     items_.push_back(std::move(item));
 }
 
@@ -183,7 +184,7 @@ void Position::AddInput(Input input, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Input;
     item.props = props;
-    item.input = std::make_shared<Input>(std::move(input));
+    item.input = RoboMake<Input>(std::move(input));
     items_.push_back(std::move(item));
 }
 
@@ -191,7 +192,7 @@ void Position::AddScrollbar(Scrollbar scrollbar, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::Scrollbar;
     item.props = props;
-    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
+    item.scrollbar = RoboMake<Scrollbar>(std::move(scrollbar));
     items_.push_back(std::move(item));
 }
 
@@ -199,7 +200,7 @@ void Position::AddContainer(Container container, const PositionItemProps& props)
     PositionItem item;
     item.kind = PositionItemKind::Container;
     item.props = props;
-    item.container = std::make_shared<Container>(std::move(container));
+    item.container = RoboMake<Container>(std::move(container));
     items_.push_back(std::move(item));
 }
 
@@ -207,7 +208,7 @@ void Position::AddFlexbox(Flexbox flexbox, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Flexbox;
     item.props = props;
-    item.flexbox = std::make_shared<Flexbox>(std::move(flexbox));
+    item.flexbox = RoboMake<Flexbox>(std::move(flexbox));
     items_.push_back(std::move(item));
 }
 
@@ -215,7 +216,7 @@ void Position::AddGrid(Grid grid, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Grid;
     item.props = props;
-    item.grid = std::make_shared<Grid>(std::move(grid));
+    item.grid = RoboMake<Grid>(std::move(grid));
     items_.push_back(std::move(item));
 }
 
@@ -223,7 +224,7 @@ void Position::AddPosition(Position position, const PositionItemProps& props) {
     PositionItem item;
     item.kind = PositionItemKind::Position;
     item.props = props;
-    item.position = std::make_shared<Position>(std::move(position));
+    item.position = RoboMake<Position>(std::move(position));
     items_.push_back(std::move(item));
 }
 

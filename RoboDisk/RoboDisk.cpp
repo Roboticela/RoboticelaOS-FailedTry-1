@@ -27,6 +27,13 @@ uint32_t gIndex = 0;
 int gFallbackKind = ROBO_DISK_NONE;
 uint32_t gFallbackIndex = 0;
 bool gFallback = false;
+int gProbeKind = 0;
+uint32_t gProbeIndex = 0;
+uint32_t gVirtioProbeCount = 0xFFFFFFFFu;
+uint32_t gNvmeProbeCount = 0xFFFFFFFFu;
+uint32_t gAhciProbeCount = 0xFFFFFFFFu;
+bool gDiskFinished = false;
+bool gDiskMounted = false;
 
 bool RoboDiskMagic(const uint8_t* sector) {
     for (uint32_t index = 0; index < 8u; ++index) {
@@ -139,35 +146,79 @@ bool RoboDiskWriteSector(uint32_t lba, const uint8_t* sector) {
     return RoboDiskWriteSectors(lba, 1, sector);
 }
 
-bool RoboDiskStart(void) {
-    gKind = ROBO_DISK_NONE;
-    gFallback = false;
-    uint32_t virtioCount = RoboVirtioBlkCount();
-    for (uint32_t index = 0; index < virtioCount; ++index) {
-        if (RoboDiskOffer(ROBO_DISK_VIRTIO, index)) {
-            return true;
-        }
-    }
-    uint32_t nvmeCount = RoboNvmeCount();
-    for (uint32_t index = 0; index < nvmeCount; ++index) {
-        if (RoboDiskOffer(ROBO_DISK_NVME, index)) {
-            return true;
-        }
-    }
-    uint32_t ahciCount = RoboAhciCount();
-    for (uint32_t index = 0; index < ahciCount; ++index) {
-        if (RoboDiskOffer(ROBO_DISK_AHCI, index)) {
-            return true;
-        }
-    }
-    if (RoboAtaStart() && RoboDiskOffer(ROBO_DISK_ATA, 0)) {
+bool RoboDiskAdvance(void) {
+    if (gDiskFinished) {
         return true;
     }
-    if (!gFallback) {
-        gKind = ROBO_DISK_NONE;
+    if (gProbeKind == 0) {
+        if (gVirtioProbeCount == 0xFFFFFFFFu) {
+            gVirtioProbeCount = RoboVirtioBlkCount();
+        }
+        if (gProbeIndex < gVirtioProbeCount) {
+            if (RoboDiskOffer(ROBO_DISK_VIRTIO, gProbeIndex)) {
+                gDiskMounted = true;
+                gDiskFinished = true;
+                return true;
+            }
+            gProbeIndex += 1u;
+            return false;
+        }
+        gProbeKind = 1;
+        gProbeIndex = 0;
         return false;
     }
-    gKind = gFallbackKind;
-    gIndex = gFallbackIndex;
+    if (gProbeKind == 1) {
+        if (gNvmeProbeCount == 0xFFFFFFFFu) {
+            gNvmeProbeCount = RoboNvmeCount();
+        }
+        if (gProbeIndex < gNvmeProbeCount) {
+            if (RoboDiskOffer(ROBO_DISK_NVME, gProbeIndex)) {
+                gDiskMounted = true;
+                gDiskFinished = true;
+                return true;
+            }
+            gProbeIndex += 1u;
+            return false;
+        }
+        gProbeKind = 2;
+        gProbeIndex = 0;
+        return false;
+    }
+    if (gProbeKind == 2) {
+        if (gAhciProbeCount == 0xFFFFFFFFu) {
+            gAhciProbeCount = RoboAhciCount();
+        }
+        if (gProbeIndex < gAhciProbeCount) {
+            if (RoboDiskOffer(ROBO_DISK_AHCI, gProbeIndex)) {
+                gDiskMounted = true;
+                gDiskFinished = true;
+                return true;
+            }
+            gProbeIndex += 1u;
+            return false;
+        }
+        gProbeKind = 3;
+        return false;
+    }
+    if (RoboAtaStart() && RoboDiskOffer(ROBO_DISK_ATA, 0)) {
+        gDiskMounted = true;
+    } else if (gFallback) {
+        gKind = gFallbackKind;
+        gIndex = gFallbackIndex;
+        gDiskMounted = true;
+    } else {
+        gKind = ROBO_DISK_NONE;
+    }
+    gDiskFinished = true;
     return true;
+}
+
+bool RoboDiskMounted(void) {
+    return gDiskMounted && gKind != ROBO_DISK_NONE;
+}
+
+bool RoboDiskStart(void) {
+    while (!RoboDiskAdvance()) {
+    }
+    return RoboDiskMounted();
 }

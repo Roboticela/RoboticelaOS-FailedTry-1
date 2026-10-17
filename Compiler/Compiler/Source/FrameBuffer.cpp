@@ -271,6 +271,38 @@ int FrameBuffer::DisplayOpCount() const {
     return static_cast<int>(displayOps_.size());
 }
 
+bool FrameBuffer::TakeDisplayBounds(int& x, int& y, int& width, int& height) {
+    if (displayOps_.empty()) {
+        width = 0;
+        height = 0;
+        return false;
+    }
+    int left = displayOps_[0].x;
+    int top = displayOps_[0].y;
+    int right = left + displayOps_[0].width;
+    int bottom = top + displayOps_[0].height;
+    for (const DisplayOp& op : displayOps_) {
+        if (op.width <= 0 || op.height <= 0) {
+            continue;
+        }
+        left = std::min(left, op.x);
+        top = std::min(top, op.y);
+        right = std::max(right, op.x + op.width);
+        bottom = std::max(bottom, op.y + op.height);
+    }
+    displayOps_.clear();
+    if (right <= left || bottom <= top) {
+        width = 0;
+        height = 0;
+        return false;
+    }
+    x = left;
+    y = top;
+    width = right - left;
+    height = bottom - top;
+    return true;
+}
+
 void FrameBuffer::FillRect(int x, int y, int width, int height, const Color& color, float opacity) {
     if (recordDisplay_ && displayOps_.size() < 4096u) {
         DisplayOp op;

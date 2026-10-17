@@ -29,10 +29,10 @@ public:
     void CopyText(const std::string& text) override;
     std::vector<std::uint8_t> LoadAsset(const std::string& relativePath) const override;
 
-    int GetPresentX() const;
-    int GetPresentY() const;
-    int GetPresentWidth() const;
-    int GetPresentHeight() const;
+    int GetPresentX() const override;
+    int GetPresentY() const override;
+    int GetPresentWidth() const override;
+    int GetPresentHeight() const override;
 
 private:
     std::uint32_t Pack(std::uint8_t red, std::uint8_t green, std::uint8_t blue) const;

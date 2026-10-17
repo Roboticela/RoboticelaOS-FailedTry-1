@@ -3,11 +3,17 @@
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
 #include "RoboGPU.hpp"
+#include "RoboArch.hpp"
+#include "RoboProcess.hpp"
+#include "RoboTimer.hpp"
+#if !defined(__aarch64__)
 #include "RoboPS2Mouse.hpp"
+#endif
 #include "RoboticelaOSPlatform.hpp"
 #include "Robo/Color.hpp"
 #include "Robo/FontEngine.hpp"
 #include "Robo/RenderQuality.hpp"
+#include "Robo/RoboIconPack.hpp"
 #include "Robo/RoboScene.hpp"
 
 #include <stdint.h>
@@ -38,6 +44,59 @@ uint32_t gHeldMs = 0;
 int32_t gPressX = 0;
 int32_t gPressY = 0;
 float gSceneScale = 1.0f;
+extern "C" volatile uint32_t gRoboShellGuard = 0;
+bool gPresentUnion = false;
+int32_t gPresentX = 0;
+int32_t gPresentY = 0;
+int32_t gPresentWidth = 0;
+int32_t gPresentHeight = 0;
+
+void RoboShellNotePresent(void) {
+    if (gScene == nullptr) {
+        return;
+    }
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    gScene->GetLastPresentRect(x, y, width, height);
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+    if (!gPresentUnion) {
+        gPresentX = x;
+        gPresentY = y;
+        gPresentWidth = width;
+        gPresentHeight = height;
+        gPresentUnion = true;
+        return;
+    }
+    const int32_t left = gPresentX < x ? gPresentX : x;
+    const int32_t top = gPresentY < y ? gPresentY : y;
+    const int32_t right = (gPresentX + gPresentWidth) > (x + width) ? gPresentX + gPresentWidth : x + width;
+    const int32_t bottom = (gPresentY + gPresentHeight) > (y + height) ? gPresentY + gPresentHeight : y + height;
+    gPresentX = left;
+    gPresentY = top;
+    gPresentWidth = right - left;
+    gPresentHeight = bottom - top;
+}
+
+void RoboPickLauncher(int index) {
+    if (RoboLauncherSelect(index)) {
+        gRoboLaunchChosen = 1;
+    }
+}
+
+extern "C" void RoboShellRecover(void) {
+    gRoboShellGuard = 0;
+    if (gDesktop != nullptr && gDesktop->gpu != nullptr) {
+        RoboGPUFill(gDesktop->gpu, 0x202838u);
+    }
+    for (;;) {
+        RoboArchSti();
+        RoboArchIdle();
+    }
+}
 
 float RoboSceneCoord(int32_t value) {
     return static_cast<float>(value) * gSceneScale;
@@ -107,9 +166,17 @@ void RoboShellTrackCursor(void* cookie) {
         int32_t dy = 0;
         uint8_t pressed = 0;
         uint8_t changed = 0;
+#if defined(__aarch64__)
+        (void)dx;
+        (void)dy;
+        (void)pressed;
+        (void)changed;
+        return;
+#else
         if (!RoboPS2MouseReadPacket(&dx, &dy, &pressed, &changed)) {
             return;
         }
+#endif
         if (dx != 0 || dy != 0) {
             RoboDesktopMoveCursor(gDesktop, dx, dy);
             gCursorMovedDuringPaint = true;
@@ -229,10 +296,13 @@ bool RoboShellStart(RoboDesktop* desktop) {
     if (regular || medium || semi || bold || italic) {
         gFonts->WarmChrome(pixelScale);
     }
+    Robo::RoboIconPackLoad(*gPlatform);
     BuildPage(*gScene);
+    gRoboShellGuard = 1;
     gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
     gScene->DamageRect(0.0f, 0.0f, 100000.0f, 100000.0f);
     gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+    gRoboShellGuard = 0;
     RoboDesktopRedrawCursor(desktop);
     return true;
 }
@@ -369,7 +439,17 @@ bool RoboShellTick(uint32_t deltaMs) {
 }
 
 void RoboShellLastPresentRect(int32_t* x, int32_t* y, int32_t* width, int32_t* height) {
-    if (x == nullptr || y == nullptr || width == nullptr || height == nullptr || gScene == nullptr) {
+    if (x == nullptr || y == nullptr || width == nullptr || height == nullptr) {
+        return;
+    }
+    if (gPresentUnion) {
+        *x = gPresentX;
+        *y = gPresentY;
+        *width = gPresentWidth;
+        *height = gPresentHeight;
+        return;
+    }
+    if (gScene == nullptr) {
         return;
     }
     int px = 0;
@@ -390,6 +470,21 @@ void RoboShellSetBackground(const char* path) {
     gScene->SetDesktopBackgroundPath(path);
 }
 
+void RoboShellAdvanceClock(uint32_t deltaMs) {
+    if (gScene != nullptr && deltaMs != 0) {
+        gScene->AdvanceClock(static_cast<double>(deltaMs));
+    }
+}
+
+void RoboShellOfferLauncher(void) {
+    if (gScene == nullptr || RoboLauncherCount() <= 1) {
+        gRoboLaunchChosen = 1;
+        return;
+    }
+    gScene->SetLauncherPick(RoboPickLauncher);
+    gScene->OpenLauncher(RoboLauncherName(0), 48, RoboLauncherCount());
+}
+
 void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height) {
     if (gScene == nullptr || width <= 0 || height <= 0) {
         return;
@@ -401,13 +496,17 @@ bool RoboShellFlush(RoboDesktop* desktop) {
     if (gScene == nullptr || gPlatform == nullptr || gFonts == nullptr || desktop == nullptr || !gScene->NeedsRender()) {
         return false;
     }
+    gPresentUnion = false;
     for (int pass = 0; pass < 2; ++pass) {
         if (pass > 0 && !gScene->NeedsRender()) {
             break;
         }
         gCursorMovedDuringPaint = false;
         gClickDuringPaint = 0;
+        gRoboShellGuard = 1;
         gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
+        gRoboShellGuard = 0;
+        RoboShellNotePresent();
         if (gCursorMovedDuringPaint) {
             RoboShellPointerMove(desktop->cursorX, desktop->cursorY);
         }

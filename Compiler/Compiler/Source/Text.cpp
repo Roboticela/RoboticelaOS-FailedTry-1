@@ -67,7 +67,7 @@ void Text::WriteMeasureCache(float containerWidth, float pixelScale, float width
 void Text::InvalidateMeasureCache() const {
     previousLineCount_ = 0;
     const int limit = static_cast<int>(layoutCache_.lines.size());
-    for (int index = 0; index < limit && previousLineCount_ < 32; ++index) {
+    for (int index = 0; index < limit && previousLineCount_ < 128; ++index) {
         previousLineY_[previousLineCount_] = layoutCache_.lines[static_cast<std::size_t>(index)].y;
         previousLineH_[previousLineCount_] = layoutCache_.lines[static_cast<std::size_t>(index)].height;
         previousLineW_[previousLineCount_] = layoutCache_.lines[static_cast<std::size_t>(index)].width;

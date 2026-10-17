@@ -42,9 +42,15 @@ void RoboEnter(uint64_t tables, uint64_t rip, uint64_t rsp) {
 }
 
 void RoboUserMain(void) {
-    RoboUserMap map{};
-    if (RoboProcessLoad(&map)) {
-        RoboEnter(map.tables, map.rip, map.rsp);
+    while (gRoboDiskReady == 0 || gRoboLaunchChosen == 0) {
+        RoboThreadSleep(RoboTimerTicks() + 2ull);
+    }
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        RoboUserMap map{};
+        if (RoboProcessLoad(&map)) {
+            RoboEnter(map.tables, map.rip, map.rsp);
+        }
+        RoboThreadSleep(RoboTimerTicks() + 5ull);
     }
     uint64_t rip = 0;
     uint64_t rsp = 0;

@@ -50,7 +50,7 @@ void RoboAhciClean(const void* address, uint32_t bytes) {
 }
 
 bool RoboAhciWait(uint64_t command, uint32_t bit, bool clear) {
-    for (uint32_t spin = 0; spin < 100000u; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u; ++spin) {
         uint32_t value = RoboAhciRead(command);
         bool set = (value & bit) != 0;
         if (set != clear) {
@@ -199,7 +199,7 @@ bool RoboAhciTransfer(uint32_t index, uint32_t lba, uint32_t count, uint8_t* buf
     RoboAhciClean(gCommand, sizeof(gCommand));
     RoboAhciClean(gCommandList, 32);
     RoboAhciWrite(port + 0x38, 1u);
-    for (uint32_t spin = 0; spin < 100000u; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u; ++spin) {
         if (RoboAhciRead(port + 0x38) == 0) {
             uint32_t task = RoboAhciRead(port + 0x20);
             return (task & 0x81u) == 0;

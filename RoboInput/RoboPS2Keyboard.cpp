@@ -9,7 +9,7 @@ constexpr uint16_t ROBO_PS2_STATUS_PORT = 0x64;
 constexpr uint8_t ROBO_PS2_STATUS_OUTPUT = 0x01;
 constexpr uint8_t ROBO_PS2_STATUS_INPUT = 0x02;
 constexpr uint8_t ROBO_PS2_STATUS_AUX = 0x20;
-constexpr uint32_t ROBO_PS2_TIMEOUT = 100000u;
+constexpr uint32_t ROBO_PS2_TIMEOUT = 4000u;
 constexpr uint32_t ROBO_KEY_RING = 64;
 constexpr uint16_t ROBO_KEY_EXTENDED = 0xE000u;
 

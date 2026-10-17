@@ -83,7 +83,7 @@ void RoboNvmeClean(const void* address, uint32_t bytes) {
 }
 
 bool RoboNvmeWait(uint64_t status, uint32_t mask, uint32_t value) {
-    for (uint32_t spin = 0; spin < 200000u; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u; ++spin) {
         if ((RoboNvmeRead32(status) & mask) == value) {
             return true;
         }
@@ -108,7 +108,7 @@ bool RoboNvmeSubmit(RoboNvmeQueue* queue, const uint8_t command[64]) {
     uint8_t* completion = queue->completion + static_cast<uint32_t>(queue->head) * 16u;
     uint16_t status = 0xFFFF;
     bool finished = false;
-    for (uint32_t spin = 0; spin < 200000u; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u; ++spin) {
         RoboNvmeClean(completion, 16);
         status = static_cast<uint16_t>(completion[14] | (completion[15] << 8));
         if ((status & 1u) == queue->phase) {

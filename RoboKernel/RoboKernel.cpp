@@ -17,6 +17,8 @@
 #include "RoboDesktopImage.hpp"
 #include "RoboDebug.hpp"
 #include "RoboShell.hpp"
+#include "RoboNet.hpp"
+#include "RoboSound.hpp"
 
 extern "C" void RoboKernelContinue(RoboBootInfo* info);
 
@@ -113,10 +115,18 @@ bool RoboShellLoad(RoboDesktop* desktop) {
 void RoboAppLoad(void);
 void RoboAppPaintWidget(RoboWindow* window, bool on);
 
-void RoboFsMountDisk(void) {
-    if (RoboDiskStart()) {
+bool gDevicesReady = false;
+
+bool RoboFsMountStep(void) {
+    if (!RoboDiskAdvance()) {
+        return false;
+    }
+    if (RoboDiskMounted()) {
         RoboFsStart(RoboDiskReadSector);
     }
+    RoboFsMountHeldImage();
+    gRoboDiskReady = 1;
+    return true;
 }
 
 enum class RoboBootPhase : uint8_t {
@@ -130,23 +140,40 @@ RoboBootPhase gBootPhase = RoboBootPhase::Usb;
 bool gAppWindowReady = false;
 
 void RoboBootAdvance(RoboDesktop* desktop, RoboWindow* appWindow) {
-    if (gBootPhase == RoboBootPhase::Done || desktop == nullptr) {
+    if (desktop == nullptr) {
+        return;
+    }
+    if (gBootPhase == RoboBootPhase::Done) {
+        if (!gDevicesReady) {
+            RoboNetStart();
+            RoboSoundStart();
+            gDevicesReady = true;
+        }
         return;
     }
     if (gBootPhase == RoboBootPhase::Usb) {
-        RoboUsbStart();
+        if (!RoboUsbStart()) {
+            return;
+        }
         RoboDebugLine("usb");
         gBootPhase = RoboBootPhase::Disk;
         return;
     }
     if (gBootPhase == RoboBootPhase::Disk) {
-        RoboFsMountDisk();
+        if (!RoboFsMountStep()) {
+            return;
+        }
         RoboDebugLine("disk");
         gBootPhase = RoboBootPhase::App;
         return;
     }
     RoboAppLoad();
     RoboLauncherScan();
+    if (RoboLauncherCount() <= 1 || !gShellLive) {
+        gRoboLaunchChosen = 1;
+    } else {
+        RoboShellOfferLauncher();
+    }
     RoboDebugLine("app");
     if (!gShellLoaded && appWindow != nullptr && !gAppWindowReady) {
         RoboDesktopOpenWindow(desktop, appWindow, ROBO_APP_WINDOW_X, ROBO_APP_WINDOW_Y, ROBO_APP_WINDOW_WIDTH, ROBO_APP_WINDOW_HEIGHT);
@@ -219,9 +246,7 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
     RoboDesktopBoot(&desktop, &gpu);
     RoboDebugLine("desktop");
     if (RoboHeapBase() == nullptr) {
-        RoboDebugLine("heap-fail");
-        RoboGPUFill(&gpu, 0xB00020u);
-        RoboHalt();
+        RoboDebugLine("heap-fallback");
     }
     RoboCallBind(&desktop);
     RoboPS2MouseStart();
@@ -232,6 +257,9 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
     // First Present before USB/disk probes so gray+center cursor cannot stick on device spins.
     gShellLive = RoboShellStart(&desktop);
     RoboDebugLine(gShellLive ? "shell-ok" : "shell-fail");
+    if (!gShellLive) {
+        RoboDesktopRedrawCursor(&desktop);
+    }
     gShellLoaded = gShellLive || RoboShellLoad(&desktop);
     RoboFrameStart(&desktop);
     RoboDebugLine("frame");
@@ -367,6 +395,8 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
                     if (RoboShellTick(deltaMs)) {
                         shellInput = true;
                     }
+                } else {
+                    RoboShellAdvanceClock(deltaMs);
                 }
             }
             RoboArchSti();

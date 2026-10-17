@@ -28,3 +28,5 @@ bool RoboShellNeedsTick(void);
 void RoboShellLastPresentRect(int32_t* x, int32_t* y, int32_t* width, int32_t* height);
 void RoboShellSetBackground(const char* path);
 void RoboShellDamage(int32_t x, int32_t y, int32_t width, int32_t height);
+void RoboShellAdvanceClock(uint32_t deltaMs);
+void RoboShellOfferLauncher(void);

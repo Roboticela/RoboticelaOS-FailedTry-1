@@ -5,7 +5,7 @@
 #define ROBO_EFI_ALLOCATE_ANY 0u
 #define ROBO_EFI_ALLOCATE_MAX 1u
 #define ROBO_EFI_ALLOCATE_ADDRESS 2u
-#define ROBO_BOOT_FILE_BYTES (24u * 1024u * 1024u)
+#define ROBO_BOOT_FILE_BYTES (64u * 1024u * 1024u)
 #define ROBO_ELF_PT_LOAD 1u
 #if defined(ROBO_ARCH_ARM64)
 #define ROBO_ELF_MACHINE 183u
@@ -552,6 +552,12 @@ EfiStatus EfiMain(EfiHandle imageHandle, EfiSystemTable* system) {
     RoboLoadBootFile(boot, root, reelPath, "BACKGROU.RJP", &info);
     RoboLoadBootFile(boot, root, logoPath, "ROBOLOGO.SVG", &info);
     RoboLoadBootFile(boot, root, emptyPath, "EMPTYFOL.SVG", &info);
+    static uint16_t diskPath[] = u"\\ROBODISK.IMG";
+    static uint16_t iconPath[] = u"\\ROBOICON.PAK";
+    static uint16_t countryPath[] = u"\\ROBOCTRY.PAK";
+    RoboLoadBootFile(boot, root, iconPath, "ROBOICON.PAK", &info);
+    RoboLoadBootFile(boot, root, countryPath, "ROBOCTRY.PAK", &info);
+    RoboLoadBootFile(boot, root, diskPath, "ROBODISK.IMG", &info);
     root->close(root);
     {
         static uint16_t heldMsg[] = u"Held files: 0\r\n";

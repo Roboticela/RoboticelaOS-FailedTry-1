@@ -15,6 +15,7 @@ constexpr int ROBO_FS_IO = 5;
 constexpr int ROBO_FS_BUSY = 6;
 
 bool RoboFsStart(RoboFsSectorRead read);
+bool RoboFsMountHeldImage(void);
 void RoboFsUseBootFiles(const RoboBootInfo* info);
 bool RoboFsReadFile(const char* name, uint8_t* dest, uint32_t capacity, uint32_t* size);
 int RoboFsList(const char* directory, char* names, int nameStride, int capacity);

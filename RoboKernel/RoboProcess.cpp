@@ -1,5 +1,8 @@
 #include "RoboProcess.hpp"
 
+extern "C" volatile uint8_t gRoboDiskReady = 0;
+extern "C" volatile uint8_t gRoboLaunchChosen = 0;
+
 #include "RoboCall.hpp"
 #include "RoboFS.hpp"
 #include "RoboMemory.hpp"
@@ -103,6 +106,17 @@ bool RoboLauncherSelect(int index) {
     gLaunchPath[at] = 0;
     gLaunchPathReady = at > 13;
     return gLaunchPathReady;
+}
+
+int RoboLauncherCount(void) {
+    return gLaunchCount;
+}
+
+const char* RoboLauncherName(int index) {
+    if (index < 0 || index >= gLaunchCount) {
+        return "";
+    }
+    return gLaunchNames[index];
 }
 
 bool RoboProcessLoad(RoboUserMap* map) {

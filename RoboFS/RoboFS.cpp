@@ -981,6 +981,62 @@ bool RoboFsStart(RoboFsSectorRead read) {
     return false;
 }
 
+const uint8_t* gImageData = nullptr;
+uint32_t gImageBytes = 0;
+
+bool RoboImageSector(uint32_t lba, uint8_t* sector) {
+    uint64_t offset = static_cast<uint64_t>(lba) * ROBO_FS_SECTOR;
+    if (gImageData == nullptr || sector == nullptr || offset + ROBO_FS_SECTOR > gImageBytes) {
+        return false;
+    }
+    const uint8_t* source = gImageData + offset;
+    for (uint32_t index = 0; index < ROBO_FS_SECTOR; ++index) {
+        sector[index] = source[index];
+    }
+    return true;
+}
+
+bool RoboFsMountHeldImage(void) {
+    if (gRoboVolume) {
+        return true;
+    }
+    const char partitionMagic[8] = {'R', 'O', 'B', 'O', 'P', 'R', 'T', '1'};
+    const char volumeMagic[8] = {'R', 'O', 'B', 'O', 'F', 'S', '0', '1'};
+    const char imageName[11] = {'R', 'O', 'B', 'O', 'D', 'I', 'S', 'K', 'I', 'M', 'G'};
+    for (uint32_t file = 0; file < gHeldCount; ++file) {
+        const uint8_t* data = gHeldFiles[file].data;
+        const uint32_t size = gHeldFiles[file].size;
+        if (data == nullptr || size < ROBO_FS_SECTOR) {
+            continue;
+        }
+        bool partition = true;
+        bool volume = true;
+        bool named = true;
+        for (int index = 0; index < 8; ++index) {
+            if (data[index] != static_cast<uint8_t>(partitionMagic[index])) {
+                partition = false;
+            }
+            if (data[index] != static_cast<uint8_t>(volumeMagic[index])) {
+                volume = false;
+            }
+        }
+        for (int index = 0; index < 11; ++index) {
+            if (gHeldFiles[file].name[index] != static_cast<uint8_t>(imageName[index])) {
+                named = false;
+            }
+        }
+        if (!partition && !volume && !named) {
+            continue;
+        }
+        gImageData = data;
+        gImageBytes = size;
+        if (RoboFsStart(RoboImageSector) && gRoboVolume) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void RoboFsUseBootFiles(const RoboBootInfo* info) {
     gHeldCount = 0;
     if (info == nullptr || info->fileCount == 0) {
@@ -995,7 +1051,7 @@ void RoboFsUseBootFiles(const RoboBootInfo* info) {
         if (file->address < 0x100000ull || file->size == 0 || file->address >= ROBO_RAM_MAP_MAX_BYTES) {
             continue;
         }
-        if (file->size > 24u * 1024u * 1024u || file->address + file->size > ROBO_RAM_MAP_MAX_BYTES) {
+        if (file->size > 64u * 1024u * 1024u || file->address + file->size > ROBO_RAM_MAP_MAX_BYTES) {
             continue;
         }
         bool named = false;

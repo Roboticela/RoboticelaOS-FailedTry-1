@@ -731,12 +731,15 @@ unique_ptr<T> make_unique(Args&&... args) {
 template<class T>
 class shared_ptr {
 public:
-    shared_ptr() : pointer_(nullptr), count_(nullptr) {}
-    explicit shared_ptr(T* pointer) : pointer_(pointer), count_(pointer == nullptr ? nullptr : new int(1)) {}
-    shared_ptr(const shared_ptr& other) : pointer_(other.pointer_), count_(other.count_) { add(); }
-    shared_ptr(shared_ptr&& other) noexcept : pointer_(other.pointer_), count_(other.count_) {
+    shared_ptr() : pointer_(nullptr), count_(nullptr), free_(nullptr) {}
+    explicit shared_ptr(T* pointer) : pointer_(pointer), count_(pointer == nullptr ? nullptr : new int(1)), free_(nullptr) {}
+    shared_ptr(T* pointer, void (*freeObject)(void*))
+        : pointer_(pointer), count_(pointer == nullptr ? nullptr : new int(1)), free_(freeObject) {}
+    shared_ptr(const shared_ptr& other) : pointer_(other.pointer_), count_(other.count_), free_(other.free_) { add(); }
+    shared_ptr(shared_ptr&& other) noexcept : pointer_(other.pointer_), count_(other.count_), free_(other.free_) {
         other.pointer_ = nullptr;
         other.count_ = nullptr;
+        other.free_ = nullptr;
     }
     ~shared_ptr() { release(); }
     shared_ptr& operator=(const shared_ptr& other) {
@@ -744,6 +747,7 @@ public:
             release();
             pointer_ = other.pointer_;
             count_ = other.count_;
+            free_ = other.free_;
             add();
         }
         return *this;
@@ -753,8 +757,10 @@ public:
             release();
             pointer_ = other.pointer_;
             count_ = other.count_;
+            free_ = other.free_;
             other.pointer_ = nullptr;
             other.count_ = nullptr;
+            other.free_ = nullptr;
         }
         return *this;
     }
@@ -775,14 +781,20 @@ private:
         }
         *count_ -= 1;
         if (*count_ == 0) {
-            delete pointer_;
+            if (free_ != nullptr) {
+                free_(pointer_);
+            } else {
+                delete pointer_;
+            }
             delete count_;
         }
         pointer_ = nullptr;
         count_ = nullptr;
+        free_ = nullptr;
     }
     T* pointer_;
     int* count_;
+    void (*free_)(void*);
 };
 
 template<class T, class... Args>

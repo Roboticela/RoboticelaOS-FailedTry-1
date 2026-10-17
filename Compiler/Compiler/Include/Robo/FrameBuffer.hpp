@@ -38,6 +38,7 @@ public:
     void BeginDisplayList();
     void EndDisplayList();
     int DisplayOpCount() const;
+    bool TakeDisplayBounds(int& x, int& y, int& width, int& height);
     void FillRoundedRect(float x, float y, float width, float height, float radius, const Color& color, float opacity = 1.0f);
 
     // Clipping. Every write funnels through BlendPixel, so a clip restricts text,

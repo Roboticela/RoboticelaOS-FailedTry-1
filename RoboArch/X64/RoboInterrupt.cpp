@@ -86,9 +86,17 @@ void RoboPicStart(void) {
     RoboPortOut8(ROBO_PIC_SLAVE_DATA, gPicSlaveMask);
 }
 
+extern "C" volatile uint32_t gRoboShellGuard;
+extern "C" void RoboShellRecover(void);
+
 __attribute__((interrupt)) void RoboInterruptException(RoboInterruptFrame* frame) {
     if (frame != nullptr && frame->codeSegment == 0x23u) {
         RoboThreadEnd(3u);
+        return;
+    }
+    if (gRoboShellGuard != 0 && frame != nullptr) {
+        gRoboShellGuard = 0;
+        frame->instructionPointer = reinterpret_cast<uint64_t>(RoboShellRecover);
         return;
     }
     RoboHalt();
@@ -98,6 +106,11 @@ __attribute__((interrupt)) void RoboInterruptExceptionError(RoboInterruptFrame* 
     (void)error;
     if (frame != nullptr && frame->codeSegment == 0x23u) {
         RoboThreadEnd(3u);
+        return;
+    }
+    if (gRoboShellGuard != 0 && frame != nullptr) {
+        gRoboShellGuard = 0;
+        frame->instructionPointer = reinterpret_cast<uint64_t>(RoboShellRecover);
         return;
     }
     RoboHalt();

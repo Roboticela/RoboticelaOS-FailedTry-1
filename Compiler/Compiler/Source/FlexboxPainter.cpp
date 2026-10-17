@@ -748,6 +748,10 @@ FlexboxPaintResult FlexboxPainter::Paint(FrameBuffer& buffer,
             const float childY = containerY + child.finalY;
             const float childW = child.finalWidth;
             const float childH = child.finalHeight;
+            if (buffer.MissesClip(static_cast<int>(childX), static_cast<int>(childY), static_cast<int>(childW),
+                                  static_cast<int>(childH))) {
+                continue;
+            }
 
             switch (item.kind) {
                 case FlexItemKind::Text: {

@@ -85,7 +85,7 @@ void FlattenShape(const SvgShape& shape, float originX, float originY, float sca
             current.points.push_back(pen);
         }
     };
-    for (const SvgCommand& command : shape.commands) {
+    for (const SvgCommand& command : SvgCommands(shape)) {
         if (command.kind == SvgCommandKind::Move) {
             if (current.points.size() > 1) {
                 paths.push_back(current);
@@ -277,8 +277,8 @@ std::uint64_t HashShape(const SvgShape& shape, int fitQ, int sample, int kind) {
     mix(static_cast<std::uint64_t>(sample));
     mix(static_cast<std::uint64_t>(kind));
     mix(static_cast<std::uint64_t>(std::lround(shape.strokeWidth * 16.0f)));
-    mix(shape.commands.size());
-    for (const SvgCommand& command : shape.commands) {
+    mix(SvgCommands(shape).size());
+    for (const SvgCommand& command : SvgCommands(shape)) {
         mix(static_cast<std::uint64_t>(command.kind));
         mix(static_cast<std::uint64_t>(std::lround(command.x * 16.0f)));
         mix(static_cast<std::uint64_t>(std::lround(command.y * 16.0f)));

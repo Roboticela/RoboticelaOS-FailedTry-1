@@ -2,6 +2,7 @@
 
 #include "Robo/Color.hpp"
 #include "Robo/FontEngine.hpp"
+#include "Robo/RoboIconPack.hpp"
 #include "Robo/RoboScene.hpp"
 #include "RoboDesktopImage.hpp"
 
@@ -68,6 +69,7 @@ int main(int argc, char** argv) {
         std::cerr << "Inter-Regular.ttf was not loaded. The shell will draw without text.\n";
     }
 
+    Robo::RoboIconPackLoad(platform);
     Robo::RoboScene scene;
     BuildPage(scene);
     scene.Render(platform, fonts, Robo::Color::FromHex("#202838"), 24.0f);

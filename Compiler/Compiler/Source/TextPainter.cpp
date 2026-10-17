@@ -11,6 +11,77 @@ namespace Robo {
 
 namespace {
 
+int CodeAt(const std::string& text, std::size_t index, std::size_t& next) {
+    if (index >= text.size()) {
+        next = text.size();
+        return -1;
+    }
+    const unsigned char lead = static_cast<unsigned char>(text[index]);
+    std::size_t size = 1;
+    int codepoint = lead;
+    if ((lead & 0x80u) == 0) {
+        codepoint = lead;
+    } else if ((lead & 0xE0u) == 0xC0u && index + 1u < text.size()) {
+        size = 2;
+        codepoint = ((lead & 0x1Fu) << 6) | (static_cast<unsigned char>(text[index + 1u]) & 0x3Fu);
+    } else if ((lead & 0xF0u) == 0xE0u && index + 2u < text.size()) {
+        size = 3;
+        codepoint = ((lead & 0x0Fu) << 12) | ((static_cast<unsigned char>(text[index + 1u]) & 0x3Fu) << 6) |
+                    (static_cast<unsigned char>(text[index + 2u]) & 0x3Fu);
+    } else if ((lead & 0xF8u) == 0xF0u && index + 3u < text.size()) {
+        size = 4;
+        codepoint = ((lead & 0x07u) << 18) | ((static_cast<unsigned char>(text[index + 1u]) & 0x3Fu) << 12) |
+                    ((static_cast<unsigned char>(text[index + 2u]) & 0x3Fu) << 6) |
+                    (static_cast<unsigned char>(text[index + 3u]) & 0x3Fu);
+    }
+    next = index + size;
+    return codepoint;
+}
+
+bool CodeIsRtl(int codepoint) {
+    return (codepoint >= 0x0590 && codepoint <= 0x08FF) || (codepoint >= 0xFB1D && codepoint <= 0xFDFF) ||
+           (codepoint >= 0xFE70 && codepoint <= 0xFEFF);
+}
+
+std::string VisualOrder(const std::string& text) {
+    std::size_t index = 0;
+    bool rtl = false;
+    while (index < text.size()) {
+        std::size_t next = index;
+        const int codepoint = CodeAt(text, index, next);
+        if (codepoint < 0 || next <= index) {
+            break;
+        }
+        if (CodeIsRtl(codepoint)) {
+            rtl = true;
+            break;
+        }
+        if (codepoint > 32) {
+            break;
+        }
+        index = next;
+    }
+    if (!rtl) {
+        return text;
+    }
+    std::vector<std::string> chars;
+    std::size_t at = 0;
+    while (at < text.size()) {
+        std::size_t next = at;
+        CodeAt(text, at, next);
+        if (next <= at) {
+            break;
+        }
+        chars.push_back(text.substr(at, next - at));
+        at = next;
+    }
+    std::string visual;
+    for (int cursor = static_cast<int>(chars.size()) - 1; cursor >= 0; --cursor) {
+        visual += chars[static_cast<std::size_t>(cursor)];
+    }
+    return visual;
+}
+
 struct ResolvedRun {
     std::string content;
     float fontSize = 16.0f;
@@ -262,8 +333,9 @@ const TextLayoutCache& TextPainter::EnsureLayout(const FontEngine& fonts,
         const std::vector<std::string> tokens = SplitTokens(run.content);
         for (const std::string& token : tokens) {
             const bool isSpace = (token == " ");
+            const std::string visual = isSpace ? token : VisualOrder(token);
             TextLayoutSpan span = MakeSpan(
-                token, run, fonts.MeasureWidth(token, run.fontSize, run.faceId, run.letterSpacing), isSpace);
+                visual, run, fonts.MeasureWidth(visual, run.fontSize, run.faceId, run.letterSpacing), isSpace);
 
             if (!style.wrap) {
                 PushSpan(currentLine, span);
@@ -276,7 +348,7 @@ const TextLayoutCache& TextPainter::EnsureLayout(const FontEngine& fonts,
             }
 
             if (!span.isSpace && span.width > blockWidth) {
-                BreakLongToken(token, run);
+                BreakLongToken(visual, run);
             } else if (!(span.isSpace && currentLine.spans.empty())) {
                 PushSpan(currentLine, span);
             }

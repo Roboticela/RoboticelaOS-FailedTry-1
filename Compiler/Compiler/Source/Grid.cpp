@@ -1,3 +1,4 @@
+#include "Robo/RoboPool.hpp"
 #include "Robo/Grid.hpp"
 #include "Robo/Container.hpp"
 #include "Robo/Flexbox.hpp"
@@ -89,7 +90,7 @@ void Grid::AddText(Text text, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Text;
     item.props = props;
-    item.text = std::make_shared<Text>(std::move(text));
+    item.text = RoboMake<Text>(std::move(text));
     items_.push_back(std::move(item));
 }
 
@@ -97,7 +98,7 @@ void Grid::AddSvg(Svg svg, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Svg;
     item.props = props;
-    item.svg = std::make_shared<Svg>(std::move(svg));
+    item.svg = RoboMake<Svg>(std::move(svg));
     items_.push_back(std::move(item));
 }
 
@@ -105,7 +106,7 @@ void Grid::AddBrandLogo(BrandLogo logo, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::BrandLogo;
     item.props = props;
-    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
+    item.brandLogo = RoboMake<BrandLogo>(std::move(logo));
     items_.push_back(std::move(item));
 }
 
@@ -113,7 +114,7 @@ void Grid::AddTitleBar(TitleBar bar, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::TitleBar;
     item.props = props;
-    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
+    item.titleBar = RoboMake<TitleBar>(std::move(bar));
     items_.push_back(std::move(item));
 }
 
@@ -121,7 +122,7 @@ void Grid::AddSidebar(Sidebar pane, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Sidebar;
     item.props = props;
-    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
+    item.sidebar = RoboMake<Sidebar>(std::move(pane));
     items_.push_back(std::move(item));
 }
 
@@ -129,7 +130,7 @@ void Grid::AddSidebarItem(SidebarItem item, const GridItemProps& props) {
     GridItem entry;
     entry.kind = GridItemKind::SidebarItem;
     entry.props = props;
-    entry.sidebarItem = std::make_shared<SidebarItem>(std::move(item));
+    entry.sidebarItem = RoboMake<SidebarItem>(std::move(item));
     items_.push_back(std::move(entry));
 }
 
@@ -137,7 +138,7 @@ void Grid::AddThemeToggle(ThemeToggle toggle, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::ThemeToggle;
     item.props = props;
-    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
+    item.themeToggle = RoboMake<ThemeToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -145,7 +146,7 @@ void Grid::AddThemeIconToggle(ThemeIconToggle toggle, const GridItemProps& props
     GridItem item;
     item.kind = GridItemKind::ThemeIconToggle;
     item.props = props;
-    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
+    item.themeIconToggle = RoboMake<ThemeIconToggle>(std::move(toggle));
     items_.push_back(std::move(item));
 }
 
@@ -153,7 +154,7 @@ void Grid::AddSeparator(Separator separator, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Separator;
     item.props = props;
-    item.separator = std::make_shared<Separator>(std::move(separator));
+    item.separator = RoboMake<Separator>(std::move(separator));
     items_.push_back(std::move(item));
 }
 
@@ -161,7 +162,7 @@ void Grid::AddMotionShape(MotionShape shape, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::MotionShape;
     item.props = props;
-    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
+    item.motionShape = RoboMake<MotionShape>(std::move(shape));
     items_.push_back(std::move(item));
 }
 
@@ -169,7 +170,7 @@ void Grid::AddButton(Button button, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Button;
     item.props = props;
-    item.button = std::make_shared<Button>(std::move(button));
+    item.button = RoboMake<Button>(std::move(button));
     items_.push_back(std::move(item));
 }
 
@@ -177,7 +178,7 @@ void Grid::AddInput(Input input, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Input;
     item.props = props;
-    item.input = std::make_shared<Input>(std::move(input));
+    item.input = RoboMake<Input>(std::move(input));
     items_.push_back(std::move(item));
 }
 
@@ -185,7 +186,7 @@ void Grid::AddScrollbar(Scrollbar scrollbar, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Scrollbar;
     item.props = props;
-    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
+    item.scrollbar = RoboMake<Scrollbar>(std::move(scrollbar));
     items_.push_back(std::move(item));
 }
 
@@ -193,7 +194,7 @@ void Grid::AddFlexbox(Flexbox flexbox, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Flexbox;
     item.props = props;
-    item.flexbox = std::make_shared<Flexbox>(std::move(flexbox));
+    item.flexbox = RoboMake<Flexbox>(std::move(flexbox));
     items_.push_back(std::move(item));
 }
 
@@ -201,7 +202,7 @@ void Grid::AddGrid(Grid grid, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Grid;
     item.props = props;
-    item.grid = std::make_shared<Grid>(std::move(grid));
+    item.grid = RoboMake<Grid>(std::move(grid));
     items_.push_back(std::move(item));
 }
 
@@ -209,7 +210,7 @@ void Grid::AddContainer(Container container, const GridItemProps& props) {
     GridItem item;
     item.kind = GridItemKind::Container;
     item.props = props;
-    item.container = std::make_shared<Container>(std::move(container));
+    item.container = RoboMake<Container>(std::move(container));
     items_.push_back(std::move(item));
 }
 

@@ -20,13 +20,17 @@ private:
     void EmitScrollbar(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;
     void EmitContainer(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar,
                        bool emitChildren = true) const;
-    void EmitSharedIconPack(std::ostringstream& code, int indent, const std::vector<std::string>& names) const;
-    void NotePackIcon(const std::string& name, std::vector<std::string>& names) const;
-    void CollectPackIconNames(const XmlNode& node, std::vector<std::string>& names) const;
     void EmitPackedIcon(std::ostringstream& code, int indent, const std::string& iconVar, const std::string& iconName,
                         float size, const std::string& applyLine) const;
     void EmitIconsPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
     void EmitColorPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
+    void EmitTypePane(std::ostringstream& code, const XmlNode& pane, int indent) const;
+    void EmitSpacePane(std::ostringstream& code, const XmlNode& pane, int indent) const;
+    void EmitRadiusPane(std::ostringstream& code, const XmlNode& pane, int indent) const;
+    void EmitBool(std::ostringstream& code, int indent, const char* lhs, const std::string& value, bool fallback,
+                  bool defaultValue) const;
+    void EmitEnum(std::ostringstream& code, int indent, const char* lhs, const std::string& value,
+                  const char* (*map)(const std::string&), const char* parseName, const char* defaultExpr) const;
     void EmitFlexbox(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;
     void EmitFlexChild(std::ostringstream& code, const XmlNode& child, int indent, const std::string& parentVar) const;
     void EmitGrid(std::ostringstream& code, const XmlNode& node, int indent, const std::string& targetVar) const;

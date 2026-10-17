@@ -12,6 +12,9 @@ constexpr uint64_t ROBO_CALL_READ = 6u;
 constexpr uint64_t ROBO_CALL_WRITE = 7u;
 constexpr uint64_t ROBO_CALL_CREATE = 8u;
 constexpr uint64_t ROBO_CALL_DELETE = 9u;
+constexpr uint64_t ROBO_CALL_NET = 10u;
+constexpr uint64_t ROBO_CALL_SOUND = 11u;
+constexpr uint64_t ROBO_CALL_POWER = 12u;
 
 constexpr int32_t ROBO_CALL_WINDOW_X = 64;
 constexpr int32_t ROBO_CALL_WINDOW_Y = 48;

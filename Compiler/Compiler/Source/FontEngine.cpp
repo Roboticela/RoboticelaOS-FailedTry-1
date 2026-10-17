@@ -125,7 +125,9 @@ float FontEngine::MeasureWidth(const std::string& utf8, float fontSize, FontFace
 
         const int glyph = stbtt_FindGlyphIndex(&face.info, codepoint);
         if (glyph == 0) {
+            width += fontSize * 0.5f;
             previousGlyph = -1;
+            ++glyphCount;
             continue;
         }
 
@@ -476,7 +478,25 @@ void FontEngine::RecordString(std::vector<TextGlyphDraw>& out,
 
         const int glyph = stbtt_FindGlyphIndex(&face.info, codepoint);
         if (glyph == 0) {
+            if (drewGlyph) {
+                penX += letterSpacing;
+            }
+            const float box = std::max(1.0f, fontSize * 0.5f);
+            TextGlyphDraw item;
+            item.faceIndex = faceIndex;
+            item.glyph = -1;
+            item.x = penX;
+            item.width = box;
+            item.baseline = baselineY;
+            item.fontSize = fontSize;
+            item.ascent = ascent;
+            item.lineHeight = glyphHeight;
+            item.color = color;
+            item.opacity = opacity;
+            out.push_back(item);
+            penX += box;
             previousGlyph = -1;
+            drewGlyph = true;
             continue;
         }
 
@@ -556,6 +576,19 @@ void FontEngine::PaintGlyphDraws(FrameBuffer& buffer, const std::vector<TextGlyp
             buffer.Pump();
         }
         painted += 1;
+        if (item.glyph < 0) {
+            const int boxX = static_cast<int>(std::floor(item.x));
+            const int boxY = static_cast<int>(std::floor(item.baseline - item.fontSize * 0.8f));
+            const int boxW = std::max(1, static_cast<int>(item.width) - 1);
+            const int boxH = std::max(1, static_cast<int>(item.fontSize * 0.8f));
+            if (!buffer.MissesClip(boxX, boxY, boxW, boxH)) {
+                buffer.FillRect(boxX, boxY, boxW, 1, item.color, item.opacity);
+                buffer.FillRect(boxX, boxY + boxH - 1, boxW, 1, item.color, item.opacity);
+                buffer.FillRect(boxX, boxY, 1, boxH, item.color, item.opacity);
+                buffer.FillRect(boxX + boxW - 1, boxY, 1, boxH, item.color, item.opacity);
+            }
+            continue;
+        }
         const bool onScreen = item.baseline > -item.fontSize * 2.0f &&
                               item.baseline < static_cast<float>(buffer.GetHeight()) + item.fontSize * 2.0f;
         if (onScreen) {

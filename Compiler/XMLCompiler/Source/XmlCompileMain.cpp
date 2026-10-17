@@ -1,3 +1,4 @@
+#include "IconPack.hpp"
 #include "XmlToCpp.hpp"
 
 #include <fstream>
@@ -6,6 +7,13 @@
 #include <string>
 
 int main(int argc, char** argv) {
+    if (argc == 4 && std::string(argv[1]) == "--pack") {
+        if (!Robo::WriteRuntimeIconPack(argv[2], argv[3])) {
+            std::cerr << "Failed to write pack image " << argv[3] << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if (argc != 3 && argc != 4) {
         std::cerr << "Usage: XmlCompile <input.xml> <output.cpp> [asset-directory]\n";
         return 1;

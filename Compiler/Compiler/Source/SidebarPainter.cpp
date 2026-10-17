@@ -177,6 +177,9 @@ void PaintRow(FrameBuffer& buffer,
     bounds.width = width;
     bounds.height = height;
     item.SetBounds(bounds);
+    if (buffer.MissesClip(static_cast<int>(x), static_cast<int>(y), static_cast<int>(width), static_cast<int>(height))) {
+        return;
+    }
     const bool enabled = item.CanActivate();
     const Color accent = ResolveColor(Color::FromHex("#0E7AFF"), "color.brand.primary");
     const Color quiet = ResolveColor(Color::FromHex("#6E6E73"), "color.text.secondary");

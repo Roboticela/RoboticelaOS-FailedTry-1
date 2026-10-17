@@ -8,7 +8,7 @@
 namespace Robo {
 
 // A pack icon. The page XML can resize it and change its color.
-// Path data comes from the icon pack at compile time and is not editable in XML.
+// Path data comes from the runtime pack image and is not editable in XML.
 class Icon {
 public:
     void SetWidth(float width);
@@ -39,7 +39,7 @@ private:
     float viewWidth_ = 24.0f;
     float viewHeight_ = 24.0f;
     std::map<std::string, std::string> tokens_;
-    std::vector<SvgShape> shapes_;
+    mutable std::vector<SvgShape> shapes_;
 };
 
 }  // namespace Robo

@@ -1,6 +1,8 @@
 #include "IconPack.hpp"
 #include "XmlParser.hpp"
 
+#include <cstdint>
+#include <cstring>
 #include <exception>
 #include <fstream>
 #include <iterator>
@@ -74,6 +76,106 @@ std::map<std::string, CompiledSvg> LoadIconPacks(const std::string& assetDirecto
     LoadPack(assetDirectory + separator + "RoboIcons.pack", icons);
     LoadPack(assetDirectory + separator + "RoboCountry.pack", icons);
     return icons;
+}
+
+namespace {
+
+void Write16(std::ostream& output, std::uint16_t value) {
+    const char bytes[2] = {static_cast<char>(value & 0xFFu), static_cast<char>((value >> 8) & 0xFFu)};
+    output.write(bytes, 2);
+}
+
+void Write32(std::ostream& output, std::uint32_t value) {
+    const char bytes[4] = {
+        static_cast<char>(value & 0xFFu),
+        static_cast<char>((value >> 8) & 0xFFu),
+        static_cast<char>((value >> 16) & 0xFFu),
+        static_cast<char>((value >> 24) & 0xFFu),
+    };
+    output.write(bytes, 4);
+}
+
+void WriteFloat(std::ostream& output, float value) {
+    char bytes[4];
+    std::memcpy(bytes, &value, 4);
+    output.write(bytes, 4);
+}
+
+void WriteText(std::ostream& output, const std::string& text) {
+    const std::uint16_t length = static_cast<std::uint16_t>(text.size() > 65535u ? 65535u : text.size());
+    Write16(output, length);
+    if (length > 0) {
+        output.write(text.data(), length);
+    }
+}
+
+}  // namespace
+
+bool WriteRuntimeIconPack(const std::string& packPath, const std::string& outputPath) {
+    std::map<std::string, CompiledSvg> icons;
+    LoadPack(packPath, icons);
+    if (icons.empty()) {
+        return false;
+    }
+    std::ofstream output(outputPath, std::ios::binary);
+    if (!output) {
+        return false;
+    }
+    const char magic[8] = {'R', 'P', 'A', 'K', '1', 0, 0, 0};
+    output.write(magic, 8);
+    Write32(output, static_cast<std::uint32_t>(icons.size()));
+    for (const auto& entry : icons) {
+        const CompiledSvg& graphic = entry.second;
+        Write16(output, static_cast<std::uint16_t>(entry.first.size() + 1u));
+        output.write(entry.first.data(), static_cast<std::streamsize>(entry.first.size()));
+        output.put('\0');
+        WriteFloat(output, graphic.viewX);
+        WriteFloat(output, graphic.viewY);
+        WriteFloat(output, graphic.viewWidth);
+        WriteFloat(output, graphic.viewHeight);
+        Write32(output, static_cast<std::uint32_t>(graphic.shapes.size()));
+        for (const CompiledShape& shape : graphic.shapes) {
+            std::uint8_t flags = 0;
+            if (shape.hasFill) {
+                flags = static_cast<std::uint8_t>(flags | 1u);
+            }
+            if (shape.hasStroke) {
+                flags = static_cast<std::uint8_t>(flags | 2u);
+            }
+            if (shape.currentFill) {
+                flags = static_cast<std::uint8_t>(flags | 4u);
+            }
+            if (shape.currentStroke) {
+                flags = static_cast<std::uint8_t>(flags | 8u);
+            }
+            if (shape.evenOdd) {
+                flags = static_cast<std::uint8_t>(flags | 16u);
+            }
+            output.put(static_cast<char>(flags));
+            output.put(0);
+            output.put(0);
+            output.put(0);
+            WriteFloat(output, shape.strokeWidth);
+            WriteFloat(output, shape.opacity);
+            const std::string fill = shape.fillToken.empty() && !shape.currentFill ? shape.fillHex : "";
+            const std::string stroke = shape.strokeToken.empty() && !shape.currentStroke ? shape.strokeHex : "";
+            WriteText(output, fill);
+            WriteText(output, stroke);
+            WriteText(output, shape.fillToken);
+            WriteText(output, shape.strokeToken);
+            Write32(output, static_cast<std::uint32_t>(shape.commands.size()));
+            for (const CompiledCommand& command : shape.commands) {
+                WriteFloat(output, static_cast<float>(command.kind));
+                WriteFloat(output, command.x);
+                WriteFloat(output, command.y);
+                WriteFloat(output, command.c1x);
+                WriteFloat(output, command.c1y);
+                WriteFloat(output, command.c2x);
+                WriteFloat(output, command.c2y);
+            }
+        }
+    }
+    return static_cast<bool>(output);
 }
 
 }  // namespace Robo

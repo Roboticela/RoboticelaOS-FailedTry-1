@@ -124,7 +124,7 @@ bool RoboVirtioOpen(uint32_t index) {
         return false;
     }
     gCommon[20] = 0;
-    for (uint32_t spin = 0; spin < 100000u && gCommon[20] != 0; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u && gCommon[20] != 0; ++spin) {
         RoboDiskPause();
     }
     if (gCommon[20] != 0) {
@@ -267,7 +267,7 @@ bool RoboVirtioBlkRead(uint32_t index, uint32_t lba, uint32_t count, uint8_t* de
     gAvail.index = static_cast<uint16_t>(gAvail.index + 1u);
     RoboDiskClean(&gAvail, sizeof(gAvail));
     *reinterpret_cast<volatile uint16_t*>(gNotify + static_cast<uint32_t>(gNotifyOff) * gNotifyMultiply) = 0;
-    for (uint32_t spin = 0; spin < 100000u; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u; ++spin) {
         RoboDiskFence();
         if (gUsed.index != gUsedSeen) {
             gUsedSeen = gUsed.index;
@@ -324,7 +324,7 @@ bool RoboVirtioBlkWrite(uint32_t index, uint32_t lba, uint32_t count, const uint
     gAvail.index = static_cast<uint16_t>(gAvail.index + 1u);
     RoboDiskClean(&gAvail, sizeof(gAvail));
     *reinterpret_cast<volatile uint16_t*>(gNotify + static_cast<uint32_t>(gNotifyOff) * gNotifyMultiply) = 0;
-    for (uint32_t spin = 0; spin < 100000u; ++spin) {
+    for (uint32_t spin = 0; spin < 4000u; ++spin) {
         RoboDiskFence();
         if (gUsed.index != gUsedSeen) {
             gUsedSeen = gUsed.index;

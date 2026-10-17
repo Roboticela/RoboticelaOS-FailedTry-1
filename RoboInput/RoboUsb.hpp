@@ -1,4 +1,4 @@
 #pragma once
 
-void RoboUsbStart(void);
+bool RoboUsbStart(void);
 void RoboUsbCollect(void);

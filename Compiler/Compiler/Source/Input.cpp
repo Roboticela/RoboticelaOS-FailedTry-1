@@ -30,6 +30,71 @@ std::size_t PrevUtf8Boundary(const std::string& text, std::size_t index) {
     return i;
 }
 
+std::size_t NextUtf8Boundary(const std::string& text, std::size_t index);
+
+int CodepointAt(const std::string& text, std::size_t index, std::size_t& next) {
+    if (index >= text.size()) {
+        next = text.size();
+        return -1;
+    }
+    const unsigned char lead = static_cast<unsigned char>(text[index]);
+    std::size_t size = 1;
+    int codepoint = lead;
+    if ((lead & 0x80u) == 0) {
+        size = 1;
+        codepoint = lead;
+    } else if ((lead & 0xE0u) == 0xC0u && index + 1u < text.size()) {
+        size = 2;
+        codepoint = ((lead & 0x1Fu) << 6) | (static_cast<unsigned char>(text[index + 1u]) & 0x3Fu);
+    } else if ((lead & 0xF0u) == 0xE0u && index + 2u < text.size()) {
+        size = 3;
+        codepoint = ((lead & 0x0Fu) << 12) | ((static_cast<unsigned char>(text[index + 1u]) & 0x3Fu) << 6) |
+                    (static_cast<unsigned char>(text[index + 2u]) & 0x3Fu);
+    } else if ((lead & 0xF8u) == 0xF0u && index + 3u < text.size()) {
+        size = 4;
+        codepoint = ((lead & 0x07u) << 18) | ((static_cast<unsigned char>(text[index + 1u]) & 0x3Fu) << 12) |
+                    ((static_cast<unsigned char>(text[index + 2u]) & 0x3Fu) << 6) |
+                    (static_cast<unsigned char>(text[index + 3u]) & 0x3Fu);
+    }
+    next = index + size;
+    return codepoint;
+}
+
+bool IsCombiningMark(int codepoint) {
+    return (codepoint >= 0x0300 && codepoint <= 0x036F) || (codepoint >= 0x1AB0 && codepoint <= 0x1AFF) ||
+           (codepoint >= 0x1DC0 && codepoint <= 0x1DFF) || (codepoint >= 0x20D0 && codepoint <= 0x20FF) ||
+           (codepoint >= 0xFE20 && codepoint <= 0xFE2F);
+}
+
+std::size_t NextGrapheme(const std::string& text, std::size_t index) {
+    std::size_t next = NextUtf8Boundary(text, index);
+    while (next < text.size()) {
+        std::size_t after = next;
+        const int codepoint = CodepointAt(text, next, after);
+        if (!IsCombiningMark(codepoint)) {
+            break;
+        }
+        next = after;
+    }
+    return next;
+}
+
+std::size_t PrevGrapheme(const std::string& text, std::size_t index) {
+    if (index == 0) {
+        return 0;
+    }
+    std::size_t at = PrevUtf8Boundary(text, index);
+    while (at > 0) {
+        std::size_t after = at;
+        const int codepoint = CodepointAt(text, at, after);
+        if (!IsCombiningMark(codepoint)) {
+            break;
+        }
+        at = PrevUtf8Boundary(text, at);
+    }
+    return at;
+}
+
 std::size_t NextUtf8Boundary(const std::string& text, std::size_t index) {
     if (index >= text.size()) {
         return text.size();
@@ -260,7 +325,7 @@ bool Input::DeleteBackward() {
     if (caretIndex_ == 0) {
         return false;
     }
-    const std::size_t start = PrevUtf8Boundary(value_, caretIndex_);
+    const std::size_t start = PrevGrapheme(value_, caretIndex_);
     value_.erase(start, caretIndex_ - start);
     caretIndex_ = start;
     return true;
@@ -271,7 +336,7 @@ bool Input::DeleteForward() {
     if (caretIndex_ >= value_.size()) {
         return false;
     }
-    const std::size_t end = NextUtf8Boundary(value_, caretIndex_);
+    const std::size_t end = NextGrapheme(value_, caretIndex_);
     value_.erase(caretIndex_, end - caretIndex_);
     return true;
 }
@@ -281,7 +346,7 @@ bool Input::MoveCaretLeft() {
     if (caretIndex_ == 0) {
         return false;
     }
-    caretIndex_ = PrevUtf8Boundary(value_, caretIndex_);
+    caretIndex_ = PrevGrapheme(value_, caretIndex_);
     return true;
 }
 
@@ -290,7 +355,7 @@ bool Input::MoveCaretRight() {
     if (caretIndex_ >= value_.size()) {
         return false;
     }
-    caretIndex_ = NextUtf8Boundary(value_, caretIndex_);
+    caretIndex_ = NextGrapheme(value_, caretIndex_);
     return true;
 }
 

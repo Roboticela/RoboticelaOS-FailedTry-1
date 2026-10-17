@@ -17,6 +17,7 @@ struct RoboBlock {
 };
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
+alignas(16) uint8_t gEmergencyHeap[1024u * 1024u];
 uint8_t* gHeap = nullptr;
 size_t gHeapBytes = 0;
 #else
@@ -51,7 +52,12 @@ void RoboHeapStart(void) {
     }
 #endif
     if (gHeap == nullptr || gHeapBytes < sizeof(RoboBlock) + 64u) {
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
+        gHeap = gEmergencyHeap;
+        gHeapBytes = sizeof(gEmergencyHeap);
+#else
         RoboHalt();
+#endif
     }
     gFree = reinterpret_cast<RoboBlock*>(gHeap);
     gFree->size = gHeapBytes - sizeof(RoboBlock);

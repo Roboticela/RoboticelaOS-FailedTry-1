@@ -835,6 +835,10 @@ PositionPaintResult PositionPainter::Paint(FrameBuffer& buffer,
     for (std::size_t idx : renderIndices) {
         PositionItem& item = items[idx];
         const LayoutChild& lc = layout[idx];
+        if (buffer.MissesClip(static_cast<int>(lc.x), static_cast<int>(lc.y), static_cast<int>(lc.width),
+                              static_cast<int>(lc.height))) {
+            continue;
+        }
 
         switch (item.kind) {
             case PositionItemKind::Text:

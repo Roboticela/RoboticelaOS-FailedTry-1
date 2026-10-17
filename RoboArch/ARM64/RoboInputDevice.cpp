@@ -43,7 +43,8 @@ void RoboPS2KeyboardInterrupt(void) {
 void RoboPS2KeyboardCollect(void) {
 }
 
-void RoboUsbStart(void) {
+bool RoboUsbStart(void) {
+    return true;
 }
 
 void RoboUsbCollect(void) {

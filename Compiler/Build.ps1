@@ -43,6 +43,9 @@ function Get-CoreSources {
         (Join-Path $Root "Compiler\Source\TextPainter.cpp"),
         (Join-Path $Root "Compiler\Source\Svg.cpp"),
         (Join-Path $Root "Compiler\Source\Icon.cpp"),
+        (Join-Path $Root "Compiler\Source\RoboIconPack.cpp"),
+        (Join-Path $Root "Compiler\Source\RoboCatalog.cpp"),
+        (Join-Path $Root "Compiler\Source\RoboPageTables.cpp"),
         (Join-Path $Root "Compiler\Source\SvgPainter.cpp"),
         (Join-Path $Root "Compiler\Source\BrandLogo.cpp"),
         (Join-Path $Root "Compiler\Source\BrandLogoPainter.cpp"),
@@ -234,6 +237,16 @@ exit /b %ERRORLEVEL%
         $devKitText = $devKitText.Replace("int BuildPageStep(", "int BuildDevKitPageStep(")
         [IO.File]::WriteAllText($devKitCpp, $devKitText)
         Write-Host "Built: $devKitCpp"
+
+        & $toolExe --pack (Join-Path $assetDirectory "RoboIcons.pack") (Join-Path $assetDirectory "ROBOICON.PAK")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to write ROBOICON.PAK"
+        }
+        & $toolExe --pack (Join-Path $assetDirectory "RoboCountry.pack") (Join-Path $assetDirectory "ROBOCTRY.PAK")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to write ROBOCTRY.PAK"
+        }
+        Write-Host "Built: ROBOICON.PAK ROBOCTRY.PAK"
     }
 }
 
@@ -278,6 +291,14 @@ function Invoke-WebBuild {
         $folderIcon = Join-Path (Split-Path $Root -Parent) "Assets\EmptyFolder.svg"
         if (Test-Path $folderIcon) {
             $preloadArgs += @("--preload-file", "${folderIcon}@/Assets/EmptyFolder.svg")
+        }
+        $iconPack = Join-Path $Root "Assets\ROBOICON.PAK"
+        $countryPack = Join-Path $Root "Assets\ROBOCTRY.PAK"
+        if (Test-Path $iconPack) {
+            $preloadArgs += @("--preload-file", "${iconPack}@/Assets/ROBOICON.PAK")
+        }
+        if (Test-Path $countryPack) {
+            $preloadArgs += @("--preload-file", "${countryPack}@/Assets/ROBOCTRY.PAK")
         }
     }
 

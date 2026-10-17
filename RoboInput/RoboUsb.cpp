@@ -977,7 +977,7 @@ void RoboUsbResetPort(uint32_t port) {
     }
     RoboMmioWrite32(reg, (1u << 9) | (1u << 4));
     bool resetDone = false;
-    for (uint32_t spin = 0; spin < 20000u; ++spin) {
+    for (uint32_t spin = 0; spin < 2000u; ++spin) {
         portsc = RoboMmioRead32(reg);
         if ((portsc & (1u << 4)) == 0) {
             resetDone = true;
@@ -1055,7 +1055,7 @@ bool RoboUsbReset(void) {
     if ((command & 1u) != 0) {
         RoboMmioWrite32(gOperation, command & ~1u);
         bool halted = false;
-        for (uint32_t spin = 0; spin < 20000u; ++spin) {
+        for (uint32_t spin = 0; spin < 2000u; ++spin) {
             if ((RoboMmioRead32(gOperation + 4u) & 1u) != 0) {
                 halted = true;
                 break;
@@ -1067,7 +1067,7 @@ bool RoboUsbReset(void) {
     }
     RoboMmioWrite32(gOperation, RoboMmioRead32(gOperation) | 2u);
     bool resetDone = false;
-    for (uint32_t spin = 0; spin < 20000u; ++spin) {
+    for (uint32_t spin = 0; spin < 2000u; ++spin) {
         if ((RoboMmioRead32(gOperation) & 2u) == 0) {
             resetDone = true;
             break;
@@ -1076,7 +1076,7 @@ bool RoboUsbReset(void) {
     if (!resetDone) {
         return false;
     }
-    for (uint32_t spin = 0; spin < 20000u; ++spin) {
+    for (uint32_t spin = 0; spin < 2000u; ++spin) {
         uint32_t status = RoboMmioRead32(gOperation + 4u);
         if ((status & (1u << 12)) != 0) {
             return false;
@@ -1192,7 +1192,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     RoboMmioWrite32(gRuntime + 0x20u, 2u);
     RoboMmioWrite32(gOperation, RoboMmioRead32(gOperation) | 1u | 4u);
     bool running = false;
-    for (uint32_t spin = 0; spin < 20000u; ++spin) {
+    for (uint32_t spin = 0; spin < 2000u; ++spin) {
         if ((RoboMmioRead32(gOperation + 4u) & 1u) == 0) {
             running = true;
             break;
@@ -1236,13 +1236,23 @@ void RoboUsbCollect(void) {
     }
 }
 
-void RoboUsbStart(void) {
-    RoboPciDevice found[ROBO_USB_HOST_MAX]{};
-    uint32_t count = 0;
-    if (!RoboPciCollectUsb(found, ROBO_USB_HOST_MAX, &count, &gThunderbolt) || count == 0) {
-        return;
+RoboPciDevice gUsbHosts[ROBO_USB_HOST_MAX];
+uint32_t gUsbHostCount = 0;
+uint32_t gUsbHostNext = 0;
+bool gUsbHostsListed = false;
+
+bool RoboUsbStart(void) {
+    if (!gUsbHostsListed) {
+        gUsbHostsListed = true;
+        if (!RoboPciCollectUsb(gUsbHosts, ROBO_USB_HOST_MAX, &gUsbHostCount, &gThunderbolt) || gUsbHostCount == 0) {
+            return true;
+        }
+        return false;
     }
-    for (uint32_t index = 0; index < count && index < ROBO_USB_HOST_MAX; ++index) {
-        RoboUsbBringUp(&found[index], static_cast<uint8_t>(index));
+    if (gUsbHostNext >= gUsbHostCount) {
+        return true;
     }
+    RoboUsbBringUp(&gUsbHosts[gUsbHostNext], static_cast<uint8_t>(gUsbHostNext));
+    gUsbHostNext += 1u;
+    return gUsbHostNext >= gUsbHostCount;
 }

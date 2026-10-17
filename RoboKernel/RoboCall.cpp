@@ -7,6 +7,9 @@
 #include "RoboProgram.hpp"
 #include "RoboSchedule.hpp"
 #include "RoboTimer.hpp"
+#include "RoboNet.hpp"
+#include "RoboSound.hpp"
+#include "RoboPower.hpp"
 
 namespace {
 
@@ -280,6 +283,27 @@ extern "C" uint64_t RoboCallService(uint64_t number, uint64_t arg0, uint64_t arg
     }
     if (number == ROBO_CALL_READ || number == ROBO_CALL_WRITE || number == ROBO_CALL_CREATE || number == ROBO_CALL_DELETE) {
         return static_cast<uint64_t>(RoboCallFile(number, arg0, arg1, arg2, arg3));
+    }
+    if (number == ROBO_CALL_NET) {
+        if (arg1 == 0 || !RoboCallUser(arg0, arg1) || arg1 > 1514u) {
+            return static_cast<uint64_t>(-1);
+        }
+        const int sent = arg2 == 0 ? RoboUdpSend(reinterpret_cast<const uint8_t*>(arg0), static_cast<uint32_t>(arg1))
+                                   : RoboTcpSend(reinterpret_cast<const uint8_t*>(arg0), static_cast<uint32_t>(arg1));
+        return static_cast<uint64_t>(sent);
+    }
+    if (number == ROBO_CALL_SOUND) {
+        if (arg1 == 0 || (arg1 & 1u) != 0 || !RoboCallUser(arg0, arg1) || arg1 > 8192u) {
+            return 0u;
+        }
+        return RoboSoundWrite(reinterpret_cast<const int16_t*>(arg0), static_cast<uint32_t>(arg1 / 2u)) ? 1u : 0u;
+    }
+    if (number == ROBO_CALL_POWER) {
+        if (arg0 == 1u) {
+            RoboPowerReboot();
+        }
+        RoboPowerShutdown();
+        return 0u;
     }
     return 0u;
 }

@@ -61,7 +61,8 @@ Svg Icon::Bake() const {
     style.align = align_;
     style.tokens = tokens_;
     svg.SetStyle(style);
-    for (const SvgShape& shape : shapes_) {
+    for (SvgShape& shape : shapes_) {
+        shape.ShareCommands();
         svg.AddShape(shape);
     }
     return svg;

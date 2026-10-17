@@ -1,3 +1,4 @@
+#include "Robo/RoboPool.hpp"
 #include "Robo/Flexbox.hpp"
 #include "Robo/Container.hpp"
 
@@ -30,7 +31,7 @@ FlexboxStyle& Flexbox::GetStyle() {
 void Flexbox::AddText(Text text, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Text;
-    item.text = std::make_shared<Text>(std::move(text));
+    item.text = RoboMake<Text>(std::move(text));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -38,7 +39,7 @@ void Flexbox::AddText(Text text, const FlexItemProps& props) {
 void Flexbox::AddSvg(Svg svg, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Svg;
-    item.svg = std::make_shared<Svg>(std::move(svg));
+    item.svg = RoboMake<Svg>(std::move(svg));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -46,7 +47,7 @@ void Flexbox::AddSvg(Svg svg, const FlexItemProps& props) {
 void Flexbox::AddBrandLogo(BrandLogo logo, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::BrandLogo;
-    item.brandLogo = std::make_shared<BrandLogo>(std::move(logo));
+    item.brandLogo = RoboMake<BrandLogo>(std::move(logo));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -54,7 +55,7 @@ void Flexbox::AddBrandLogo(BrandLogo logo, const FlexItemProps& props) {
 void Flexbox::AddTitleBar(TitleBar bar, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::TitleBar;
-    item.titleBar = std::make_shared<TitleBar>(std::move(bar));
+    item.titleBar = RoboMake<TitleBar>(std::move(bar));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -62,7 +63,7 @@ void Flexbox::AddTitleBar(TitleBar bar, const FlexItemProps& props) {
 void Flexbox::AddSidebar(Sidebar pane, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Sidebar;
-    item.sidebar = std::make_shared<Sidebar>(std::move(pane));
+    item.sidebar = RoboMake<Sidebar>(std::move(pane));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -70,7 +71,7 @@ void Flexbox::AddSidebar(Sidebar pane, const FlexItemProps& props) {
 void Flexbox::AddSidebarItem(SidebarItem item, const FlexItemProps& props) {
     FlexboxItem entry;
     entry.kind = FlexItemKind::SidebarItem;
-    entry.sidebarItem = std::make_shared<SidebarItem>(std::move(item));
+    entry.sidebarItem = RoboMake<SidebarItem>(std::move(item));
     entry.props = props;
     items_.push_back(std::move(entry));
 }
@@ -78,7 +79,7 @@ void Flexbox::AddSidebarItem(SidebarItem item, const FlexItemProps& props) {
 void Flexbox::AddThemeToggle(ThemeToggle toggle, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::ThemeToggle;
-    item.themeToggle = std::make_shared<ThemeToggle>(std::move(toggle));
+    item.themeToggle = RoboMake<ThemeToggle>(std::move(toggle));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -86,7 +87,7 @@ void Flexbox::AddThemeToggle(ThemeToggle toggle, const FlexItemProps& props) {
 void Flexbox::AddThemeIconToggle(ThemeIconToggle toggle, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::ThemeIconToggle;
-    item.themeIconToggle = std::make_shared<ThemeIconToggle>(std::move(toggle));
+    item.themeIconToggle = RoboMake<ThemeIconToggle>(std::move(toggle));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -94,7 +95,7 @@ void Flexbox::AddThemeIconToggle(ThemeIconToggle toggle, const FlexItemProps& pr
 void Flexbox::AddSeparator(Separator separator, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Separator;
-    item.separator = std::make_shared<Separator>(std::move(separator));
+    item.separator = RoboMake<Separator>(std::move(separator));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -102,7 +103,7 @@ void Flexbox::AddSeparator(Separator separator, const FlexItemProps& props) {
 void Flexbox::AddMotionShape(MotionShape shape, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::MotionShape;
-    item.motionShape = std::make_shared<MotionShape>(std::move(shape));
+    item.motionShape = RoboMake<MotionShape>(std::move(shape));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -110,7 +111,7 @@ void Flexbox::AddMotionShape(MotionShape shape, const FlexItemProps& props) {
 void Flexbox::AddButton(Button button, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Button;
-    item.button = std::make_shared<Button>(std::move(button));
+    item.button = RoboMake<Button>(std::move(button));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -118,7 +119,7 @@ void Flexbox::AddButton(Button button, const FlexItemProps& props) {
 void Flexbox::AddInput(Input input, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Input;
-    item.input = std::make_shared<Input>(std::move(input));
+    item.input = RoboMake<Input>(std::move(input));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -126,7 +127,7 @@ void Flexbox::AddInput(Input input, const FlexItemProps& props) {
 void Flexbox::AddScrollbar(Scrollbar scrollbar, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Scrollbar;
-    item.scrollbar = std::make_shared<Scrollbar>(std::move(scrollbar));
+    item.scrollbar = RoboMake<Scrollbar>(std::move(scrollbar));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -134,7 +135,7 @@ void Flexbox::AddScrollbar(Scrollbar scrollbar, const FlexItemProps& props) {
 void Flexbox::AddFlexbox(Flexbox flexbox, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Flexbox;
-    item.flexbox = std::make_shared<Flexbox>(std::move(flexbox));
+    item.flexbox = RoboMake<Flexbox>(std::move(flexbox));
     item.props = props;
     items_.push_back(std::move(item));
 }
@@ -143,7 +144,7 @@ void Flexbox::AddContainer(Container container, const FlexItemProps& props) {
     FlexboxItem item;
     item.kind = FlexItemKind::Container;
     item.props = props;
-    item.container = std::make_shared<Container>(std::move(container));
+    item.container = RoboMake<Container>(std::move(container));
     items_.push_back(std::move(item));
 }
 

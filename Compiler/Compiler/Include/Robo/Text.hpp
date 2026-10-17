@@ -74,9 +74,9 @@ private:
     mutable TextLayoutCache layoutCache_{};
     mutable bool needsLayout_ = true;
     mutable int previousLineCount_ = 0;
-    mutable float previousLineY_[32]{};
-    mutable float previousLineH_[32]{};
-    mutable float previousLineW_[32]{};
+    mutable float previousLineY_[128]{};
+    mutable float previousLineH_[128]{};
+    mutable float previousLineW_[128]{};
     mutable int dirtyLineFirst_ = -1;
     mutable int dirtyLineLast_ = -1;
 };

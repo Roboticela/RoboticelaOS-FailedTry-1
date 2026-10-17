@@ -178,7 +178,13 @@ public:
     void SetActivePaneId(const std::string& paneId);
     void EvictInactivePanes(const std::string& keepPaneId);
     int GalleryLimit() const;
+    int GalleryFirst() const;
     void SetGalleryCount(int count);
+    void OpenLauncher(const char* names, int stride, int count);
+    void SetLauncherPick(void (*pick)(int index));
+    bool WallpaperOnly() const;
+    bool WallpaperDue() const;
+    void AdvanceClock(double deltaMs);
 
     bool KeyInsert(const std::string& utf8);
     bool KeyBackspace();
@@ -281,6 +287,7 @@ private:
     void ConfigurePageBars();
     void PullPageScroll();
     void PullSidebarScroll(const Scrollbar* bar);
+    void MarkContentDirty();
     bool PageBarDriving(const Scrollbar& bar) const;
     Scrollbar* PageScrollbarAt(float x, float y);
     const Scrollbar* PageScrollbarAt(float x, float y) const;
@@ -288,7 +295,13 @@ private:
     std::vector<SceneItem> items_;
     std::vector<SceneItem> parkedPanes_;
     int galleryLimit_ = 48;
+    int galleryFirst_ = 0;
     int galleryCount_ = 0;
+    char launcherNames_[8][48]{};
+    int launcherCount_ = 0;
+    bool launcherOpen_ = false;
+    void (*launcherPick_)(int) = nullptr;
+    bool wallpaperOnly_ = false;
     Desktop desktop_;
     int hoveredDock_ = -1;
     int hoveredMenu_ = -1;
@@ -365,6 +378,10 @@ private:
     float dirtyBottom_ = 0.0f;
     float paintedScrollX_ = 0.0f;
     float paintedScrollY_ = 0.0f;
+    float paintedContentX_ = 0.0f;
+    float paintedContentY_ = 0.0f;
+    float paintedContentW_ = 0.0f;
+    float paintedContentH_ = 0.0f;
     float paintedScale_ = 0.0f;
     int paintedWidth_ = 0;
     int paintedHeight_ = 0;
