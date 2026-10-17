@@ -299,6 +299,12 @@ const char* BootAssetAlias(const std::string& name) {
     if (SameAssetName(name, "Background.mp4") || SameAssetName(name, "BACKGROU.MP4")) {
         return "BACKGROU.MP4";
     }
+    if (SameAssetName(name, "ROBOICON.PAK") || SameAssetName(name, "RoboIcons.pak")) {
+        return "ROBOICON.PAK";
+    }
+    if (SameAssetName(name, "ROBOCTRY.PAK") || SameAssetName(name, "RoboCountry.pak")) {
+        return "ROBOCTRY.PAK";
+    }
     return nullptr;
 }
 

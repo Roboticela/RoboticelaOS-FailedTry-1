@@ -212,6 +212,9 @@ public:
             nextCapacity *= 2;
         }
         T* next = static_cast<T*>(malloc(sizeof(T) * nextCapacity));
+        if (next == nullptr) {
+            return;
+        }
         if (__is_trivially_copyable(T)) {
             if (size_ > 0 && data_ != nullptr) {
                 memcpy(next, data_, size_ * sizeof(T));
@@ -229,12 +232,18 @@ public:
 
     void push_back(const T& value) {
         reserve(size_ + 1);
+        if (capacity_ < size_ + 1 || data_ == nullptr) {
+            return;
+        }
         new (data_ + size_) T(value);
         size_ += 1;
     }
 
     void push_back(T&& value) {
         reserve(size_ + 1);
+        if (capacity_ < size_ + 1 || data_ == nullptr) {
+            return;
+        }
         new (data_ + size_) T(move(value));
         size_ += 1;
     }
@@ -242,6 +251,10 @@ public:
     template<class... Args>
     T& emplace_back(Args&&... args) {
         reserve(size_ + 1);
+        if (capacity_ < size_ + 1 || data_ == nullptr) {
+            alignas(T) static uint8_t sink[sizeof(T)];
+            return *reinterpret_cast<T*>(sink);
+        }
         new (data_ + size_) T(forward<Args>(args)...);
         size_ += 1;
         return back();
@@ -267,6 +280,9 @@ public:
             return;
         }
         reserve(count);
+        if (capacity_ < count || data_ == nullptr) {
+            return;
+        }
         if (count > size_) {
             if (__is_trivially_constructible(T)) {
                 memset(reinterpret_cast<uint8_t*>(data_ + size_), 0, (count - size_) * sizeof(T));
@@ -286,6 +302,9 @@ public:
             return;
         }
         reserve(count);
+        if (capacity_ < count || data_ == nullptr) {
+            return;
+        }
         if (count > size_) {
             if (__is_trivially_copyable(T) && sizeof(T) == 1) {
                 memset(reinterpret_cast<uint8_t*>(data_ + size_), static_cast<int>(reinterpret_cast<const uint8_t&>(value)),

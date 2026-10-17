@@ -15,9 +15,10 @@ constexpr uint64_t ROBO_TWO_MB = 2ull * 1024ull * 1024ull;
 constexpr uint64_t ROBO_ONE_GB = 1024ull * 1024ull * 1024ull;
 constexpr uint32_t ROBO_PD_MAX = static_cast<uint32_t>(ROBO_RAM_MAP_MAX_BYTES / ROBO_ONE_GB);
 constexpr uint32_t ROBO_SPAN_LIMIT = 128u;
-constexpr uint64_t ROBO_HEAP_MIN_BYTES = 48ull * 1024ull * 1024ull;
-constexpr uint64_t ROBO_HEAP_TARGET_BYTES = 96ull * 1024ull * 1024ull;
-constexpr uint64_t ROBO_HEAP_MAX_BYTES = 256ull * 1024ull * 1024ull;
+// Seed only — malloc grows from the page pool. Keep a reserve for arenas / user maps.
+constexpr uint64_t ROBO_HEAP_SEED_BYTES = 32ull * 1024ull * 1024ull;
+constexpr uint64_t ROBO_HEAP_SEED_MIN_BYTES = 16ull * 1024ull * 1024ull;
+constexpr uint64_t ROBO_PAGE_RESERVE_BYTES = 64ull * 1024ull * 1024ull;
 
 alignas(4096) uint8_t gTablePages[(2u + ROBO_PD_MAX) * 4096u];
 struct RoboFreeSpan {
@@ -214,25 +215,21 @@ void RoboMapPhysical(const RoboBootInfo* info) {
 }
 
 uint64_t RoboPickHeapBytes(uint64_t usableBytes) {
-    if (usableBytes < ROBO_HEAP_MIN_BYTES) {
+    // Dynamic heap: carve a small seed; RoboPagesTake grows under malloc.
+    uint64_t want = ROBO_HEAP_SEED_BYTES;
+    if (usableBytes < ROBO_HEAP_SEED_MIN_BYTES) {
         return 0;
     }
-    uint64_t want = ROBO_HEAP_TARGET_BYTES;
-    if (usableBytes >= ROBO_HEAP_MAX_BYTES * 4ull) {
-        want = ROBO_HEAP_MAX_BYTES;
-    } else if (usableBytes < ROBO_HEAP_TARGET_BYTES) {
-        want = usableBytes & ~(ROBO_PAGE_BYTES - 1ull);
-        if (want < ROBO_HEAP_MIN_BYTES) {
-            return 0;
-        }
+    if (usableBytes < want + ROBO_PAGE_RESERVE_BYTES) {
+        want = usableBytes > ROBO_PAGE_RESERVE_BYTES ? (usableBytes - ROBO_PAGE_RESERVE_BYTES) : ROBO_HEAP_SEED_MIN_BYTES;
+    }
+    if (want < ROBO_HEAP_SEED_MIN_BYTES) {
+        want = ROBO_HEAP_SEED_MIN_BYTES;
     }
     if (want > usableBytes) {
         want = usableBytes & ~(ROBO_PAGE_BYTES - 1ull);
     }
-    if (want > ROBO_HEAP_MAX_BYTES) {
-        want = ROBO_HEAP_MAX_BYTES;
-    }
-    return want;
+    return want & ~(ROBO_PAGE_BYTES - 1ull);
 }
 
 void RoboCarveHeap(const RoboBootInfo* info, uint64_t stack) {
@@ -292,6 +289,16 @@ RoboArena RoboMakeArena(void) {
 
 }  // namespace
 
+uint64_t RoboPagePoolBytes(void) {
+    uint64_t total = 0;
+    for (uint32_t index = 0; index < gSpanCount; ++index) {
+        if (gFreeSpans[index].end > gFreeSpans[index].base) {
+            total += gFreeSpans[index].end - gFreeSpans[index].base;
+        }
+    }
+    return total;
+}
+
 uint64_t RoboPageAlloc(void) {
     for (uint32_t index = 0; index < gSpanCount; ++index) {
         if (gFreeSpans[index].base + ROBO_PAGE_BYTES > gFreeSpans[index].end) {
@@ -306,6 +313,49 @@ uint64_t RoboPageAlloc(void) {
         return page;
     }
     return 0;
+}
+
+uint32_t RoboPagesFindSpan(uint64_t bytes) {
+    bytes = (bytes + ROBO_PAGE_BYTES - 1ull) & ~(ROBO_PAGE_BYTES - 1ull);
+    const uint64_t pool = RoboPagePoolBytes();
+    if (pool < bytes + ROBO_PAGE_RESERVE_BYTES) {
+        return gSpanCount;
+    }
+    uint32_t best = gSpanCount;
+    uint64_t bestBytes = 0;
+    for (uint32_t index = 0; index < gSpanCount; ++index) {
+        if (gFreeSpans[index].end <= gFreeSpans[index].base) {
+            continue;
+        }
+        const uint64_t spanBytes = gFreeSpans[index].end - gFreeSpans[index].base;
+        if (spanBytes >= bytes && (best == gSpanCount || spanBytes < bestBytes)) {
+            best = index;
+            bestBytes = spanBytes;
+        }
+    }
+    return best;
+}
+
+extern "C" int RoboPagesCanTake(uint64_t bytes) {
+    if (bytes == 0) {
+        return 1;
+    }
+    bytes = (bytes + ROBO_PAGE_BYTES - 1ull) & ~(ROBO_PAGE_BYTES - 1ull);
+    return RoboPagesFindSpan(bytes) < gSpanCount ? 1 : 0;
+}
+
+extern "C" void* RoboPagesTake(uint64_t bytes) {
+    if (bytes == 0) {
+        return nullptr;
+    }
+    bytes = (bytes + ROBO_PAGE_BYTES - 1ull) & ~(ROBO_PAGE_BYTES - 1ull);
+    const uint32_t best = RoboPagesFindSpan(bytes);
+    if (best >= gSpanCount) {
+        return nullptr;
+    }
+    const uint64_t base = gFreeSpans[best].base;
+    gFreeSpans[best].base += bytes;
+    return reinterpret_cast<void*>(base);
 }
 
 void RoboPageFree(uint64_t page) {

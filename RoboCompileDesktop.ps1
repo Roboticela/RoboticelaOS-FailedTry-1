@@ -178,12 +178,17 @@ Copy-Item -Force (Join-Path $esp "INTERM.TTF") (Join-Path $espArm "INTERM.TTF")
 Copy-Item -Force (Join-Path $esp "INTERS.TTF") (Join-Path $espArm "INTERS.TTF")
 Copy-Item -Force (Join-Path $esp "INTERB.TTF") (Join-Path $espArm "INTERB.TTF")
 Copy-Item -Force (Join-Path $esp "INTERI.TTF") (Join-Path $espArm "INTERI.TTF")
-Copy-Item -Force $iconPak (Join-Path $esp "ROBOICON.PAK")
-Copy-Item -Force $countryPak (Join-Path $esp "ROBOCTRY.PAK")
+# Full library packs on ESP (held at boot). Used packs stay under Build\Generated for tooling.
+$espIconPak = Join-Path $assets "ROBOICON.PAK"
+$espCountryPak = Join-Path $assets "ROBOCTRY.PAK"
+if (-not (Test-Path $espIconPak)) { $espIconPak = $iconPak }
+if (-not (Test-Path $espCountryPak)) { $espCountryPak = $countryPak }
+Copy-Item -Force $espIconPak (Join-Path $esp "ROBOICON.PAK")
+Copy-Item -Force $espCountryPak (Join-Path $esp "ROBOCTRY.PAK")
 Copy-Item -Force $catalogPak (Join-Path $esp "ROBOCAT.PAK")
 Copy-Item -Force $panePak (Join-Path $esp "ROBOPANE.PAK")
-Copy-Item -Force $iconPak (Join-Path $espArm "ROBOICON.PAK")
-Copy-Item -Force $countryPak (Join-Path $espArm "ROBOCTRY.PAK")
+Copy-Item -Force $espIconPak (Join-Path $espArm "ROBOICON.PAK")
+Copy-Item -Force $espCountryPak (Join-Path $espArm "ROBOCTRY.PAK")
 Copy-Item -Force $catalogPak (Join-Path $espArm "ROBOCAT.PAK")
 Copy-Item -Force $panePak (Join-Path $espArm "ROBOPANE.PAK")
 $video = Join-Path $Root "Assets\Background.mp4"

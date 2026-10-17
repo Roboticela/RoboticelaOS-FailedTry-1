@@ -16,6 +16,10 @@ void RoboMemoryStart(const RoboBootInfo* info);
 extern "C" void RoboHeapInstall(void* base, uint64_t bytes);
 extern "C" void* RoboHeapBase(void);
 extern "C" uint64_t RoboHeapBytes(void);
+// Contiguous pages from the free-span pool for heap growth. Returns nullptr if
+// the request would leave the page pool below the kernel reserve.
+extern "C" void* RoboPagesTake(uint64_t bytes);
+extern "C" int RoboPagesCanTake(uint64_t bytes);
 extern "C" uint64_t RoboMemoryMapBytes(void);
 void RoboMemoryMarkUncached(uint64_t address, uint64_t bytes);
 void RoboMemoryMarkWriteCombine(uint64_t address, uint64_t bytes);

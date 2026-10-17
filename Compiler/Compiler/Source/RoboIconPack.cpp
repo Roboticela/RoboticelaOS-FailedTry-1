@@ -214,6 +214,9 @@ bool FillFromRef(Icon& icon, const IconRef& ref) {
         }
         if (commandCount > 0) {
             std::vector<float> blob(static_cast<std::size_t>(commandCount) * 7u);
+            if (blob.size() != static_cast<std::size_t>(commandCount) * 7u || blob.data() == nullptr) {
+                return false;
+            }
             memcpy(blob.data(), data + cursor, blobBytes);
             AppendSvgCommandsFromBlob(shape, blob.data(), blob.size());
         }
@@ -236,7 +239,11 @@ void RoboIconPackAdd(const std::uint8_t* data, std::uint32_t size) {
     if (count > 10000u) {
         return;
     }
+    const std::size_t beforePacks = gPacks.size();
     gPacks.emplace_back(data, data + size);
+    if (gPacks.size() != beforePacks + 1u || gPacks.back().size() != size || gPacks.back().data() == nullptr) {
+        return;
+    }
     const int packIndex = static_cast<int>(gPacks.size() - 1u);
     const std::uint8_t* bytes = gPacks.back().data();
     std::uint32_t cursor = 12u;
@@ -301,7 +308,8 @@ void RoboIconPackLoad(const IPlatform& platform) {
         return;
     }
     const std::size_t before = gIcons.size();
-    const char* paths[] = {"ROBOICON.PAK", "Assets/ROBOICON.PAK", "ROBOCTRY.PAK", "Assets/ROBOCTRY.PAK"};
+    const char* paths[] = {"ROBOICON.PAK", "Assets/ROBOICON.PAK", "System/ROBOICON.PAK", "ROBOCTRY.PAK",
+                           "Assets/ROBOCTRY.PAK", "System/ROBOCTRY.PAK"};
     for (const char* path : paths) {
         const std::vector<std::uint8_t> bytes = platform.LoadAsset(path);
         if (!bytes.empty()) {
@@ -310,7 +318,11 @@ void RoboIconPackLoad(const IPlatform& platform) {
     }
     // Only lock the pack when at least one icon landed — empty load must retry
     // (Web preload can race the first EnsureApp call).
-    gLoaded = gIcons.size() > before || !gIcons.empty();
+    gLoaded = !gIcons.empty() || gIcons.size() > before;
+}
+
+bool RoboIconPackReady() {
+    return !gIcons.empty();
 }
 
 bool RoboIconPackContains(const char* name) {

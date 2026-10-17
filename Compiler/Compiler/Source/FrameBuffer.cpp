@@ -10,9 +10,16 @@ FrameBuffer::FrameBuffer(int width, int height) {
 }
 
 void FrameBuffer::Resize(int width, int height) {
-    width_ = std::max(0, width);
-    height_ = std::max(0, height);
-    pixels_.assign(static_cast<std::size_t>(width_ * height_ * 4), 0);
+    const int nextW = std::max(0, width);
+    const int nextH = std::max(0, height);
+    const std::size_t need = static_cast<std::size_t>(nextW) * static_cast<std::size_t>(nextH) * 4u;
+    pixels_.assign(need, 0);
+    if (need > 0 && pixels_.size() != need) {
+        // OOM: keep prior geometry rather than claiming a buffer we do not have.
+        return;
+    }
+    width_ = nextW;
+    height_ = nextH;
 }
 
 void FrameBuffer::Clear(const Color& color) {

@@ -279,6 +279,7 @@ bool RoboShellStart(RoboDesktop* desktop) {
     int surfaceWidth = frameWidth;
     int surfaceHeight = frameHeight;
     if (frameHeight >= 1800) {
+        // Keep surface == framebuffer: PaintSize here OOMs the shell heap when an app opens.
         pixelScale = 2.0f;
     } else if (frameHeight >= 1400) {
         pixelScale = 1.5f;
@@ -288,6 +289,7 @@ bool RoboShellStart(RoboDesktop* desktop) {
         surfaceWidth = Robo::PaintSize(frameWidth, quality);
         surfaceHeight = Robo::PaintSize(frameHeight, quality);
     }
+    // Pointer space is the paint surface. When surface == GOP, scale is 1 even if paintScale > 1.
     gSceneScale = frameWidth > 0 ? static_cast<float>(surfaceWidth) / static_cast<float>(frameWidth) : 1.0f;
     gPlatform->SetPixelScale(pixelScale);
     gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
@@ -303,6 +305,10 @@ bool RoboShellStart(RoboDesktop* desktop) {
         gFonts->WarmChrome(pixelScale);
     }
     Robo::RoboIconPackLoad(*gPlatform);
+    if (!Robo::RoboIconPackReady()) {
+        // Held ESP read can lose the race with first heap grow; try once more.
+        Robo::RoboIconPackLoad(*gPlatform);
+    }
     Robo::RoboCatalogLoad(*gPlatform);
     Robo::RoboPaneLoad(*gPlatform);
     gScene->SetAppBuildStep(RoboAppBuildStep);

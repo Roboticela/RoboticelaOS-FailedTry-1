@@ -16,7 +16,7 @@
 #define ROBO_RAM_MIN_BYTES (1ull * 1024ull * 1024ull * 1024ull)
 #define ROBO_RAM_MAP_MAX_BYTES (64ull * 1024ull * 1024ull * 1024ull)
 #define ROBO_MEMORY_RANGE_MAX 256u
-#define ROBO_BOOT_FILE_MAX 16u
+#define ROBO_BOOT_FILE_MAX 24u
 #define ROBO_BOOT_FILE_NAME 16u
 
 typedef struct RoboMemoryRange {

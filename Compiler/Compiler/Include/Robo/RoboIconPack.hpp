@@ -14,6 +14,9 @@ void RoboIconPackAdd(const std::uint8_t* data, std::uint32_t size);
 // Loads both pack images through the platform asset path. Safe to call more than once.
 void RoboIconPackLoad(const IPlatform& platform);
 
+// True when at least one icon name is in the runtime table.
+bool RoboIconPackReady();
+
 bool RoboIconPackContains(const char* name);
 
 // Fills an icon from the loaded packs. The page names the icon; the shapes stay in the pack file.

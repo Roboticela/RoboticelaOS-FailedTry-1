@@ -170,6 +170,7 @@ public:
     void OpenApp(const char* appId);
     void CloseApp();
     bool AppOpen() const;
+    bool AppFocused() const;
     // After desktop damage while an app is open (Flush pass-2 hover), prefer Soft Present.
     void SoftPresentHostedApp();
     // Desktop icon from an installed app (not Desktop.xml). No-op if openId already present.
@@ -291,6 +292,7 @@ private:
     void PaintAppWindow();
     void CompositeAppWindow();
     void RestoreAppWindowCorners();
+    void SetAppFocused(bool focused);
     bool AppNeedsPaint() const;
     bool ForwardAppPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks);
     bool ForwardAppMove(float x, float y);
@@ -377,6 +379,10 @@ private:
         bool paintDirty = false;
         bool surfaceValid = false;
         bool parentWiped = false;
+        // Soft-Present the empty hole once before Tick loads ELF / builds UI.
+        bool awaitFirstPresent = false;
+        // Cap Soft Present of nested motion (~15 FPS) so QEMU stays interactive.
+        double motionPresentDueMs = 0.0;
         char id[48]{};
     };
     RoboAppHost appHost_{};

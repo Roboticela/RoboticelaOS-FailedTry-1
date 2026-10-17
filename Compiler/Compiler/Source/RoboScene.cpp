@@ -1,5 +1,6 @@
 #include "Robo/RoboPool.hpp"
 #include "Robo/RoboScene.hpp"
+#include "Robo/RoboIconPack.hpp"
 #include "Robo/Motion.hpp"
 #include "Robo/TextSelection.hpp"
 #include "Robo/BrandLogo.hpp"
@@ -2949,6 +2950,32 @@ bool RoboScene::AppOpen() const {
     return appHost_.open;
 }
 
+bool RoboScene::AppFocused() const {
+    return appHost_.open && appHost_.focus;
+}
+
+void RoboScene::SetAppFocused(bool focused) {
+    if (!appHost_.open) {
+        appHost_.focus = false;
+        return;
+    }
+    if (appHost_.focus == focused) {
+        return;
+    }
+    appHost_.focus = focused;
+    // Match Web: freeze wallpaper presents under a focused window; resume on desktop focus.
+    constexpr double ROBO_WALLPAPER_PRESENT_MS = 66.0;
+    if (focused) {
+        videoOnly_ = false;
+        wallpaperPresentDueMs_ = wallpaperClockMs_ + ROBO_WALLPAPER_PRESENT_MS;
+    } else {
+        wallpaperPresentDueMs_ = wallpaperClockMs_;
+        if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated()) {
+            needsRender_ = true;
+        }
+    }
+}
+
 bool RoboScene::AppNeedsPaint() const {
     return appHost_.open;
 }
@@ -2962,18 +2989,23 @@ void RoboScene::CloseApp() {
     float width = 0.0f;
     float height = 0.0f;
     AppHostFrame(x, y, width, height);
+    SetAppFocused(false);
     appHost_.open = false;
     appHost_.focus = false;
     appHost_.buildStep = -1;
     appHost_.railFillPending = false;
     appHost_.paintDirty = false;
     appHost_.surfaceValid = false;
+    appHost_.awaitFirstPresent = false;
     appHost_.id[0] = '\0';
     if (appHost_.scene != nullptr) {
         appHost_.scene->Clear();
     }
     MarkDirty(x, y, width, height);
     needsRender_ = true;
+    wallpaperPresentDueMs_ = wallpaperClockMs_;
+    videoOnly_ = false;
+    wallpaperAroundApp_ = false;
 }
 
 void RoboScene::InstallAppIcon(const char* label, const char* openId, float x, float y) {
@@ -3005,12 +3037,16 @@ void RoboScene::OpenApp(const char* appId) {
     if (appId == nullptr || appId[0] == '\0') {
         return;
     }
+    // Sidebar bake runs during micro-steps — pack must be live before the first BakeNamedIcon.
+    if (platform_ != nullptr && !RoboIconPackReady()) {
+        RoboIconPackLoad(*platform_);
+    }
     EnsureAppHost();
     if (appHost_.scene == nullptr) {
         return;
     }
     if (appHost_.open && strcmp(appHost_.id, appId) == 0) {
-        appHost_.focus = true;
+        SetAppFocused(true);
         DirtyAppWindowSoft();
         return;
     }
@@ -3022,10 +3058,14 @@ void RoboScene::OpenApp(const char* appId) {
         appHost_.id[i] = appId[i];
     }
     appHost_.open = true;
-    appHost_.focus = true;
+    appHost_.focus = false;
+    SetAppFocused(true);
     appHost_.buildStep = 0;
     appHost_.railFillPending = true;
     appHost_.surfaceValid = false;
+    // Kernel runs Tick before Flush. Hold build until Soft Present paints the hole,
+    // otherwise ELF load/build blocks the empty window and looks like a full hang.
+    appHost_.awaitFirstPresent = true;
     const float scale = SceneScale();
     if (paintedWidth_ > 0 && paintedHeight_ > 0) {
         const float availW = static_cast<float>(paintedWidth_) / scale;
@@ -3185,7 +3225,8 @@ void RoboScene::CompositeAppWindow() {
         } else {
             appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
             appHost_.paintDirty = false;
-            appHost_.surfaceValid = true;
+            // Keep invalid while micro-steps run so corner restore cannot starve Tick.
+            appHost_.surfaceValid = appHost_.buildStep < 0;
         }
     } else if (appHost_.scene->frame_.GetPixels() != nullptr &&
                appHost_.scene->frame_.GetWidth() == surfaceW &&
@@ -3205,12 +3246,16 @@ void RoboScene::CompositeAppWindow() {
         } else {
             appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
             appHost_.paintDirty = false;
-            appHost_.surfaceValid = true;
+            appHost_.surfaceValid = appHost_.buildStep < 0;
         }
     }
     frame_.PopClip();
     // HostPlatform skips ear pixels; restore wallpaper there so Soft AABB Present stays round.
-    RestoreAppWindowCorners();
+    // Skip while the nested surface is still loading — corner restore + media decode every
+    // build Soft Present starved the Tick loop (empty window + apparent hang on QEMU).
+    if (appHost_.surfaceValid) {
+        RestoreAppWindowCorners();
+    }
     appHost_.parentWiped = false;
 }
 
@@ -3554,6 +3599,8 @@ bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
         frame_.SetPresentRect(presentX, presentY, presentW, presentH);
         platform.Present(frame_);
     }
+    // Empty hole is on screen — next Tick may load ELF / build without starving Present.
+    appHost_.awaitFirstPresent = false;
     needsRender_ = false;
     fullDirty_ = false;
     damageOpen_ = false;
@@ -3573,6 +3620,10 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         wallpaperAroundApp_ = false;
         videoOnly_ = false;
         return;
+    }
+    // Soft missed (fullDirty_ / size mismatch): do not leave Tick gated forever.
+    if (appHost_.awaitFirstPresent) {
+        appHost_.awaitFirstPresent = false;
     }
     wallpaperAroundApp_ = false;
     if (videoOnly_ && !fullDirty_ && !damageOpen_ && PresentVideoFrame(platform)) {
@@ -5877,7 +5928,26 @@ bool RoboScene::PointerMove(float x, float y) {
             return true;
         }
     }
-    const bool folderHover = desktop_.IsEnabled() && UpdateSelectionHover(x, y);
+    // Desktop icon hover plate removed (QEMU showed a black popup). Clear any prior hover once.
+    if (desktop_.IsEnabled()) {
+        for (SceneItem& item : items_) {
+            if (item.kind != SceneItemKind::SelectionArea) {
+                continue;
+            }
+            SelectionArea& area = item.selectionArea;
+            const int prior = area.Hover();
+            if (prior < 0 || !area.ClearHover()) {
+                continue;
+            }
+            const std::vector<SelectionAreaItem>& icons = area.Items();
+            if (prior < static_cast<int>(icons.size())) {
+                const SelectionBounds& bounds = icons[static_cast<std::size_t>(prior)].GetBounds();
+                if (bounds.width > 0.0f && bounds.height > 0.0f) {
+                    MarkDirty(bounds.x - 4.0f, bounds.y - 4.0f, bounds.width + 8.0f, bounds.height + 8.0f);
+                }
+            }
+        }
+    }
     selectX_ = x;
     selectY_ = y;
     if (desktop_.IsEnabled()) {
@@ -5901,7 +5971,7 @@ bool RoboScene::PointerMove(float x, float y) {
                     barChanged = true;
                 }
                 barChanged = SetHoveredButton(nullptr) || barChanged;
-                return barChanged || folderHover;
+                return barChanged;
             }
         }
         const int hover = desktop_.HitDock(x, y);
@@ -5959,7 +6029,7 @@ bool RoboScene::PointerMove(float x, float y) {
             DirtySidebarItem(pressedSidebarItem_);
             return true;
         }
-        return folderHover;
+        return false;
     }
 
     if (pressedButton_) {
@@ -5970,7 +6040,7 @@ bool RoboScene::PointerMove(float x, float y) {
             DirtyButton(pressedButton_);
             return true;
         }
-        return folderHover;
+        return false;
     }
 
     const bool railChanged = UpdateRailArrows(x, y);
@@ -6017,7 +6087,7 @@ bool RoboScene::PointerMove(float x, float y) {
             changed = true;
         }
     }
-    return changed || folderHover;
+    return changed;
 }
 
 bool RoboScene::LongPressSelect(float x, float y) {
@@ -6089,11 +6159,11 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
     }
     if (appHost_.open) {
         if (PointerOnApp(x, y)) {
-            appHost_.focus = true;
+            SetAppFocused(true);
             ForwardAppPointer(x, y, true, false, fromTouch, clicks);
             return true;
         }
-        appHost_.focus = false;
+        SetAppFocused(false);
     }
     if (desktop_.IsEnabled()) {
         if (desktop_.HasTopBarMenu()) {
@@ -6466,19 +6536,34 @@ bool RoboScene::Tick(double deltaMs) {
     }
     wallpaperClockMs_ += deltaMs;
     bool changed = false;
+    if (appHost_.open && appHost_.awaitFirstPresent) {
+        // Flush owns the first Soft Present; keep NeedsRender warm without loading yet.
+        DirtyAppWindowSoft();
+        return true;
+    }
     if (appHost_.open && appHost_.scene != nullptr && appHost_.buildStep >= 0) {
-        PumpPaint();
-        if (appBuildStepFn_ != nullptr) {
-            appHost_.buildStep = appBuildStepFn_(*appHost_.scene, appHost_.buildStep, appHost_.id);
-        } else {
-            appHost_.buildStep = -1;
+        // Many micro-steps per tick; Soft Present only at chrome + finish so QEMU stays live.
+        constexpr int ROBO_BUILD_STEPS_PER_TICK = 16;
+        const int stepBefore = appHost_.buildStep;
+        for (int n = 0; n < ROBO_BUILD_STEPS_PER_TICK && appHost_.buildStep >= 0; ++n) {
+            PumpPaint();
+            if (appBuildStepFn_ != nullptr) {
+                appHost_.buildStep = appBuildStepFn_(*appHost_.scene, appHost_.buildStep, appHost_.id);
+            } else {
+                appHost_.buildStep = -1;
+            }
+            PumpPaint();
         }
-        PumpPaint();
         if (appHost_.buildStep < 0) {
             // Catalog apps keep filling rails; inline pages are done after eager micro-steps.
             appHost_.railFillPending = appHost_.scene->railChildrenFn_ != nullptr;
+            appHost_.surfaceValid = false;
+            appHost_.paintDirty = true;
+            DirtyAppWindowSoft();
+        } else if (stepBefore <= 2 && appHost_.buildStep > 2) {
+            // TitleBar + Sidebar are up — one Soft Present, then keep building without paint.
+            DirtyAppWindowSoft();
         }
-        DirtyAppWindowSoft();
         changed = true;
     } else if (appHost_.open && appHost_.scene != nullptr && appHost_.railFillPending) {
         // Budgeted EnsureRailChildren on the nested scene (≤8 kids/call).
@@ -6512,10 +6597,10 @@ bool RoboScene::Tick(double deltaMs) {
         }
     }
     // Cap decode and Present together (~15 FPS) so idle does not burn JPEG decode for dropped frames.
-    // While a hosted app is focused, freeze wallpaper under the opaque window so idle can hlt.
+    // Focused hosted app: freeze wallpaper (Web + OS). Desktop focus: Advance again.
     constexpr double ROBO_WALLPAPER_PRESENT_MS = 66.0;
     bool videoAdvanced = false;
-    const bool freezeWallpaper = appHost_.open && appHost_.focus;
+    const bool freezeWallpaper = AppFocused();
     if (!freezeWallpaper && desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated()) {
         if (wallpaperClockMs_ >= wallpaperPresentDueMs_) {
             if (desktop_.GetBackgroundSource().Advance(deltaMs + ROBO_WALLPAPER_PRESENT_MS)) {
@@ -6539,9 +6624,17 @@ bool RoboScene::Tick(double deltaMs) {
         }
     };
     VisitSceneScrollbars(items_, ActivePaneId(), visit);
-    if (appHost_.open && appHost_.scene != nullptr && appHost_.scene->Tick(deltaMs)) {
-        DirtyAppFromNested();
-        changed = true;
+    // Nested motion: advance every tick, Soft Present at ~15 FPS (full Composite is heavy on QEMU).
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.buildStep < 0) {
+        if (appHost_.scene->Tick(deltaMs)) {
+            constexpr double ROBO_APP_MOTION_PRESENT_MS = 66.0;
+            appHost_.motionPresentDueMs -= deltaMs;
+            if (appHost_.motionPresentDueMs <= 0.0) {
+                appHost_.motionPresentDueMs = ROBO_APP_MOTION_PRESENT_MS;
+                DirtyAppFromNested();
+            }
+            changed = true;
+        }
     }
     for (SceneItem& item : items_) {
         if (item.kind == SceneItemKind::SelectionArea) {
@@ -6729,6 +6822,16 @@ bool RoboScene::Tick(double deltaMs) {
 
 bool RoboScene::NeedsTick() {
     wallpaperOnly_ = false;
+    // Do not Tick-build until Flush has Soft-Presented the empty window once.
+    if (appHost_.open && appHost_.awaitFirstPresent) {
+        // Soft never ran (or cleared needsRender without Present): release so we do not
+        // freeze the shell with NeedsTick=false and NeedsRender=false forever.
+        if (!needsRender_ && !wallpaperAroundApp_) {
+            appHost_.awaitFirstPresent = false;
+        } else {
+            return false;
+        }
+    }
     if (appHost_.open && appHost_.buildStep >= 0) {
         return true;
     }
@@ -6780,7 +6883,7 @@ bool RoboScene::NeedsTick() {
         };
         VisitSceneThemes(items_, activePaneId_, themeVisit);
     }
-    const bool wallpaper = desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() && !(appHost_.open && appHost_.focus);
+    const bool wallpaper = desktop_.IsEnabled() && desktop_.GetBackgroundSource().IsAnimated() && !AppFocused();
     wallpaperOnly_ = wallpaper && !needsTick;
     if (needsTick) {
         return true;
