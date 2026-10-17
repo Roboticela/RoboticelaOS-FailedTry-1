@@ -170,6 +170,8 @@ public:
     void OpenApp(const char* appId);
     void CloseApp();
     bool AppOpen() const;
+    // After desktop damage while an app is open (Flush pass-2 hover), prefer Soft Present.
+    void SoftPresentHostedApp();
     // Desktop icon from an installed app (not Desktop.xml). No-op if openId already present.
     void InstallAppIcon(const char* label, const char* openId, float x, float y);
 

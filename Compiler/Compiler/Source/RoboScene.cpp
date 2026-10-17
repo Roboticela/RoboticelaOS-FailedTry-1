@@ -2618,6 +2618,13 @@ void RoboScene::DirtyAppWindowSoft() {
     appHost_.paintDirty = true;
 }
 
+void RoboScene::SoftPresentHostedApp() {
+    if (!appHost_.open) {
+        return;
+    }
+    DirtyAppWindowSoft();
+}
+
 void RoboScene::PumpPaint() {
     if (paintPump_ != nullptr) {
         paintPump_(paintPumpCookie_);
@@ -3147,16 +3154,19 @@ void RoboScene::CompositeAppWindow() {
         // Soft/motion damage (no parent hit) uses the nested PresentRect.
         host.SetForceFullBlit(!appHost_.surfaceValid || wipeRestore || appHost_.scene->fullDirty_);
         if (appHost_.scene->items_.empty()) {
-            // Stub: empty nested scene — fill window so open is visible immediately.
+            // Stub fill while micro-steps load — do not mark surfaceValid or a later
+            // wipe-restore can Present this blank instead of a real nested frame.
             frame_.FillRect(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
                             static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
                             page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
             PumpPaint();
+            appHost_.paintDirty = false;
+            appHost_.surfaceValid = false;
         } else {
             appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+            appHost_.paintDirty = false;
+            appHost_.surfaceValid = true;
         }
-        appHost_.paintDirty = false;
-        appHost_.surfaceValid = true;
     } else if (appHost_.scene->frame_.GetPixels() != nullptr &&
                appHost_.scene->frame_.GetWidth() == surfaceW &&
                appHost_.scene->frame_.GetHeight() == surfaceH) {
@@ -3171,11 +3181,13 @@ void RoboScene::CompositeAppWindow() {
                             static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height)),
                             page.alpha > 0 ? page : Color::FromHex("#FFFFFF"));
             PumpPaint();
+            appHost_.paintDirty = false;
+            appHost_.surfaceValid = false;
         } else {
             appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+            appHost_.paintDirty = false;
+            appHost_.surfaceValid = true;
         }
-        appHost_.paintDirty = false;
-        appHost_.surfaceValid = true;
     }
     frame_.PopClip();
     appHost_.parentWiped = false;
@@ -3382,9 +3394,11 @@ bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
     }
 
     const bool windowOnly = appPresentWindowOnly_;
+    // Soft + parent damage (icon hover): still refresh L-bands, never fill the hole.
+    const bool paintOutside = !windowOnly || damageOpen_;
     appPresentWindowOnly_ = false;
 
-    if (!windowOnly) {
+    if (paintOutside) {
         auto paintBand = [&](int x, int y, int width, int height) {
             if (width <= 0 || height <= 0) {
                 return;
@@ -3431,25 +3445,31 @@ bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
         CompositeAppWindow();
     }
 
-    if (windowOnly) {
-        frame_.SetPresentRect(left, top, right - left, bottom - top);
-        platform.Present(frame_);
+    // One Present of the union — Web putImageData per band flashed intermediate frames.
+    int presentX = 0;
+    int presentY = 0;
+    int presentW = surfaceW;
+    int presentH = surfaceH;
+    if (windowOnly && !paintOutside) {
+        presentX = left;
+        presentY = top;
+        presentW = right - left;
+        presentH = bottom - top;
+    } else if (windowOnly || needComposite) {
+        presentX = 0;
+        presentY = 0;
+        presentW = surfaceW;
+        presentH = surfaceH;
     } else {
-        // Wallpaper tick: Present L-bands only (not a full-surface blit over a stable window).
-        auto presentBand = [&](int x, int y, int width, int height) {
-            if (width <= 0 || height <= 0) {
-                return;
-            }
-            frame_.SetPresentRect(x, y, width, height);
-            platform.Present(frame_);
-        };
-        presentBand(0, 0, surfaceW, top);
-        presentBand(0, bottom, surfaceW, surfaceH - bottom);
-        presentBand(0, top, left, bottom - top);
-        presentBand(right, top, surfaceW - right, bottom - top);
-        if (needComposite) {
-            presentBand(left, top, right - left, bottom - top);
-        }
+        // L-bands only: Present the full surface once (hole already holds app pixels).
+        presentX = 0;
+        presentY = 0;
+        presentW = surfaceW;
+        presentH = surfaceH;
+    }
+    if (presentW > 0 && presentH > 0) {
+        frame_.SetPresentRect(presentX, presentY, presentW, presentH);
+        platform.Present(frame_);
     }
     needsRender_ = false;
     fullDirty_ = false;
@@ -3459,7 +3479,14 @@ bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
 }
 
 void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& background, float padding) {
-    if (wallpaperAroundApp_ && !fullDirty_ && !damageOpen_ && PresentWallpaperAroundApp(platform)) {
+    // Web can call Render after a Soft Present already cleared dirty flags (sync paint +
+    // async Flush). No-op instead of forcing a full desktop Present that flickers apps.
+    if (!needsRender_ && !wallpaperAroundApp_ && !videoOnly_) {
+        return;
+    }
+    // Soft must win over unrelated parent damageOpen_ (icon hover / Flush pass-2).
+    // PresentWallpaperAroundApp never paints wallpaper into the opaque window hole.
+    if (wallpaperAroundApp_ && !fullDirty_ && PresentWallpaperAroundApp(platform)) {
         wallpaperAroundApp_ = false;
         videoOnly_ = false;
         return;
@@ -3528,6 +3555,54 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
     int damageY = 0;
     int damageWidth = width;
     int damageHeight = height;
+    const bool mediaBackdrop = desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia();
+    // When a hosted app is open, never paint wallpaper/clear into its opaque AABB.
+    // Soft Present can be skipped (fullDirty_); without this hole punch the window flickers.
+    auto paintBackdrop = [&](int x, int y, int w, int h) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        auto fill = [&](int fx, int fy, int fw, int fh) {
+            if (fw <= 0 || fh <= 0) {
+                return;
+            }
+            if (mediaBackdrop) {
+                BackgroundPainter::Paint(frame, desktop_.GetBackgroundSource(), width, height, fx, fy, fw, fh);
+            } else {
+                frame.ClearRect(fx, fy, fw, fh, background_);
+            }
+        };
+        if (!appHost_.open) {
+            fill(x, y, w, h);
+            return;
+        }
+        float appX = 0.0f;
+        float appY = 0.0f;
+        float appW = 0.0f;
+        float appH = 0.0f;
+        AppHostFrame(appX, appY, appW, appH);
+        const int holeL = std::max(0, static_cast<int>(std::floor(appX)));
+        const int holeT = std::max(0, static_cast<int>(std::floor(appY)));
+        const int holeR = std::min(width, static_cast<int>(std::ceil(appX + appW)));
+        const int holeB = std::min(height, static_cast<int>(std::ceil(appY + appH)));
+        if (holeR <= holeL || holeB <= holeT) {
+            fill(x, y, w, h);
+            return;
+        }
+        const int x1 = x + w;
+        const int y1 = y + h;
+        auto band = [&](int bx, int by, int bw, int bh) {
+            const int cx0 = std::max(bx, x);
+            const int cy0 = std::max(by, y);
+            const int cx1 = std::min(bx + bw, x1);
+            const int cy1 = std::min(by + bh, y1);
+            fill(cx0, cy0, cx1 - cx0, cy1 - cy0);
+        };
+        band(0, 0, width, holeT);
+        band(0, holeB, width, height - holeB);
+        band(0, holeT, holeL, holeB - holeT);
+        band(holeR, holeT, width - holeR, holeB - holeT);
+    };
     if (partial) {
         damageX = std::max(0, static_cast<int>(std::floor(dirtyLeft_)));
         damageY = std::max(0, static_cast<int>(std::floor(dirtyTop_)));
@@ -3537,11 +3612,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         damageHeight = std::max(0, damageBottom - damageY);
         frame.PushClipRect(static_cast<float>(damageX), static_cast<float>(damageY),
                            static_cast<float>(damageWidth), static_cast<float>(damageHeight));
-        if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
-            BackgroundPainter::Paint(frame, desktop_.GetBackgroundSource(), width, height, damageX, damageY, damageWidth, damageHeight);
-        } else {
-            frame.ClearRect(damageX, damageY, damageWidth, damageHeight, background_);
-        }
+        paintBackdrop(damageX, damageY, damageWidth, damageHeight);
     }
 
     float verticalReserve = paintedVerticalReserve_;
@@ -3553,11 +3624,7 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
         scrollY_ = std::max(0.0f, std::min(scrollY_, maxScrollY_));
 
         if (!partial) {
-            if (desktop_.IsEnabled() && desktop_.GetBackgroundSource().PaintsMedia()) {
-                BackgroundPainter::Paint(frame, desktop_.GetBackgroundSource(), width, height, 0, 0, width, height);
-            } else {
-                frame.Clear(background_);
-            }
+            paintBackdrop(0, 0, width, height);
         }
         // chromeBase_ is only needed for CaptureChrome on full media paints — skip O(W×H) memcpy on partial.
         if (!partial && frame.GetPixels() != nullptr) {

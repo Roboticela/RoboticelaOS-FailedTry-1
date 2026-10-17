@@ -52,7 +52,10 @@ function WritePageIndex(outDir, title, assetBase) {
       const frame = (now) => {
         const delta = now - last;
         last = now;
-        if (app.Tick(delta)) {
+        // Tick may Soft-dirty a hosted app. Paint only when NeedsRender — never on
+        // NeedsTick alone (that double-painted Soft then full and flickered TestApp).
+        app.Tick(delta);
+        if (app.NeedsRender()) {
           paint();
         }
         requestAnimationFrame(frame);

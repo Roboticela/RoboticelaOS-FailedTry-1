@@ -58,7 +58,9 @@ void Render(int width, int height, float pixelScale);
 
 void FlushPresent(void*) {
     gPresentQueued = false;
-    if (gWidth > 0 && gHeight > 0) {
+    // Index.html may have already painted sync after Tick/input. Do not force a second
+    // full Render — that clears Soft flags and flickers the hosted TestApp window.
+    if (gWidth > 0 && gHeight > 0 && gScene.NeedsRender()) {
         Render(gWidth, gHeight, gPixelScale);
     }
 }
@@ -318,12 +320,20 @@ bool KeyScrollToEnd() {
     return changed;
 }
 
+bool NeedsRender() {
+    if (!EnsureApp()) {
+        return false;
+    }
+    return gScene.NeedsRender();
+}
+
 bool Tick(float deltaMs) {
     if (!EnsureApp()) {
         return false;
     }
+    // Index.html owns the paint after Tick. Scheduling an async Present here races a sync
+    // paint() when NeedsTick is true and double-Presents Soft then full (Web flicker).
     gScene.Tick(static_cast<double>(deltaMs));
-    SchedulePresent();
     return gScene.NeedsTick();
 }
 
@@ -490,6 +500,7 @@ EMSCRIPTEN_BINDINGS(RoboModule) {
     emscripten::function("KeyScrollToEnd", &KeyScrollToEnd);
     emscripten::function("HitTestKind", &HitTestKind);
     emscripten::function("Tick", &Tick);
+    emscripten::function("NeedsRender", &NeedsRender);
     emscripten::function("KeyInsert", &KeyInsert);
     emscripten::function("KeyBackspace", &KeyBackspace);
     emscripten::function("KeyDelete", &KeyDelete);

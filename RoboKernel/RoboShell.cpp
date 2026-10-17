@@ -529,6 +529,10 @@ bool RoboShellFlush(RoboDesktop* desktop) {
         } else if (gClickDuringPaint == 2) {
             RoboShellPointerUp(desktop->cursorX, desktop->cursorY);
         }
+        // Pass-2 hover MarkDirty must not wallpaper-wipe the hosted window.
+        if (gScene->AppOpen() && gScene->NeedsRender()) {
+            gScene->SoftPresentHostedApp();
+        }
     }
     RoboDesktopRedrawCursor(desktop);
     return true;
