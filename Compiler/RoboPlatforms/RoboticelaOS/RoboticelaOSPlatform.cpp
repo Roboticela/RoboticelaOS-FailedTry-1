@@ -9,6 +9,7 @@
 #include "RoboDesktop.hpp"
 #include "RoboFS.hpp"
 #include "RoboGPUVendor.hpp"
+#include "RoboDebug.hpp"
 #elif !defined(ROBO_USER)
 #include <fstream>
 #include <iterator>
@@ -198,7 +199,11 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
         if (RoboGPUVendorPresent(vendor, scanoutStride_, screenX0, screenY0, screenWidth, screenHeight, scanoutWidth_, scanoutHeight_, pixelFormat_)) {
             return;
         }
+#if defined(__aarch64__)
+        __asm__ volatile("dsb sy" ::: "memory");
+#else
         __asm__ volatile("sfence" ::: "memory");
+#endif
 #endif
         return;
     }
@@ -246,7 +251,11 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
         }
     }
 #ifdef ROBO_KERNEL
+#if defined(__aarch64__)
+    __asm__ volatile("dsb sy" ::: "memory");
+#else
     __asm__ volatile("sfence" ::: "memory");
+#endif
 #endif
 }
 

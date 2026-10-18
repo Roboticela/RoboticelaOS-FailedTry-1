@@ -355,6 +355,8 @@ bool RoboVirtioCommand(uint32_t type, const void* extra, uint32_t extraBytes) {
     return false;
 }
 
+#include "RoboDebug.hpp"
+
 bool RoboVirtioStart(int width, int height, uint32_t pixelFormat) {
     if (width <= 0 || height <= 0 || width > ROBO_GPU_MAX_WIDTH || height > ROBO_GPU_MAX_HEIGHT) {
         return false;
@@ -517,6 +519,52 @@ bool RoboCardFlush(int x, int y, int width, int height) {
     flush.height = rect.height;
     flush.resource = 1;
     return RoboVirtioCommand(ROBO_GPU_CMD_FLUSH, &flush, sizeof(flush));
+}
+
+uint32_t RoboGPUVendorCaps(void) {
+    uint32_t caps = ROBO_GPU_CAP_WRITE_COMBINING;
+    if (gVirtioReady) {
+        caps |= ROBO_GPU_CAP_ACCEL_FILL | ROBO_GPU_CAP_ACCEL_BLIT | ROBO_GPU_CAP_ACCEL_PRESENT | ROBO_GPU_CAP_VIRTIO | ROBO_GPU_CAP_HARDWARE_CURSOR;
+    }
+    return caps;
+}
+
+bool RoboGPUVendorFillRect(int32_t x, int32_t y, int32_t width, int32_t height, uint32_t rgb) {
+    if (!gVirtioReady || width <= 0 || height <= 0 || x < 0 || y < 0 || x + width > gCardWidth || y + height > gCardHeight) {
+        return false;
+    }
+    uint32_t red = (rgb >> 16) & 0xFFu;
+    uint32_t green = (rgb >> 8) & 0xFFu;
+    uint32_t blue = rgb & 0xFFu;
+    uint32_t packed = (red << 16) | (green << 8) | blue;
+    for (int32_t row = 0; row < height; ++row) {
+        uint8_t* to = gCard + (static_cast<uint64_t>(y + row) * static_cast<uint32_t>(gCardWidth) + static_cast<uint32_t>(x)) * 4u;
+        uint32_t* p = reinterpret_cast<uint32_t*>(to);
+        for (int32_t col = 0; col < width; ++col) {
+            p[col] = packed;
+        }
+    }
+    return RoboCardFlush(x, y, width, height);
+}
+
+bool RoboGPUVendorCopyRect(int32_t dstX, int32_t dstY, const uint32_t* srcPixels, int32_t srcStride, int32_t srcX, int32_t srcY, int32_t width, int32_t height) {
+    if (!gVirtioReady || srcPixels == nullptr || width <= 0 || height <= 0 ||
+        dstX < 0 || dstY < 0 || dstX + width > gCardWidth || dstY + height > gCardHeight) {
+        return false;
+    }
+    for (int32_t row = 0; row < height; ++row) {
+        const uint32_t* from = srcPixels + static_cast<uint64_t>(srcY + row) * srcStride + srcX;
+        uint8_t* to = gCard + (static_cast<uint64_t>(dstY + row) * static_cast<uint32_t>(gCardWidth) + static_cast<uint32_t>(dstX)) * 4u;
+        uint32_t* p = reinterpret_cast<uint32_t*>(to);
+        for (int32_t col = 0; col < width; ++col) {
+            uint32_t rgb = from[col];
+            uint32_t red = (rgb >> 16) & 0xFFu;
+            uint32_t green = (rgb >> 8) & 0xFFu;
+            uint32_t blue = rgb & 0xFFu;
+            p[col] = (red << 16) | (green << 8) | blue;
+        }
+    }
+    return RoboCardFlush(dstX, dstY, width, height);
 }
 
 bool RoboGPUVendorPresent(const uint8_t* pixels, int pixelStride, int x, int y, int width, int height, int surfaceWidth, int surfaceHeight, uint32_t pixelFormat) {

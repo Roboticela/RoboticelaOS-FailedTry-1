@@ -92,17 +92,17 @@ $(OBJ)/RoboBootloader.o: RoboBootloader/RoboBootloader.c RoboBootloader/RoboEfi.
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(OBJ)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-windows $(BOOT_CFLAGS) -c RoboBootloader/RoboBootloader.c -o $(OBJ)/RoboBootloader.o
 
-$(OBJ)/RoboKernel.o: RoboKernel/RoboKernel.cpp
+$(OBJ)/RoboKernel.o: RoboKernel/RoboKernel.cpp RoboGPU/RoboGPU.hpp RoboDesktop/RoboDesktop.hpp RoboInclude/RoboBootInfo.hpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(OBJ)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboKernel.cpp -o $(OBJ)/RoboKernel.o
 
 $(OBJ)/RoboSupport.o: RoboKernel/RoboSupport.cpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(KERNEL_CFLAGS) -c RoboKernel/RoboSupport.cpp -o $(OBJ)/RoboSupport.o
 
-$(OBJ)/RoboGPU.o: RoboGPU/RoboGPU.cpp RoboGPU/RoboGPU.hpp
+$(OBJ)/RoboGPU.o: RoboGPU/RoboGPU.cpp RoboGPU/RoboGPU.hpp RoboInclude/RoboGPUVendor.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(BLIT_CFLAGS) -c RoboGPU/RoboGPU.cpp -o $(OBJ)/RoboGPU.o
 
-$(OBJ)/RoboDesktop.o: RoboDesktop/RoboDesktop.cpp RoboDesktop/RoboDesktop.hpp
+$(OBJ)/RoboDesktop.o: RoboDesktop/RoboDesktop.cpp RoboDesktop/RoboDesktop.hpp RoboGPU/RoboGPU.hpp
 	$(CLANG) --target=x86_64-unknown-none-elf $(BLIT_CFLAGS) -c RoboDesktop/RoboDesktop.cpp -o $(OBJ)/RoboDesktop.o
 
 $(OBJ)/RoboInput.o: RoboInput/RoboInput.cpp RoboInput/RoboInput.hpp
@@ -221,11 +221,11 @@ $(ESP)/TestApp.elf: $(TESTAPP_OBJS) $(ESP)/RoboKernel.elf RoboKernel/RoboApp.ld
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(ESP)' | Out-Null"
 	$(LLD) -nostdlib -static -T RoboKernel/RoboApp.ld --just-symbols=$(ESP)/RoboKernel.elf -o $(ESP)/TestApp.elf $(TESTAPP_OBJS)
 
-$(SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp
+$(SHELL_DIR)/RoboticelaOSPlatform.o: Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.hpp RoboGPU/RoboGPU.hpp RoboDesktop/RoboDesktop.hpp RoboInclude/RoboGPUVendor.hpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.cpp -o $(SHELL_DIR)/RoboticelaOSPlatform.o
 
-$(SHELL_DIR)/RoboShell.o: RoboKernel/RoboShell.cpp
+$(SHELL_DIR)/RoboShell.o: RoboKernel/RoboShell.cpp RoboInclude/RoboShell.hpp RoboGPU/RoboGPU.hpp RoboDesktop/RoboDesktop.hpp Compiler/RoboPlatforms/RoboticelaOS/RoboticelaOSPlatform.hpp
 	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(SHELL_DIR)' | Out-Null"
 	$(CLANG) --target=x86_64-unknown-none-elf $(SHELL_CFLAGS) -c RoboKernel/RoboShell.cpp -o $(SHELL_DIR)/RoboShell.o
 
