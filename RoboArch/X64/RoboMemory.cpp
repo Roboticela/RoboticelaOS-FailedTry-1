@@ -53,7 +53,7 @@ uint64_t RoboRoundUpGigabyte(uint64_t bytes) {
 }
 
 uint64_t RoboComputeMapBytes(const RoboBootInfo* info) {
-    uint64_t end = ROBO_RAM_MIN_BYTES;
+    uint64_t end = 4ull * ROBO_ONE_GB;
     auto raise = [&](uint64_t value) {
         if (value > end) {
             end = value;

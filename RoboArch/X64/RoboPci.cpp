@@ -65,15 +65,17 @@ bool RoboPciClaimUsb(uint8_t bus, uint8_t slot, uint8_t function, uint32_t barIn
     if (bar64) {
         bar1 = RoboPciRead32(bus, slot, function, 0x14);
     }
-    uint32_t placed = ROBO_PCI_USB_BARS[barIndex < 3u ? barIndex : 0u];
-    uint32_t commandOff = RoboPciRead32(bus, slot, function, 0x04);
-    RoboPciWrite32(bus, slot, function, 0x04, commandOff & ~0x7u);
-    RoboPciWrite32(bus, slot, function, 0x10, placed | (bar0 & 0xFu));
-    if (bar64) {
-        RoboPciWrite32(bus, slot, function, 0x14, 0);
+    uint64_t bar = (bar0 & ~0xFull) | (bar64 ? (static_cast<uint64_t>(bar1) << 32) : 0ull);
+    if (bar == 0) {
+        uint32_t placed = ROBO_PCI_USB_BARS[barIndex < 3u ? barIndex : 0u];
+        uint32_t commandOff = RoboPciRead32(bus, slot, function, 0x04);
+        RoboPciWrite32(bus, slot, function, 0x04, commandOff & ~0x7u);
+        RoboPciWrite32(bus, slot, function, 0x10, placed | (bar0 & 0xFu));
+        if (bar64) {
+            RoboPciWrite32(bus, slot, function, 0x14, 0);
+        }
+        bar = placed;
     }
-    uint64_t bar = placed;
-    (void)bar1;
     uint32_t command = RoboPciRead32(bus, slot, function, 0x04);
     RoboPciWrite32(bus, slot, function, 0x04, command | 0x06u);
     uint32_t interrupt = RoboPciRead32(bus, slot, function, 0x3C);
@@ -96,20 +98,20 @@ bool RoboPciCollectUsb(RoboPciDevice* devices, uint32_t capacity, uint32_t* coun
     if (devices == nullptr || capacity == 0 || count == nullptr) {
         return false;
     }
-    for (uint8_t bus = 0; bus < 8u; ++bus) {
+    for (uint16_t bus = 0; bus < 256u; ++bus) {
         for (uint8_t slot = 0; slot < 32u; ++slot) {
-            uint32_t vendor = RoboPciRead32(bus, slot, 0, 0);
+            uint32_t vendor = RoboPciRead32(static_cast<uint8_t>(bus), slot, 0, 0);
             if ((vendor & 0xFFFFu) == 0xFFFFu) {
                 continue;
             }
-            uint8_t header = static_cast<uint8_t>(RoboPciRead32(bus, slot, 0, 0x0C) >> 16);
+            uint8_t header = static_cast<uint8_t>(RoboPciRead32(static_cast<uint8_t>(bus), slot, 0, 0x0C) >> 16);
             uint8_t functions = (header & 0x80u) != 0 ? 8u : 1u;
             for (uint8_t function = 0; function < functions; ++function) {
-                uint32_t identity = RoboPciRead32(bus, slot, function, 0);
+                uint32_t identity = RoboPciRead32(static_cast<uint8_t>(bus), slot, function, 0);
                 if ((identity & 0xFFFFu) == 0xFFFFu) {
                     continue;
                 }
-                uint32_t classRegister = RoboPciRead32(bus, slot, function, 0x08);
+                uint32_t classRegister = RoboPciRead32(static_cast<uint8_t>(bus), slot, function, 0x08);
                 uint8_t classCode = static_cast<uint8_t>(classRegister >> 24);
                 uint8_t subclass = static_cast<uint8_t>(classRegister >> 16);
                 uint8_t progIf = static_cast<uint8_t>(classRegister >> 8);
@@ -126,7 +128,7 @@ bool RoboPciCollectUsb(RoboPciDevice* devices, uint32_t capacity, uint32_t* coun
                 if (*count >= capacity) {
                     continue;
                 }
-                if (RoboPciClaimUsb(bus, slot, function, *count, &devices[*count])) {
+                if (RoboPciClaimUsb(static_cast<uint8_t>(bus), slot, function, *count, &devices[*count])) {
                     *count += 1u;
                 }
             }

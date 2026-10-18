@@ -7,7 +7,7 @@ constexpr uint16_t ROBO_PS2_STATUS_PORT = 0x64;
 constexpr uint8_t ROBO_PS2_STATUS_OUTPUT = 0x01;
 constexpr uint8_t ROBO_PS2_STATUS_INPUT = 0x02;
 constexpr uint8_t ROBO_PS2_STATUS_AUX = 0x20;
-constexpr uint32_t ROBO_PS2_TIMEOUT = 4000u;
+constexpr uint32_t ROBO_PS2_TIMEOUT = 100000u;
 constexpr int32_t ROBO_PS2_DRAIN_LIMIT = 96;
 
 bool RoboPS2WaitInput(void) {
@@ -15,6 +15,7 @@ bool RoboPS2WaitInput(void) {
         if ((RoboPortIn8(ROBO_PS2_STATUS_PORT) & ROBO_PS2_STATUS_INPUT) == 0) {
             return true;
         }
+        RoboPortIn8(0x80);
     }
     return false;
 }
@@ -24,6 +25,7 @@ bool RoboPS2WaitOutput(void) {
         if ((RoboPortIn8(ROBO_PS2_STATUS_PORT) & ROBO_PS2_STATUS_OUTPUT) != 0) {
             return true;
         }
+        RoboPortIn8(0x80);
     }
     return false;
 }
@@ -120,23 +122,18 @@ bool RoboPS2MouseStart(void) {
         return false;
     }
     RoboPortOut8(ROBO_PS2_DATA_PORT, config);
-    if (!RoboPS2WriteMouse(0xFF)) {
-        return false;
+    if (RoboPS2WriteMouse(0xFF)) {
+        uint8_t ack = 0;
+        if (RoboPS2Read(&ack) && ack == 0xFA) {
+            uint8_t selfTest = 0;
+            uint8_t deviceId = 0;
+            (void)RoboPS2Read(&selfTest);
+            (void)RoboPS2Read(&deviceId);
+        }
     }
-    uint8_t ack = 0;
-    if (!RoboPS2Read(&ack) || ack != 0xFA) {
-        return false;
-    }
-    uint8_t selfTest = 0;
-    uint8_t deviceId = 0;
-    if (!RoboPS2Read(&selfTest) || !RoboPS2Read(&deviceId)) {
-        return false;
-    }
-    if (!RoboPS2WriteMouse(0xF4)) {
-        return false;
-    }
-    if (!RoboPS2Read(&ack) || ack != 0xFA) {
-        return false;
+    if (RoboPS2WriteMouse(0xF4)) {
+        uint8_t ack = 0;
+        (void)RoboPS2Read(&ack);
     }
     gMouseReady = true;
     return true;

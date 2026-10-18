@@ -878,7 +878,7 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
     }
     if (device->kind == ROBO_USB_KIND_KEYBOARD || (device->fieldCount == 0 && protocol == 1u)) {
         device->kind = ROBO_USB_KIND_KEYBOARD;
-    } else if (device->fieldCount == 0 && protocol == 2u) {
+    } else if (device->fieldCount == 0 && (protocol == 2u || protocol == 0u)) {
         RoboHidBootMouse(device);
     }
     if (device->fieldCount == 0 && device->kind != ROBO_USB_KIND_KEYBOARD) {
@@ -962,6 +962,12 @@ bool RoboUsbPortFree(uint32_t port) {
     return true;
 }
 
+void RoboUsbDelay(uint32_t count) {
+    for (uint32_t i = 0; i < count; ++i) {
+        __asm__ volatile("" ::: "memory");
+    }
+}
+
 void RoboUsbResetPort(uint32_t port) {
     uint8_t kind = port < 33u ? gHost->portKind[port] : 0;
     if (kind != ROBO_PORT_KIND_USB && kind != ROBO_PORT_KIND_USBC && kind != ROBO_PORT_KIND_THUNDERBOLT) {
@@ -972,17 +978,23 @@ void RoboUsbResetPort(uint32_t port) {
     }
     uint64_t reg = gOperation + 0x400ull + (static_cast<uint64_t>(port) - 1ull) * 0x10ull;
     uint32_t portsc = RoboMmioRead32(reg);
+    if ((portsc & (1u << 9)) == 0) {
+        RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9));
+        RoboUsbDelay(10000u);
+        portsc = RoboMmioRead32(reg);
+    }
     if ((portsc & 1u) == 0) {
         return;
     }
-    RoboMmioWrite32(reg, (1u << 9) | (1u << 4));
+    RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9) | (1u << 4));
     bool resetDone = false;
-    for (uint32_t spin = 0; spin < 2000u; ++spin) {
+    for (uint32_t spin = 0; spin < 500u; ++spin) {
         portsc = RoboMmioRead32(reg);
         if ((portsc & (1u << 4)) == 0) {
             resetDone = true;
             break;
         }
+        RoboUsbDelay(2000u);
     }
     if (!resetDone) {
         return;
@@ -1041,7 +1053,9 @@ void RoboUsbLegacy(uint64_t bar, uint32_t hcc) {
                 if ((RoboMmioRead32(cap) & (1u << 16)) == 0) {
                     break;
                 }
+                RoboUsbDelay(500u);
             }
+            RoboMmioWrite32(cap + 4u, 0);
         }
         if (next == 0) {
             break;
@@ -1134,7 +1148,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     gHost->index = index;
     gHost->irq = pci->irq;
     gHost->contextBytes = 32;
-    RoboMemoryMarkUncached(pci->bar, 4096u);
+    RoboMemoryMarkUncached(pci->bar, 0x10000ull);
     uint32_t cap0 = RoboMmioRead32(pci->bar);
     uint32_t capLength = cap0 & 0xFFu;
     if (capLength < 0x20u) {
@@ -1146,6 +1160,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     uint32_t doorbell = RoboMmioRead32(pci->bar + 0x14u) & ~0x3u;
     uint32_t runtime = RoboMmioRead32(pci->bar + 0x18u) & ~0x1Fu;
     gContextBytes = (hcc & (1u << 2)) != 0 ? 64u : 32u;
+    gHost->contextBytes = gContextBytes;
     gMaxPorts = (hcs1 >> 24) & 0xFFu;
     uint32_t maxSlots = hcs1 & 0xFFu;
     if (gMaxPorts == 0 || maxSlots == 0) {
@@ -1203,6 +1218,11 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     }
     gHost->running = 1;
     gHost->scanPort = 1;
+    for (uint32_t port = 1; port <= gMaxPorts && port <= 32u; ++port) {
+        uint64_t reg = gOperation + 0x400ull + (static_cast<uint64_t>(port) - 1ull) * 0x10ull;
+        uint32_t portsc = RoboMmioRead32(reg);
+        RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9));
+    }
     if (gHost->irq >= 1u && gHost->irq <= 15u) {
         RoboArchIrqClaim(gHost->irq);
     }
@@ -1231,6 +1251,12 @@ void RoboUsbCollect(void) {
             gHost->scanPort += 1u;
             if (gHost->scanPort > gHost->maxPorts || gHost->scanPort > 32u) {
                 gHost->scanPort = 0;
+            }
+        } else {
+            static uint32_t scanCounter = 0;
+            if (++scanCounter >= 30u) {
+                scanCounter = 0;
+                gHost->scanPort = 1;
             }
         }
     }
