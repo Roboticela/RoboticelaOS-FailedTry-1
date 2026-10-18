@@ -260,9 +260,16 @@ bool SelectionArea::Eligible(int index) const {
 }
 
 bool SelectionArea::Hit(float x, float y, int& index) const {
+    if (hasOcclusion_ && occlusion_.Contains(x, y)) {
+        index = -1;
+        return false;
+    }
     for (int item = static_cast<int>(items_.size()) - 1; item >= 0; --item) {
         const SelectionAreaItem& entry = items_[static_cast<std::size_t>(item)];
         if (entry.IsLocked()) {
+            continue;
+        }
+        if (hasOcclusion_ && occlusion_.Intersects(entry.GetBounds())) {
             continue;
         }
         if (entry.GetBounds().Contains(x, y)) {

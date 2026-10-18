@@ -128,6 +128,17 @@ public:
     void SetLabelStyle(const SelectionLabelStyle& style);
     const SelectionLabelStyle& GetLabelStyle() const;
 
+    void SetOcclusionRect(const SelectionBounds& bounds) {
+        occlusion_ = bounds;
+        hasOcclusion_ = bounds.width > 0.0f && bounds.height > 0.0f;
+    }
+    void ClearOcclusion() {
+        hasOcclusion_ = false;
+        occlusion_ = {};
+    }
+    bool HasOcclusion() const { return hasOcclusion_; }
+    const SelectionBounds& GetOcclusion() const { return occlusion_; }
+
     SelectionGesture GetGesture() const;
     int Hover() const;
     bool SetHoverAt(float x, float y);
@@ -175,6 +186,8 @@ private:
     float threshold_ = 4.0f;
     bool keyboardFocus_ = false;
     SelectionBounds bounds_{};
+    bool hasOcclusion_ = false;
+    SelectionBounds occlusion_{};
     float pixelScale_ = 1.0f;
     SelectionLabelStyle labelStyle_{};
 

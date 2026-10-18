@@ -233,6 +233,10 @@ void SelectionAreaPainter::Paint(FrameBuffer& buffer,
         itemBounds.height = itemHeight;
         item.SetBounds(itemBounds);
 
+        if (area.HasOcclusion() && area.GetOcclusion().Intersects(itemBounds)) {
+            continue;
+        }
+
         const float iconSize = 52.0f * scale;
         const float iconX = itemX + (itemWidth - iconSize) * 0.5f;
         const float iconY = itemY + 8.0f * scale;

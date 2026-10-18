@@ -535,7 +535,7 @@ void Sidebar::PullPanelScroll() {
 
 float Sidebar::LayoutWidth(float openAmount) const {
     const float open = std::max(0.0f, std::min(1.0f, openAmount));
-    if (items_.empty()) {
+    if (items_.empty() || variant_ != SidebarVariant::Activity) {
         return SIDEBAR_WIDTH * open;
     }
     return SIDEBAR_RAIL + (SIDEBAR_WIDTH - SIDEBAR_RAIL) * open;

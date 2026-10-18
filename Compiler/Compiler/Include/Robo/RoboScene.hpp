@@ -120,6 +120,7 @@ public:
     void SetFoundation(const std::string& name);
     void SetFoundationForTheme(Theme theme, const std::string& name);
     void SetTheme(Theme theme);
+    Theme GetTheme() const { return theme_; }
     void SetPagePadding(float padding);
     const Foundation& ActiveFoundation() const;
     Color GetBackground() const;

@@ -2511,6 +2511,14 @@ void RoboScene::SetTheme(Theme theme) {
         return;
     }
     theme_ = theme;
+    themeMix_ = theme == Theme::Dark ? 1.0f : 0.0f;
+    themeMixTo_ = themeMix_;
+    themeMixFrom_ = themeMix_;
+    themeMixing_ = false;
+    themeMixPrimed_ = true;
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.scene->theme_ != theme) {
+        appHost_.scene->SetTheme(theme);
+    }
     MarkFullDirty();
 }
 
@@ -3170,6 +3178,13 @@ bool RoboScene::ForwardAppPointer(float x, float y, bool down, bool up, bool fro
         changed = appHost_.scene->PointerUp(x - left, y - top) || changed;
     }
     if (changed) {
+        if (appHost_.scene != nullptr && appHost_.scene->GetTheme() != theme_) {
+            SetTheme(appHost_.scene->GetTheme());
+        }
+        if (appHost_.scene != nullptr && appHost_.scene->fullDirty_) {
+            appHost_.surfaceValid = false;
+            appHost_.paintDirty = true;
+        }
         DirtyAppFromNested();
     }
     return true;
@@ -3222,9 +3237,9 @@ void RoboScene::CompositeAppWindow() {
     const float scale = SceneScale();
     const int surfaceW = std::max(1, static_cast<int>(std::lround(width)));
     const int surfaceH = std::max(1, static_cast<int>(std::lround(height)));
-    // Motion Soft Present: partial blit. Full wipe only when chrome/geometry invalid.
+    // Motion Soft Present: partial blit. Full wipe only when chrome/geometry invalid or parent wiped/damaged app rect.
     const bool fullHostedWipe =
-        !appHost_.surfaceValid || appHost_.paintDirty || appHost_.scene->fullDirty_ || appHost_.parentWiped;
+        !appHost_.surfaceValid || appHost_.paintDirty || appHost_.scene->fullDirty_ || appHost_.parentWiped || parentHitsApp;
     HostPlatform host;
     host.Bind(platform_, &frame_, static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
               ROBO_APP_HOST_RADIUS * scale);
@@ -3239,8 +3254,8 @@ void RoboScene::CompositeAppWindow() {
                              appHost_.scene->frame_.GetWidth() == surfaceW &&
                              appHost_.scene->frame_.GetHeight() == surfaceH;
     const bool mustRebuild =
-        appHost_.scene->items_.empty() || fullHostedWipe || appHost_.scene->NeedsRender() ||
-        appHost_.scene->fullDirty_ || !hasRetained || !appHost_.surfaceValid;
+        appHost_.scene->items_.empty() || !appHost_.surfaceValid || appHost_.paintDirty ||
+        appHost_.scene->NeedsRender() || appHost_.scene->fullDirty_ || !hasRetained;
     if (appHost_.scene->items_.empty()) {
         frame_.FillRoundedRect(x, y, width, height, ROBO_APP_HOST_RADIUS * scale,
                                page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
@@ -3467,10 +3482,24 @@ void RoboScene::CaptureChrome() {
     if (chromePixels_.size() != count * 4u) {
         chromePixels_.assign(count * 4u, 0);
     }
-    if (chromeMask_.size() != count) {
-        chromeMask_.assign(count, 0);
+    float appX = 0.0f;
+    float appY = 0.0f;
+    float appW = 0.0f;
+    float appH = 0.0f;
+    if (appHost_.open) {
+        AppHostFrame(appX, appY, appW, appH);
     }
+    const int appL = static_cast<int>(std::floor(appX));
+    const int appT = static_cast<int>(std::floor(appY));
+    const int appR = static_cast<int>(std::ceil(appX + appW));
+    const int appB = static_cast<int>(std::ceil(appY + appH));
     for (std::size_t index = 0; index < count; ++index) {
+        const int col = static_cast<int>(index % static_cast<std::size_t>(width));
+        const int row = static_cast<int>(index / static_cast<std::size_t>(width));
+        if (appHost_.open && col >= appL && col < appR && row >= appT && row < appB) {
+            chromeMask_[index] = 0u;
+            continue;
+        }
         const std::uint8_t* painted = frame + index * 4u;
         const std::uint8_t* base = chromeBase_.data() + index * 4u;
         const bool widget = painted[0] != base[0] || painted[1] != base[1] || painted[2] != base[2];
@@ -4040,6 +4069,21 @@ void RoboScene::Render(IPlatform& platform, FontEngine& fonts, const Color& back
                     areaY = desktopChrome.contentY;
                     areaW = static_cast<float>(width);
                     areaH = desktopChrome.contentHeight;
+                }
+                if (appHost_.open) {
+                    float appX = 0.0f;
+                    float appY = 0.0f;
+                    float appW = 0.0f;
+                    float appH = 0.0f;
+                    AppHostFrame(appX, appY, appW, appH);
+                    SelectionBounds occ;
+                    occ.x = appX;
+                    occ.y = appY;
+                    occ.width = appW;
+                    occ.height = appH;
+                    item.selectionArea.SetOcclusionRect(occ);
+                } else {
+                    item.selectionArea.ClearOcclusion();
                 }
                 const bool selectionDark = desktop_.HasTopBarMenu() ? desktop_.GetTopBarMenu().IsDark() : theme_ == Theme::Dark;
                 SelectionAreaPainter::Paint(frame, fonts, item.selectionArea, areaX, areaY, areaW, areaH, paintScale,
@@ -5641,11 +5685,18 @@ bool RoboScene::ShowOrHideSidebar() {
 
 void RoboScene::ToggleSidebar() {
     sidebarVisible_ = !sidebarVisible_;
+    sidebarAmount_ = sidebarVisible_ ? 1.0f : 0.0f;
     sidebarFrom_ = sidebarAmount_;
-    sidebarTo_ = sidebarVisible_ ? 1.0f : 0.0f;
+    sidebarTo_ = sidebarAmount_;
     sidebarElapsed_ = 0.0f;
-    sidebarAnimating_ = std::fabs(sidebarTo_ - sidebarFrom_) > 0.001f;
-    MarkSurfaceDirty();
+    sidebarAnimating_ = false;
+    for (SceneItem& item : items_) {
+        if (item.kind == SceneItemKind::TitleBar && item.titleBar) {
+            item.titleBar->SetSidebarOpen(sidebarVisible_);
+            item.titleBar->SetSidebarAmount(sidebarAmount_);
+        }
+    }
+    MarkFullDirty();
 }
 
 bool RoboScene::KeyDown(const std::string& key, bool shift) {
@@ -5940,6 +5991,9 @@ bool RoboScene::PointerMove(float x, float y) {
         if (contextMenu.Contains(x, y)) {
             return true;
         }
+    }
+    if (appHost_.open && PointerOnApp(x, y)) {
+        return ForwardAppMove(x, y);
     }
     if (ForwardAppMove(x, y)) {
         return true;
@@ -6352,7 +6406,7 @@ bool RoboScene::PointerDown(float x, float y, bool fromTouch, int clicks) {
                 SetTheme(Theme::Light);
             } else if (part == ThemeTogglePart::Dark) {
                 SetTheme(Theme::Dark);
-            } else if (part == ThemeTogglePart::Switch) {
+            } else if (part == ThemeTogglePart::Switch || part == ThemeTogglePart::None) {
                 SetTheme(theme_ == Theme::Dark ? Theme::Light : Theme::Dark);
             }
         }

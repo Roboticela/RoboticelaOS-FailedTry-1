@@ -106,14 +106,24 @@ $sources += @(
 $objects = @()
 foreach ($source in $sources) {
     $object = Join-Path $toolDir (([IO.Path]::GetFileNameWithoutExtension($source)) + ".o")
-    & $clang -std=c++17 -fexceptions -O2 `
-        -I (Join-Path $compiler "Compiler\Include") `
-        -I (Join-Path $compiler "Compiler\ThirdParty") `
-        -I (Join-Path $compiler "XMLCompiler\Include") `
-        -I (Join-Path $compiler "RoboPlatforms\RoboticelaOS") `
-        -c $source -o $object
-    if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+    $needCompile = $true
+    if (Test-Path $object) {
+        $srcTime = (Get-Item $source).LastWriteTime
+        $objTime = (Get-Item $object).LastWriteTime
+        if ($objTime -ge $srcTime) {
+            $needCompile = $false
+        }
+    }
+    if ($needCompile) {
+        & $clang -std=c++17 -fexceptions -O2 `
+            -I (Join-Path $compiler "Compiler\Include") `
+            -I (Join-Path $compiler "Compiler\ThirdParty") `
+            -I (Join-Path $compiler "XMLCompiler\Include") `
+            -I (Join-Path $compiler "RoboPlatforms\RoboticelaOS") `
+            -c $source -o $object
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
     }
     $objects += $object
 }
