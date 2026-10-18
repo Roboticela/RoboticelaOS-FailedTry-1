@@ -329,6 +329,9 @@ extern "C" void RoboKernelContinue(RoboBootInfo* info) {
                     RoboShellKey(event.code, event.pressed != 0);
                 }
                 shellInput = true;
+            } else if (event.kind == ROBO_INPUT_WHEEL && gShellLive) {
+                RoboShellWheel(desktop.cursorX, desktop.cursorY, event.dx, event.dy);
+                shellInput = true;
             } else if ((event.kind == ROBO_INPUT_TOUCHPAD || event.kind == ROBO_INPUT_TOUCH) && event.xMax > 0 && event.yMax > 0) {
                 int32_t width = desktop.gpu->width;
                 int32_t height = desktop.gpu->height;

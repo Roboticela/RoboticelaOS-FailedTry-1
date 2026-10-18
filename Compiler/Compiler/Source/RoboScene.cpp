@@ -3118,9 +3118,21 @@ void RoboScene::OpenApp(const char* appId) {
 }
 
 bool RoboScene::ForwardAppMove(float x, float y) {
-    if (!appHost_.open || appHost_.scene == nullptr || !appHost_.focus || !PointerOnApp(x, y)) {
+    if (!appHost_.open || appHost_.scene == nullptr) {
         return false;
     }
+    const bool inside = PointerOnApp(x, y);
+    const bool dragging = appHost_.scene->draggingScrollbar_ != nullptr;
+    if (!inside && !dragging) {
+        if (appHost_.pointerInside) {
+            appHost_.pointerInside = false;
+            appHost_.scene->PointerLeave();
+            DirtyAppFromNested();
+            return true;
+        }
+        return false;
+    }
+    appHost_.pointerInside = true;
     float left = 0.0f;
     float top = 0.0f;
     float width = 0.0f;
@@ -3130,14 +3142,8 @@ bool RoboScene::ForwardAppMove(float x, float y) {
     if (!appHost_.scene->PointerMove(x - left, y - top)) {
         return false;
     }
-#ifdef ROBO_KERNEL
-    // Hover Soft Present of 100+ MotionShapes is the Web vs OS gap: Web is GPU dirty-rects,
-    // OS is software Composite + scaled Present. Update hover state only; paint on click/wheel.
-    return true;
-#else
     DirtyAppFromNested();
     return true;
-#endif
 }
 
 bool RoboScene::ForwardAppPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks) {
@@ -5195,7 +5201,20 @@ bool RoboScene::OwnsScrollGesture(float x, float y) {
 }
 
 bool RoboScene::KeyScrollLine(int direction) {
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.focus) {
+        if (appHost_.scene->KeyScrollLine(direction)) {
+            DirtyAppFromNested();
+            return true;
+        }
+    }
     Scrollbar* target = ActiveScrollbar();
+    if (!target) {
+        if (pageVertical_.IsVisible()) {
+            target = &pageVertical_;
+        } else if (pageHorizontal_.IsVisible()) {
+            target = &pageHorizontal_;
+        }
+    }
     if (!target || direction == 0) {
         return false;
     }
@@ -5207,7 +5226,20 @@ bool RoboScene::KeyScrollLine(int direction) {
 }
 
 bool RoboScene::KeyScrollPage(int direction) {
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.focus) {
+        if (appHost_.scene->KeyScrollPage(direction)) {
+            DirtyAppFromNested();
+            return true;
+        }
+    }
     Scrollbar* target = ActiveScrollbar();
+    if (!target) {
+        if (pageVertical_.IsVisible()) {
+            target = &pageVertical_;
+        } else if (pageHorizontal_.IsVisible()) {
+            target = &pageHorizontal_;
+        }
+    }
     if (!target || direction == 0) {
         return false;
     }
@@ -5219,7 +5251,20 @@ bool RoboScene::KeyScrollPage(int direction) {
 }
 
 bool RoboScene::KeyScrollToStart() {
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.focus) {
+        if (appHost_.scene->KeyScrollToStart()) {
+            DirtyAppFromNested();
+            return true;
+        }
+    }
     Scrollbar* target = ActiveScrollbar();
+    if (!target) {
+        if (pageVertical_.IsVisible()) {
+            target = &pageVertical_;
+        } else if (pageHorizontal_.IsVisible()) {
+            target = &pageHorizontal_;
+        }
+    }
     if (!target) {
         return false;
     }
@@ -5231,7 +5276,20 @@ bool RoboScene::KeyScrollToStart() {
 }
 
 bool RoboScene::KeyScrollToEnd() {
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.focus) {
+        if (appHost_.scene->KeyScrollToEnd()) {
+            DirtyAppFromNested();
+            return true;
+        }
+    }
     Scrollbar* target = ActiveScrollbar();
+    if (!target) {
+        if (pageVertical_.IsVisible()) {
+            target = &pageVertical_;
+        } else if (pageHorizontal_.IsVisible()) {
+            target = &pageHorizontal_;
+        }
+    }
     if (!target) {
         return false;
     }
@@ -6008,11 +6066,10 @@ bool RoboScene::PointerMove(float x, float y) {
             return true;
         }
     }
-    if (appHost_.open && PointerOnApp(x, y)) {
-        return ForwardAppMove(x, y);
-    }
-    if (ForwardAppMove(x, y)) {
-        return true;
+    if (appHost_.open) {
+        if (ForwardAppMove(x, y)) {
+            return true;
+        }
     }
     if (SelectionArea* area = GesturingSelection()) {
         if (area->ClearHover()) {
@@ -6023,26 +6080,7 @@ bool RoboScene::PointerMove(float x, float y) {
             return true;
         }
     }
-    // Desktop icon hover plate removed (QEMU showed a black popup). Clear any prior hover once.
-    if (desktop_.IsEnabled()) {
-        for (SceneItem& item : items_) {
-            if (item.kind != SceneItemKind::SelectionArea) {
-                continue;
-            }
-            SelectionArea& area = item.selectionArea;
-            const int prior = area.Hover();
-            if (prior < 0 || !area.ClearHover()) {
-                continue;
-            }
-            const std::vector<SelectionAreaItem>& icons = area.Items();
-            if (prior < static_cast<int>(icons.size())) {
-                const SelectionBounds& bounds = icons[static_cast<std::size_t>(prior)].GetBounds();
-                if (bounds.width > 0.0f && bounds.height > 0.0f) {
-                    MarkDirty(bounds.x - 4.0f, bounds.y - 4.0f, bounds.width + 8.0f, bounds.height + 8.0f);
-                }
-            }
-        }
-    }
+    const bool folderHover = desktop_.IsEnabled() && UpdateSelectionHover(x, y);
     selectX_ = x;
     selectY_ = y;
     if (desktop_.IsEnabled()) {
@@ -6155,7 +6193,7 @@ bool RoboScene::PointerMove(float x, float y) {
         }
     }
 
-    bool changed = railChanged;
+    bool changed = railChanged || folderHover;
     changed = SetHoveredScrollbar(scrollbar) || changed;
     changed = SetHoveredSidebarItem(pane) || changed;
     changed = SetHoveredButton(button) || changed;
@@ -6936,12 +6974,7 @@ bool RoboScene::NeedsTick() {
     // Nested infinite MotionShapes must not keep NeedsTick true every frame — that blocks
     // RoboArchIdle and makes the whole desktop (including the mouse) feel delayed in QEMU.
     if (appHost_.open && appHost_.scene != nullptr && appHost_.scene->NeedsTick()) {
-#ifdef ROBO_KERNEL
-        // Kernel: never wake the shell solely for hosted motion Soft Present.
-        return false;
-#else
         return appHost_.motionPresentDueMs <= 0.0;
-#endif
     }
     bool needsTick = false;
     auto visit = [&needsTick](Scrollbar& scrollbar) {

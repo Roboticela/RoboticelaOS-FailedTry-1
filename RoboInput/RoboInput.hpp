@@ -6,6 +6,7 @@
 #define ROBO_INPUT_KEY 2u
 #define ROBO_INPUT_TOUCHPAD 3u
 #define ROBO_INPUT_TOUCH 4u
+#define ROBO_INPUT_WHEEL 5u
 
 struct RoboInputEvent {
     uint8_t kind;

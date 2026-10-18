@@ -31,6 +31,13 @@ void RoboShellPointerUp(int32_t x, int32_t y) {
     (void)y;
 }
 
+void RoboShellWheel(int32_t x, int32_t y, int32_t deltaX, int32_t deltaY) {
+    (void)x;
+    (void)y;
+    (void)deltaX;
+    (void)deltaY;
+}
+
 void RoboShellKey(uint16_t code, bool pressed) {
     (void)code;
     (void)pressed;

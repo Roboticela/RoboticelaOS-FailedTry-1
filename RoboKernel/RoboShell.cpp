@@ -183,6 +183,8 @@ const char* RoboKeyName(uint16_t code, char* printable) {
         if (extended == 0x4D) return "ArrowRight";
         if (extended == 0x47) return "Home";
         if (extended == 0x4F) return "End";
+        if (extended == 0x49) return "PageUp";
+        if (extended == 0x51) return "PageDown";
         if (extended == 0x53) return "Delete";
         return nullptr;
     }
@@ -358,6 +360,12 @@ void RoboShellPointerUp(int32_t x, int32_t y) {
     }
 }
 
+void RoboShellWheel(int32_t x, int32_t y, int32_t deltaX, int32_t deltaY) {
+    if (gScene != nullptr) {
+        gScene->Wheel(RoboSceneCoord(x), RoboSceneCoord(y), static_cast<float>(deltaX), static_cast<float>(deltaY));
+    }
+}
+
 void RoboShellKey(uint16_t code, bool pressed) {
     if (gScene == nullptr) {
         return;
@@ -410,6 +418,18 @@ void RoboShellKey(uint16_t code, bool pressed) {
             handled = gScene->KeyLeft();
         } else if (!handled && strcmp(downName, "ArrowRight") == 0) {
             handled = gScene->KeyRight();
+        } else if (!handled && strcmp(downName, "ArrowUp") == 0) {
+            handled = gScene->KeyScrollLine(-1);
+        } else if (!handled && strcmp(downName, "ArrowDown") == 0) {
+            handled = gScene->KeyScrollLine(1);
+        } else if (!handled && strcmp(downName, "PageUp") == 0) {
+            handled = gScene->KeyScrollPage(-1);
+        } else if (!handled && strcmp(downName, "PageDown") == 0) {
+            handled = gScene->KeyScrollPage(1);
+        } else if (!handled && strcmp(downName, "Home") == 0) {
+            handled = gScene->KeyScrollToStart();
+        } else if (!handled && strcmp(downName, "End") == 0) {
+            handled = gScene->KeyScrollToEnd();
         }
     }
     if (!handled && printable != 0 && gCtrl == 0 && gAlt == 0 && gMeta == 0) {

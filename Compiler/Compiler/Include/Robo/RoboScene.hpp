@@ -387,6 +387,7 @@ private:
         double motionAccumMs = 0.0;
         double movePresentDueMs = 0.0;
         char id[48]{};
+        bool pointerInside = false;
     };
     RoboAppHost appHost_{};
     RoboAppBuildStepFn appBuildStepFn_ = nullptr;

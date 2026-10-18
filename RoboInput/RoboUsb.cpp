@@ -7,14 +7,15 @@
 
 namespace {
 
-constexpr uint32_t ROBO_USB_DEVICE_MAX = 8;
+constexpr uint32_t ROBO_USB_DEVICE_MAX = 32;
 constexpr uint32_t ROBO_USB_HOST_MAX = 3;
-constexpr uint32_t ROBO_HID_FIELD_MAX = 12;
+constexpr uint32_t ROBO_HID_FIELD_MAX = 16;
 constexpr uint32_t ROBO_TRB_COUNT = 256;
 constexpr uint32_t ROBO_USB_KIND_MOUSE = 1;
 constexpr uint32_t ROBO_USB_KIND_TOUCHPAD = 2;
 constexpr uint32_t ROBO_USB_KIND_TOUCH = 3;
 constexpr uint32_t ROBO_USB_KIND_KEYBOARD = 4;
+constexpr uint32_t ROBO_USB_KIND_HUB = 5;
 constexpr uint8_t ROBO_PORT_KIND_USB = 1;
 constexpr uint8_t ROBO_PORT_KIND_USBC = 2;
 constexpr uint8_t ROBO_PORT_KIND_THUNDERBOLT = 3;
@@ -61,6 +62,10 @@ struct RoboUsbDevice {
     uint8_t kind;
     uint8_t dci;
     uint8_t running;
+    uint8_t parentSlot;
+    uint8_t parentPort;
+    uint8_t isHub;
+    uint8_t hubPorts;
     uint16_t maxPacket;
     RoboRing endpoint;
     uint64_t output;
@@ -209,8 +214,9 @@ void RoboHidAddField(RoboUsbDevice* device, uint16_t page, uint16_t usage, uint3
     if (device->fieldCount >= ROBO_HID_FIELD_MAX || bitSize == 0 || bitSize > 32u) {
         return;
     }
-    bool useful = (page == 0x01u && (usage == 0x30u || usage == 0x31u))
-        || (page == 0x0Du && (usage == 0x30u || usage == 0x31u || usage == 0x42u))
+    bool useful = (page == 0x01u && (usage == 0x30u || usage == 0x31u || usage == 0x38u))
+        || (page == 0x0Cu && usage == 0x0238u)
+        || (page == 0x0Du && (usage == 0x30u || usage == 0x31u || usage == 0x42u || usage == 0x54u))
         || (page == 0x09u && usage >= 0x01u && usage <= 0x03u);
     if (!useful) {
         return;
@@ -510,6 +516,17 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
     int32_t y = RoboHidValue(report, length, yField);
     RoboInputEvent event{};
     if (xField->relative != 0) {
+        const RoboHidField* wheelField = RoboHidFind(device, 0x01u, 0x38u, reportId);
+        const RoboHidField* panField = RoboHidFind(device, 0x0Cu, 0x0238u, reportId);
+        int32_t wheel = wheelField != nullptr ? RoboHidValue(report, length, wheelField) : 0;
+        int32_t pan = panField != nullptr ? RoboHidValue(report, length, panField) : 0;
+        if (wheel != 0 || pan != 0) {
+            RoboInputEvent wheelEvent{};
+            wheelEvent.kind = ROBO_INPUT_WHEEL;
+            wheelEvent.dx = pan * 24;
+            wheelEvent.dy = -wheel * 24;
+            RoboInputPush(&wheelEvent);
+        }
         const RoboHidField* button = RoboHidFind(device, 0x09u, 0x01u, reportId);
         const RoboHidField* rightButton = RoboHidFind(device, 0x09u, 0x02u, reportId);
         uint8_t left = button != nullptr && RoboHidValue(report, length, button) != 0 ? 1u : 0u;
@@ -553,6 +570,27 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
     if (xField->logicalMax <= 0 || yField->logicalMax <= 0) {
         return;
     }
+    const RoboHidField* contactCountField = RoboHidFind(device, 0x0Du, 0x54u, reportId);
+    int32_t contactCount = contactCountField != nullptr ? RoboHidValue(report, length, contactCountField) : 0;
+    const bool moved = x != device->lastX || y != device->lastY;
+    if (device->kind == ROBO_USB_KIND_TOUCHPAD && contactCount >= 2) {
+        if (moved && device->lastXMax > 0 && device->lastYMax > 0) {
+            int32_t dx = x - device->lastX;
+            int32_t dy = y - device->lastY;
+            RoboInputEvent wheelEvent{};
+            wheelEvent.kind = ROBO_INPUT_WHEEL;
+            wheelEvent.dx = -dx * 200 / xField->logicalMax;
+            wheelEvent.dy = -dy * 200 / yField->logicalMax;
+            if (wheelEvent.dx != 0 || wheelEvent.dy != 0) {
+                RoboInputPush(&wheelEvent);
+            }
+        }
+        device->lastX = x;
+        device->lastY = y;
+        device->lastXMax = xField->logicalMax;
+        device->lastYMax = yField->logicalMax;
+        return;
+    }
     uint8_t right = 0;
     if (device->kind != ROBO_USB_KIND_TOUCH && rightButton != nullptr) {
         right = RoboHidValue(report, length, rightButton) != 0 ? 1u : 0u;
@@ -562,7 +600,6 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
     if (changed == 0 && rightChanged == 0 && x == device->lastX && y == device->lastY) {
         return;
     }
-    const bool moved = x != device->lastX || y != device->lastY;
     device->contact = pressed;
     device->rightContact = right;
     device->lastX = x;
@@ -769,7 +806,16 @@ void RoboUsbFillSlot(RoboUsbDevice* device, uint32_t entries) {
         slot[index] = 0;
     }
     slot[0] = (entries << 27) | (static_cast<uint32_t>(device->speed) << 20);
+    if (device->isHub != 0) {
+        slot[0] |= (1u << 26);
+    }
     slot[1] = static_cast<uint32_t>(device->port) << 16;
+    if (device->isHub != 0) {
+        slot[1] |= static_cast<uint32_t>(device->hubPorts) << 24;
+    }
+    if (device->parentSlot != 0) {
+        slot[2] = static_cast<uint32_t>(device->parentSlot) | (static_cast<uint32_t>(device->parentPort) << 8);
+    }
 }
 
 void RoboUsbFillEndpoint(uint32_t* endpoint, uint32_t type, uint32_t maxPacket, uint32_t interval, uint64_t ring) {
@@ -820,6 +866,7 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
         return false;
     }
     uint8_t* descriptor = reinterpret_cast<uint8_t*>(gControlData);
+    uint8_t devClass = descriptor[4];
     if (!RoboUsbControl(device, 0x80u, 6u, 0x0200u, 0, 9u, true)) {
         return false;
     }
@@ -840,6 +887,7 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
     uint8_t endpointInterval = 1;
     uint16_t reportLength = 0;
     bool hid = false;
+    bool isHub = devClass == 0x09u;
     for (uint32_t offset = 0; offset + 2u <= total;) {
         uint8_t len = descriptor[offset];
         uint8_t type = descriptor[offset + 1u];
@@ -847,6 +895,9 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
             break;
         }
         if (type == 4u && len >= 9u) {
+            if (descriptor[offset + 5u] == 0x09u) {
+                isHub = true;
+            }
             hid = descriptor[offset + 5u] == 3u;
             interfaceNumber = descriptor[offset + 2u];
             protocol = descriptor[offset + 7u];
@@ -863,6 +914,30 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
             }
         }
         offset += len;
+    }
+    if (isHub) {
+        if (!RoboUsbControl(device, 0x00u, 9u, configuration, 0, 0, false)) {
+            return false;
+        }
+        uint16_t hubDescType = device->speed >= 4u ? 0x2A00u : 0x2900u;
+        uint8_t numPorts = 4u;
+        if (RoboUsbControl(device, 0xA0u, 6u, hubDescType, 0, 8u, true)) {
+            numPorts = descriptor[2];
+            if (numPorts == 0 || numPorts > 16u) {
+                numPorts = 4u;
+            }
+        }
+        device->isHub = 1;
+        device->hubPorts = numPorts;
+        device->kind = ROBO_USB_KIND_HUB;
+        for (uint8_t port = 1; port <= numPorts; ++port) {
+            RoboUsbControl(device, 0x23u, 3u, 8u, port, 0, false);
+        }
+        RoboZeroPage(device->input);
+        RoboUsbFillSlot(device, 1u);
+        RoboContext(device->input, 0)[1] = 1u;
+        RoboUsbCommand(static_cast<uint32_t>(device->input), static_cast<uint32_t>(device->input >> 32), 0, (13u << 10) | (static_cast<uint32_t>(device->slot) << 24));
+        return true;
     }
     if (endpointAddress == 0) {
         return false;
@@ -953,9 +1028,50 @@ void RoboUsbEnumerate(uint32_t port, uint32_t portsc) {
     RoboUsbPrepare(device, 0);
 }
 
+void RoboUsbEnumerateChild(RoboUsbDevice* parentHub, uint8_t parentPort, uint8_t childSpeed) {
+    uint32_t slotIndex = 0;
+    while (slotIndex < ROBO_USB_DEVICE_MAX && gDevices[slotIndex].used) {
+        slotIndex += 1u;
+    }
+    if (slotIndex >= ROBO_USB_DEVICE_MAX || gDcba == 0) {
+        return;
+    }
+    if (childSpeed < 1u || childSpeed > 4u) {
+        childSpeed = 1u;
+    }
+    if (!RoboUsbCommand(0, 0, 0, 9u << 10) || gCommandSlot == 0 || gCommandSlot > gHost->maxSlots) {
+        return;
+    }
+    uint64_t output = RoboPageAlloc();
+    uint64_t input = RoboPageAlloc();
+    uint64_t ep0 = RoboPageAlloc();
+    if (output == 0 || input == 0 || ep0 == 0) {
+        return;
+    }
+    RoboUsbDevice* device = &gDevices[slotIndex];
+    *device = {};
+    device->used = 1;
+    device->slot = gCommandSlot;
+    device->host = parentHub->host;
+    device->speed = childSpeed;
+    device->port = parentHub->port;
+    device->parentSlot = parentHub->slot;
+    device->parentPort = parentPort;
+    device->maxPacket = childSpeed >= 3u ? 64u : 8u;
+    device->output = output;
+    device->input = input;
+    RoboRingInit(&device->endpoint, ep0);
+    reinterpret_cast<uint64_t*>(gDcba)[device->slot] = output;
+    if (!RoboUsbAddress(device)) {
+        device->used = 0;
+        return;
+    }
+    RoboUsbPrepare(device, 0);
+}
+
 bool RoboUsbPortFree(uint32_t port) {
     for (uint32_t index = 0; index < ROBO_USB_DEVICE_MAX; ++index) {
-        if (gDevices[index].used && gDevices[index].host == gHost->index && gDevices[index].port == port) {
+        if (gDevices[index].used && gDevices[index].host == gHost->index && gDevices[index].port == port && gDevices[index].parentSlot == 0) {
             return false;
         }
     }
@@ -1228,6 +1344,52 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     }
 }
 
+void RoboUsbScanHubs(void) {
+    for (uint32_t d = 0; d < ROBO_USB_DEVICE_MAX; ++d) {
+        RoboUsbDevice* hub = &gDevices[d];
+        if (!hub->used || !hub->isHub || hub->host != gHost->index) {
+            continue;
+        }
+        for (uint8_t p = 1; p <= hub->hubPorts; ++p) {
+            bool childFound = false;
+            for (uint32_t c = 0; c < ROBO_USB_DEVICE_MAX; ++c) {
+                if (gDevices[c].used && gDevices[c].parentSlot == hub->slot && gDevices[c].parentPort == p) {
+                    childFound = true;
+                    break;
+                }
+            }
+            if (childFound) {
+                continue;
+            }
+            if (!RoboUsbControl(hub, 0xA3u, 0u, 0u, p, 4u, true)) {
+                continue;
+            }
+            uint32_t portStatus = *reinterpret_cast<uint32_t*>(gControlData);
+            if ((portStatus & 1u) != 0) {
+                if ((portStatus & 2u) == 0) {
+                    RoboUsbControl(hub, 0x23u, 3u, 4u, p, 0, false);
+                    RoboUsbDelay(50000u);
+                    RoboUsbControl(hub, 0x23u, 1u, 20u, p, 0, false);
+                    if (RoboUsbControl(hub, 0xA3u, 0u, 0u, p, 4u, true)) {
+                        portStatus = *reinterpret_cast<uint32_t*>(gControlData);
+                    }
+                }
+                if ((portStatus & 1u) != 0) {
+                    uint8_t childSpeed = 1u;
+                    if ((portStatus & (1u << 9)) != 0) {
+                        childSpeed = 2u;
+                    } else if ((portStatus & (1u << 10)) != 0) {
+                        childSpeed = 3u;
+                    } else if (hub->speed >= 4u) {
+                        childSpeed = 4u;
+                    }
+                    RoboUsbEnumerateChild(hub, p, childSpeed);
+                }
+            }
+        }
+    }
+}
+
 }  // namespace
 
 void RoboUsbCollect(void) {
@@ -1259,6 +1421,7 @@ void RoboUsbCollect(void) {
                 gHost->scanPort = 1;
             }
         }
+        RoboUsbScanHubs();
     }
 }
 
