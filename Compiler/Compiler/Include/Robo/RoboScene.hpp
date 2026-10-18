@@ -381,8 +381,10 @@ private:
         bool parentWiped = false;
         // Soft-Present the empty hole once before Tick loads ELF / builds UI.
         bool awaitFirstPresent = false;
-        // Cap Soft Present of nested motion (~15 FPS) so QEMU stays interactive.
+        // Cap Soft Present of nested motion / move so QEMU stays interactive.
         double motionPresentDueMs = 0.0;
+        double motionAccumMs = 0.0;
+        double movePresentDueMs = 0.0;
         char id[48]{};
     };
     RoboAppHost appHost_{};

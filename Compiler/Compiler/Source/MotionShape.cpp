@@ -11,6 +11,8 @@ namespace Robo {
 
 namespace {
 
+bool gHostMotionPaintLite = false;
+
 float Lerp(float a, float b, float t) {
     return a + (b - a) * t;
 }
@@ -323,6 +325,10 @@ void MotionShape::ScaleBounds(float factor) {
     }
 }
 
+void RoboSetHostMotionPaintLite(bool lite) {
+    gHostMotionPaintLite = lite;
+}
+
 void MotionShape::Paint(FrameBuffer& buffer, float originX, float originY, float parentWidth, float parentHeight, float pixelScale) const {
     const float scale = std::max(0.5f, pixelScale);
     const MotionSample motion = SampleMotion(animation_, elapsedMs_, animationDelayMs_);
@@ -366,6 +372,30 @@ void MotionShape::Paint(FrameBuffer& buffer, float originX, float originY, float
     bounds_.width = drawW;
     bounds_.height = drawH;
     if (opacity <= 0.001f) {
+        return;
+    }
+    // Hosted Soft Present on QEMU: skip SVG raster + isolate FrameBuffer layers.
+    if (gHostMotionPaintLite) {
+        const float centerX = drawX + drawW * 0.5f;
+        const float centerY = drawY + drawH * 0.5f;
+        const float paintScale = scale * visualScale;
+        const float paintX = centerX + (drawX - centerX) * visualScale;
+        const float paintY = centerY + (drawY - centerY) * visualScale;
+        const float paintW = drawW * visualScale;
+        const float paintH = drawH * visualScale;
+        if (fill.alpha > 0 || fillEnd.alpha > 0) {
+            if (kind_ == Kind::Ellipse || radius_ > 0.0f) {
+                const float radius = kind_ == Kind::Ellipse ? std::min(paintW, paintH) * 0.5f : radius_ * paintScale;
+                buffer.FillRoundedRect(paintX, paintY, paintW, paintH, radius, fill, opacity);
+            } else {
+                buffer.FillRect(static_cast<int>(std::floor(paintX)), static_cast<int>(std::floor(paintY)),
+                                static_cast<int>(std::ceil(paintW)), static_cast<int>(std::ceil(paintH)), fill, opacity);
+            }
+        }
+        for (const MotionShape& child : children_) {
+            child.Paint(buffer, paintX, paintY, paintW, paintH, paintScale);
+        }
+        (void)visualRotate;
         return;
     }
 

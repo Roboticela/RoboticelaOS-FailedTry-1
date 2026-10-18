@@ -275,22 +275,17 @@ bool RoboShellStart(RoboDesktop* desktop) {
     }
     const int frameWidth = desktop->gpu->width;
     const int frameHeight = desktop->gpu->height;
-    float pixelScale = 1.0f;
-    int surfaceWidth = frameWidth;
-    int surfaceHeight = frameHeight;
+    // Keep ROBO_RENDER_QUALITY for paint metrics, but surface always == GOP.
+    // PaintSize > GOP forces scaled Present and sinks the mouse under QEMU.
+    float pixelScale = Robo::RenderQuality();
     if (frameHeight >= 1800) {
-        // Keep surface == framebuffer: PaintSize here OOMs the shell heap when an app opens.
         pixelScale = 2.0f;
     } else if (frameHeight >= 1400) {
         pixelScale = 1.5f;
-    } else if (frameWidth > 0 && frameHeight > 0) {
-        const float quality = Robo::RenderQuality();
-        pixelScale = quality;
-        surfaceWidth = Robo::PaintSize(frameWidth, quality);
-        surfaceHeight = Robo::PaintSize(frameHeight, quality);
     }
-    // Pointer space is the paint surface. When surface == GOP, scale is 1 even if paintScale > 1.
-    gSceneScale = frameWidth > 0 ? static_cast<float>(surfaceWidth) / static_cast<float>(frameWidth) : 1.0f;
+    const int surfaceWidth = frameWidth;
+    const int surfaceHeight = frameHeight;
+    gSceneScale = 1.0f;
     gPlatform->SetPixelScale(pixelScale);
     gPlatform->SetKeepPixel(RoboShellKeepCursor, desktop);
     gScene->SetPaintPump(RoboShellTrackCursor, nullptr);
@@ -517,6 +512,10 @@ bool RoboShellFlush(RoboDesktop* desktop) {
         return false;
     }
     gPresentUnion = false;
+    // At most one Soft Present follow-up. SoftPresentHostedApp() after every pass used to
+    // re-dirty the hosted window and force a second full Composite — that made TestApp
+    // feel frozen under QEMU while Web stayed fine.
+    bool hostedSoftFollow = false;
     for (int pass = 0; pass < 2; ++pass) {
         if (pass > 0 && !gScene->NeedsRender()) {
             break;
@@ -527,17 +526,18 @@ bool RoboShellFlush(RoboDesktop* desktop) {
         gScene->Render(*gPlatform, *gFonts, Robo::Color::FromHex("#202838"), 24.0f);
         gRoboShellGuard = 0;
         RoboShellNotePresent();
-        if (gCursorMovedDuringPaint) {
-            RoboShellPointerMove(desktop->cursorX, desktop->cursorY);
-        }
         if (gClickDuringPaint == 1) {
             RoboShellPointerDown(desktop->cursorX, desktop->cursorY, false);
         } else if (gClickDuringPaint == 2) {
             RoboShellPointerUp(desktop->cursorX, desktop->cursorY);
+        } else if (gCursorMovedDuringPaint && !gScene->AppOpen()) {
+            // Desktop cursor already moved in TrackCursor. Re-entering scene PointerMove
+            // while a hosted Soft Present runs queues another Soft Present (QEMU sink).
+            RoboShellPointerMove(desktop->cursorX, desktop->cursorY);
         }
-        // Pass-2 hover MarkDirty must not wallpaper-wipe the hosted window.
-        if (gScene->AppOpen() && gScene->NeedsRender()) {
-            gScene->SoftPresentHostedApp();
+        if (pass == 0 && gScene->AppOpen() && gScene->NeedsRender() && !hostedSoftFollow) {
+            hostedSoftFollow = true;
+            // Leave NeedsRender set — pass 1 Render Soft Presents. Do not SoftPresentHostedApp().
         }
     }
     RoboDesktopRedrawCursor(desktop);

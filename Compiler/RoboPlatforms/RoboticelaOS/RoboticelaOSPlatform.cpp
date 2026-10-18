@@ -159,26 +159,32 @@ void RoboticelaOSPlatform::Present(const FrameBuffer& buffer) {
         int32_t cursorHeight = 0;
         const bool cursor = RoboDesktopCursorRect(&cursorX, &cursorY, &cursorWidth, &cursorHeight);
 #endif
-        // Nearest-neighbor downsample keeps paint at ROBO_RENDER_QUALITY 1.3 without
-        // the O(coverage) area-filter that made every Present a CPU sink.
+        // Fixed-point nearest-neighbor — avoid per-pixel float and keep cursor Pump cheap.
+        const int stepX = std::max(1, static_cast<int>(scaleX * 256.0f));
+        const int stepY = std::max(1, static_cast<int>(scaleY * 256.0f));
+        int sourceYFixed = static_cast<int>((static_cast<float>(screenY0) + 0.5f) * scaleY * 256.0f);
         for (int row = 0; row < screenHeight; ++row) {
             const int screenY = screenY0 + row;
-            const int sourceY = std::min(height_ - 1, std::max(0, static_cast<int>((static_cast<float>(screenY) + 0.5f) * scaleY)));
+            const int sourceY = std::min(height_ - 1, std::max(0, sourceYFixed >> 8));
+            sourceYFixed += stepY;
             std::uint8_t* to = scanout_ + static_cast<std::size_t>(screenY) * static_cast<std::size_t>(scanoutStride_) + static_cast<std::size_t>(screenX0) * 4u;
             auto* packed = reinterpret_cast<std::uint32_t*>(to);
 #ifdef ROBO_KERNEL
             const bool cursorRow = cursor && screenY >= cursorY && screenY < cursorY + cursorHeight;
 #endif
+            int sourceXFixed = static_cast<int>((static_cast<float>(screenX0) + 0.5f) * scaleX * 256.0f);
             for (int column = 0; column < screenWidth; ++column) {
                 const int screenX = screenX0 + column;
-                const int sourceX = std::min(width_ - 1, std::max(0, static_cast<int>((static_cast<float>(screenX) + 0.5f) * scaleX)));
+                const int sourceX = std::min(width_ - 1, std::max(0, sourceXFixed >> 8));
+                sourceXFixed += stepX;
                 const std::uint8_t* from = source + (static_cast<std::size_t>(sourceY) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(sourceX)) * 4u;
-                uint32_t scene = Pack(from[0], from[1], from[2]);
+                const uint32_t scene = Pack(from[0], from[1], from[2]);
 #ifdef ROBO_KERNEL
                 uint32_t cursorRgb = 0;
                 if (cursorRow && RoboDesktopCursorSample(screenX - cursorX, screenY - cursorY, &cursorRgb)) {
                     RoboDesktopRememberCursor(screenX - cursorX, screenY - cursorY, scene);
-                    packed[column] = Pack(static_cast<std::uint8_t>(cursorRgb >> 16), static_cast<std::uint8_t>(cursorRgb >> 8), static_cast<std::uint8_t>(cursorRgb));
+                    packed[column] = Pack(static_cast<std::uint8_t>(cursorRgb >> 16), static_cast<std::uint8_t>(cursorRgb >> 8),
+                                          static_cast<std::uint8_t>(cursorRgb));
                 } else {
                     packed[column] = scene;
                 }

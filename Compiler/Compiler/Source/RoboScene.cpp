@@ -161,7 +161,7 @@ public:
                     dst[dstIndex + 3u] = src[srcIndex + 3u];
                 }
             }
-            if ((row & 31) == 31) {
+            if ((row & 7) == 7) {
                 dest_->Pump();
             }
         }
@@ -2619,7 +2619,8 @@ void RoboScene::SoftPresentHostedApp() {
     if (!appHost_.open) {
         return;
     }
-    DirtyAppWindowSoft();
+    // Pass-2 Flush must not force paintDirty (full hosted wipe) — that lags the mouse.
+    DirtyAppFromNested();
 }
 
 void RoboScene::PumpPaint() {
@@ -2633,13 +2634,15 @@ void RoboScene::DirtyAppFromNested() {
         DirtyAppWindow();
         return;
     }
-    // Soft only: MarkDirty on the parent opens damageOpen_ and the main Render path
-    // paints wallpaper into the opaque window hole before Composite. Nested Tick/motion
-    // (TestApp infinite shapes) would then flicker every frame. PresentWallpaperAroundApp
-    // with window-only Present keeps the hole intact; nested NeedsRender drives Composite.
-    DirtyAppWindowSoft();
+    // Soft Present without paintDirty: paintDirty forces a full hosted wipe + TitleBar
+    // damage every Soft Present and freezes the mouse under QEMU when MotionShapes tick.
+    needsRender_ = true;
+    videoOnly_ = false;
+    wallpaperAroundApp_ = true;
+    appPresentWindowOnly_ = true;
     if (appHost_.scene->fullDirty_) {
         appHost_.surfaceValid = false;
+        appHost_.paintDirty = true;
     }
 }
 
@@ -2783,9 +2786,31 @@ bool RoboScene::WallpaperDue() const {
 }
 
 void RoboScene::AdvanceClock(double deltaMs) {
-    if (deltaMs > 0.0) {
-        wallpaperClockMs_ += deltaMs;
+    if (deltaMs <= 0.0) {
+        return;
     }
+    wallpaperClockMs_ += deltaMs;
+    if (!appHost_.open || appHost_.buildStep >= 0) {
+        return;
+    }
+    // Count down Soft Present gates while the shell idles (NeedsTick false).
+    if (appHost_.motionPresentDueMs > 0.0) {
+        appHost_.motionPresentDueMs -= deltaMs;
+        if (appHost_.motionPresentDueMs < 0.0) {
+            appHost_.motionPresentDueMs = 0.0;
+        }
+    }
+    if (appHost_.movePresentDueMs > 0.0) {
+        appHost_.movePresentDueMs -= deltaMs;
+        if (appHost_.movePresentDueMs < 0.0) {
+            appHost_.movePresentDueMs = 0.0;
+        }
+    }
+#ifdef ROBO_KERNEL
+    // Do not Tick 100+ MotionShapes on the idle path — even without Soft Present that
+    // burns QEMU. Interaction Soft Present runs Tick via nested Pointer/Key handlers.
+    appHost_.motionAccumMs = 0.0;
+#endif
 }
 
 void RoboScene::MarkContentDirty() {
@@ -3063,6 +3088,9 @@ void RoboScene::OpenApp(const char* appId) {
     appHost_.buildStep = 0;
     appHost_.railFillPending = true;
     appHost_.surfaceValid = false;
+    appHost_.motionPresentDueMs = 0.0;
+    appHost_.motionAccumMs = 0.0;
+    appHost_.movePresentDueMs = 0.0;
     // Kernel runs Tick before Flush. Hold build until Soft Present paints the hole,
     // otherwise ELF load/build blocks the empty window and looks like a full hang.
     appHost_.awaitFirstPresent = true;
@@ -3091,11 +3119,17 @@ bool RoboScene::ForwardAppMove(float x, float y) {
     float height = 0.0f;
     AppHostFrame(left, top, width, height);
     appHost_.scene->SetModifiers(modifiers_);
-    if (appHost_.scene->PointerMove(x - left, y - top)) {
-        DirtyAppFromNested();
-        return true;
+    if (!appHost_.scene->PointerMove(x - left, y - top)) {
+        return false;
     }
-    return false;
+#ifdef ROBO_KERNEL
+    // Hover Soft Present of 100+ MotionShapes is the Web vs OS gap: Web is GPU dirty-rects,
+    // OS is software Composite + scaled Present. Update hover state only; paint on click/wheel.
+    return true;
+#else
+    DirtyAppFromNested();
+    return true;
+#endif
 }
 
 bool RoboScene::ForwardAppPointer(float x, float y, bool down, bool up, bool fromTouch, int clicks) {
@@ -3188,23 +3222,33 @@ void RoboScene::CompositeAppWindow() {
     const float scale = SceneScale();
     const int surfaceW = std::max(1, static_cast<int>(std::lround(width)));
     const int surfaceH = std::max(1, static_cast<int>(std::lround(height)));
+    // Motion Soft Present: partial blit. Full wipe only when chrome/geometry invalid.
+    const bool fullHostedWipe =
+        !appHost_.surfaceValid || appHost_.paintDirty || appHost_.scene->fullDirty_ || appHost_.parentWiped;
     HostPlatform host;
     host.Bind(platform_, &frame_, static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)),
               ROBO_APP_HOST_RADIUS * scale);
     host.SetSurfaceSize(surfaceW, surfaceH);
     host.SetPixelScale(scale);
-    // Hosted window: always full-blit. Partial HostPlatform Present left stale chrome
-    // in the parent AABB (TitleBar trails) whenever nested damage was smaller than the window.
-    host.SetForceFullBlit(true);
+    host.SetForceFullBlit(fullHostedWipe);
     frame_.PushClipRect(x, y, width, height);
     // Forward shell pump so nested paint/blit cannot freeze the cursor.
     appHost_.scene->SetPaintPump(paintPump_, paintPumpCookie_);
-    if (nestedNeeds) {
-        const Color page = appHost_.scene->GetBackground();
-        // Do not EnsureRailChildren / EnsurePaneContent here — Tick micro-steps own that work.
-        // Full clear only when the nested surface is invalid or explicitly wiped — not on every
-        // scroll strip (that made hosted scroll stutter while Soft Present stayed correct).
-        if (appHost_.paintDirty || !appHost_.surfaceValid || appHost_.scene->fullDirty_) {
+    const Color page = appHost_.scene->GetBackground();
+    const bool hasRetained = appHost_.scene->frame_.GetPixels() != nullptr &&
+                             appHost_.scene->frame_.GetWidth() == surfaceW &&
+                             appHost_.scene->frame_.GetHeight() == surfaceH;
+    const bool mustRebuild =
+        appHost_.scene->items_.empty() || fullHostedWipe || appHost_.scene->NeedsRender() ||
+        appHost_.scene->fullDirty_ || !hasRetained || !appHost_.surfaceValid;
+    if (appHost_.scene->items_.empty()) {
+        frame_.FillRoundedRect(x, y, width, height, ROBO_APP_HOST_RADIUS * scale,
+                               page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
+        PumpPaint();
+        appHost_.paintDirty = false;
+        appHost_.surfaceValid = false;
+    } else if (mustRebuild) {
+        if (fullHostedWipe) {
             for (const SceneItem& item : appHost_.scene->Items()) {
                 if (item.kind == SceneItemKind::TitleBar || item.kind == SceneItemKind::Sidebar) {
                     appHost_.scene->DamageRect(0.0f, 0.0f, static_cast<float>(surfaceW),
@@ -3213,47 +3257,27 @@ void RoboScene::CompositeAppWindow() {
                 }
             }
         }
-        host.SetForceFullBlit(true);
-        if (appHost_.scene->items_.empty()) {
-            // Stub fill while micro-steps load — rounded so corner ears stay wallpaper.
-            // Do not mark surfaceValid or a later wipe-restore can Present this blank.
-            frame_.FillRoundedRect(x, y, width, height, ROBO_APP_HOST_RADIUS * scale,
-                                   page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
-            PumpPaint();
-            appHost_.paintDirty = false;
-            appHost_.surfaceValid = false;
-        } else {
-            appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
-            appHost_.paintDirty = false;
-            // Keep invalid while micro-steps run so corner restore cannot starve Tick.
-            appHost_.surfaceValid = appHost_.buildStep < 0;
-        }
-    } else if (appHost_.scene->frame_.GetPixels() != nullptr &&
-               appHost_.scene->frame_.GetWidth() == surfaceW &&
-               appHost_.scene->frame_.GetHeight() == surfaceH) {
-        appHost_.scene->frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
-        host.SetForceFullBlit(true);
-        host.Present(appHost_.scene->frame_);
+#if defined(ROBO_KERNEL)
+        // Full SVG MotionShapes on Soft Present freeze QEMU; AABB lite keeps chrome usable.
+        RoboSetHostMotionPaintLite(true);
+#endif
+        appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
+#if defined(ROBO_KERNEL)
+        RoboSetHostMotionPaintLite(false);
+#endif
+        appHost_.paintDirty = false;
+        appHost_.surfaceValid = appHost_.buildStep < 0;
     } else {
-        const Color page = appHost_.scene->GetBackground();
-        host.SetForceFullBlit(true);
-        if (appHost_.scene->items_.empty()) {
-            frame_.FillRoundedRect(x, y, width, height, ROBO_APP_HOST_RADIUS * scale,
-                                   page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 1.0f);
-            PumpPaint();
-            appHost_.paintDirty = false;
-            appHost_.surfaceValid = false;
-        } else {
-            appHost_.scene->Render(host, *fonts_, page.alpha > 0 ? page : Color::FromHex("#FFFFFF"), 0.0f);
-            appHost_.paintDirty = false;
-            appHost_.surfaceValid = appHost_.buildStep < 0;
+        // Retained blit only — Web-style: no full scene rebuild when pixels are still valid.
+        if (fullHostedWipe) {
+            appHost_.scene->frame_.SetPresentRect(0, 0, surfaceW, surfaceH);
         }
+        host.Present(appHost_.scene->frame_);
+        appHost_.paintDirty = false;
     }
     frame_.PopClip();
-    // HostPlatform skips ear pixels; restore wallpaper there so Soft AABB Present stays round.
-    // Skip while the nested surface is still loading — corner restore + media decode every
-    // build Soft Present starved the Tick loop (empty window + apparent hang on QEMU).
-    if (appHost_.surfaceValid) {
+    // Corner restore only on full wipe — every Soft Present was decoding wallpaper ears.
+    if (appHost_.surfaceValid && fullHostedWipe) {
         RestoreAppWindowCorners();
     }
     appHost_.parentWiped = false;
@@ -3578,18 +3602,19 @@ bool RoboScene::PresentWallpaperAroundApp(IPlatform& platform) {
     int presentY = 0;
     int presentW = surfaceW;
     int presentH = surfaceH;
-    if (windowOnly && !paintOutside) {
-        presentX = left;
-        presentY = top;
-        presentW = right - left;
-        presentH = bottom - top;
-    } else if (windowOnly || needComposite) {
+    if (paintOutside) {
+        // L-bands (and maybe window) were refreshed — Present the union once.
         presentX = 0;
         presentY = 0;
         presentW = surfaceW;
         presentH = surfaceH;
+    } else if (windowOnly || needComposite) {
+        // Soft Present: hosted AABB only — full-desktop Present was crushing QEMU.
+        presentX = left;
+        presentY = top;
+        presentW = right - left;
+        presentH = bottom - top;
     } else {
-        // L-bands only: Present the full surface once (hole already holds app pixels).
         presentX = 0;
         presentY = 0;
         presentW = surfaceW;
@@ -6542,9 +6567,8 @@ bool RoboScene::Tick(double deltaMs) {
         return true;
     }
     if (appHost_.open && appHost_.scene != nullptr && appHost_.buildStep >= 0) {
-        // Many micro-steps per tick; Soft Present only at chrome + finish so QEMU stays live.
-        constexpr int ROBO_BUILD_STEPS_PER_TICK = 16;
-        const int stepBefore = appHost_.buildStep;
+        // Build without Soft Present mid-way — one Composite when done (lite MotionShapes).
+        constexpr int ROBO_BUILD_STEPS_PER_TICK = 8;
         for (int n = 0; n < ROBO_BUILD_STEPS_PER_TICK && appHost_.buildStep >= 0; ++n) {
             PumpPaint();
             if (appBuildStepFn_ != nullptr) {
@@ -6559,9 +6583,7 @@ bool RoboScene::Tick(double deltaMs) {
             appHost_.railFillPending = appHost_.scene->railChildrenFn_ != nullptr;
             appHost_.surfaceValid = false;
             appHost_.paintDirty = true;
-            DirtyAppWindowSoft();
-        } else if (stepBefore <= 2 && appHost_.buildStep > 2) {
-            // TitleBar + Sidebar are up — one Soft Present, then keep building without paint.
+            appHost_.motionPresentDueMs = 0.0;
             DirtyAppWindowSoft();
         }
         changed = true;
@@ -6624,18 +6646,21 @@ bool RoboScene::Tick(double deltaMs) {
         }
     };
     VisitSceneScrollbars(items_, ActivePaneId(), visit);
-    // Nested motion: advance every tick, Soft Present at ~15 FPS (full Composite is heavy on QEMU).
-    if (appHost_.open && appHost_.scene != nullptr && appHost_.buildStep < 0) {
-        if (appHost_.scene->Tick(deltaMs)) {
-            constexpr double ROBO_APP_MOTION_PRESENT_MS = 66.0;
-            appHost_.motionPresentDueMs -= deltaMs;
-            if (appHost_.motionPresentDueMs <= 0.0) {
-                appHost_.motionPresentDueMs = ROBO_APP_MOTION_PRESENT_MS;
-                DirtyAppFromNested();
-            }
+    // Nested motion Soft Present: Web keeps animating; kernel freezes paint (AdvanceClock
+    // still ticks motion state). TestApp's 100+ MotionShapes Soft Present kills QEMU.
+#if !defined(ROBO_KERNEL)
+    if (appHost_.open && appHost_.scene != nullptr && appHost_.buildStep < 0 &&
+        appHost_.motionPresentDueMs <= 0.0) {
+        const double stepMs = deltaMs + appHost_.motionAccumMs;
+        appHost_.motionAccumMs = 0.0;
+        if (appHost_.scene->Tick(stepMs)) {
+            constexpr double ROBO_APP_MOTION_PRESENT_MS = 200.0;
+            appHost_.motionPresentDueMs = ROBO_APP_MOTION_PRESENT_MS;
+            DirtyAppFromNested();
             changed = true;
         }
     }
+#endif
     for (SceneItem& item : items_) {
         if (item.kind == SceneItemKind::SelectionArea) {
             item.selectionArea.Advance(static_cast<float>(deltaMs));
@@ -6838,8 +6863,15 @@ bool RoboScene::NeedsTick() {
     if (appHost_.open && appHost_.railFillPending) {
         return true;
     }
+    // Nested infinite MotionShapes must not keep NeedsTick true every frame — that blocks
+    // RoboArchIdle and makes the whole desktop (including the mouse) feel delayed in QEMU.
     if (appHost_.open && appHost_.scene != nullptr && appHost_.scene->NeedsTick()) {
-        return true;
+#ifdef ROBO_KERNEL
+        // Kernel: never wake the shell solely for hosted motion Soft Present.
+        return false;
+#else
+        return appHost_.motionPresentDueMs <= 0.0;
+#endif
     }
     bool needsTick = false;
     auto visit = [&needsTick](Scrollbar& scrollbar) {

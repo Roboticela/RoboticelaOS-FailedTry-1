@@ -10,6 +10,9 @@
 
 namespace Robo {
 
+// Kernel hosted Soft Present: paint MotionShapes as flat AABBs (no SVG / isolate layers).
+void RoboSetHostMotionPaintLite(bool lite);
+
 struct MotionShapeBounds {
     float x = 0.0f;
     float y = 0.0f;
