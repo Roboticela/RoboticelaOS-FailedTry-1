@@ -3482,6 +3482,20 @@ void RoboScene::CaptureChrome() {
     if (chromePixels_.size() != count * 4u) {
         chromePixels_.assign(count * 4u, 0);
     }
+    if (chromeMask_.size() != count) {
+        chromeMask_.assign(count, 0);
+    }
+    if (chromePixels_.size() != count * 4u || chromeMask_.size() != count) {
+        chromeReady_ = false;
+        return;
+    }
+    std::uint8_t* mask = chromeMask_.data();
+    std::uint8_t* pixels = chromePixels_.data();
+    const std::uint8_t* base = chromeBase_.data();
+    if (mask == nullptr || pixels == nullptr || base == nullptr) {
+        chromeReady_ = false;
+        return;
+    }
     float appX = 0.0f;
     float appY = 0.0f;
     float appW = 0.0f;
@@ -3497,18 +3511,20 @@ void RoboScene::CaptureChrome() {
         const int col = static_cast<int>(index % static_cast<std::size_t>(width));
         const int row = static_cast<int>(index / static_cast<std::size_t>(width));
         if (appHost_.open && col >= appL && col < appR && row >= appT && row < appB) {
-            chromeMask_[index] = 0u;
+            mask[index] = 0u;
             continue;
         }
-        const std::uint8_t* painted = frame + index * 4u;
-        const std::uint8_t* base = chromeBase_.data() + index * 4u;
-        const bool widget = painted[0] != base[0] || painted[1] != base[1] || painted[2] != base[2];
-        chromeMask_[index] = widget ? 1u : 0u;
+        const std::uint8_t* p = frame + index * 4u;
+        const std::uint8_t* b = base + index * 4u;
+        const bool widget = p[0] != b[0] || p[1] != b[1] || p[2] != b[2];
         if (widget) {
-            chromePixels_[index * 4u] = painted[0];
-            chromePixels_[index * 4u + 1u] = painted[1];
-            chromePixels_[index * 4u + 2u] = painted[2];
-            chromePixels_[index * 4u + 3u] = painted[3];
+            mask[index] = 1u;
+            pixels[index * 4u] = p[0];
+            pixels[index * 4u + 1u] = p[1];
+            pixels[index * 4u + 2u] = p[2];
+            pixels[index * 4u + 3u] = p[3];
+        } else {
+            mask[index] = 0u;
         }
     }
     chromeReady_ = true;
