@@ -8,7 +8,7 @@
 namespace {
 
 constexpr uint32_t ROBO_USB_DEVICE_MAX = 32;
-constexpr uint32_t ROBO_USB_HOST_MAX = 3;
+constexpr uint32_t ROBO_USB_HOST_MAX = 8;
 constexpr uint32_t ROBO_HID_FIELD_MAX = 16;
 constexpr uint32_t ROBO_TRB_COUNT = 256;
 constexpr uint32_t ROBO_USB_KIND_MOUSE = 1;
@@ -67,7 +67,8 @@ struct RoboUsbDevice {
     uint8_t isHub;
     uint8_t hubPorts;
     uint16_t maxPacket;
-    RoboRing endpoint;
+    RoboRing ep0Ring;
+    RoboRing intRing;
     uint64_t output;
     uint64_t input;
     uint64_t buffers;
@@ -104,12 +105,14 @@ struct RoboUsbHost {
     uint64_t controlData;
     uint64_t dcba;
     uint64_t waitTrb;
+    uint8_t waitSlot;
     uint8_t waitDone;
     uint8_t waitCode;
     uint8_t commandDone;
     uint8_t commandCode;
     uint8_t commandSlot;
     uint32_t scanPort;
+    uint32_t scanCounter;
 };
 
 RoboUsbHost gHosts[ROBO_USB_HOST_MAX]{};
@@ -131,6 +134,7 @@ RoboUsbDevice gDevices[ROBO_USB_DEVICE_MAX]{};
 #define gControlData gHost->controlData
 #define gDcba gHost->dcba
 #define gWaitTrb gHost->waitTrb
+#define gWaitSlot gHost->waitSlot
 #define gWaitDone gHost->waitDone
 #define gWaitCode gHost->waitCode
 #define gCommandDone gHost->commandDone
@@ -153,6 +157,18 @@ void RoboZeroPage(uint64_t page) {
     uint8_t* bytes = reinterpret_cast<uint8_t*>(page);
     for (uint32_t index = 0; index < 4096u; ++index) {
         bytes[index] = 0;
+    }
+}
+
+void RoboUsbDelay(uint32_t count) {
+    for (uint32_t i = 0; i < count; ++i) {
+        __asm__ volatile("" ::: "memory");
+    }
+}
+
+void RoboUsbDelayMs(uint32_t ms) {
+    for (uint32_t i = 0; i < ms * 1000u; ++i) {
+        RoboPortIn8(0x80);
     }
 }
 
@@ -626,10 +642,10 @@ void RoboUsbPushReport(RoboUsbDevice* device, const uint8_t* report, uint32_t le
 }
 
 void RoboUsbRequeue(RoboUsbDevice* device, uint64_t trbAddress) {
-    if (trbAddress < device->endpoint.physical) {
+    if (trbAddress < device->intRing.physical) {
         return;
     }
-    uint64_t offset = trbAddress - device->endpoint.physical;
+    uint64_t offset = trbAddress - device->intRing.physical;
     if ((offset % sizeof(RoboTrb)) != 0 || offset / sizeof(RoboTrb) >= ROBO_TRB_COUNT - 1u) {
         return;
     }
@@ -638,16 +654,18 @@ void RoboUsbRequeue(RoboUsbDevice* device, uint64_t trbAddress) {
     if (length == 0 || length > 1024u) {
         length = device->maxPacket;
     }
-    RoboRingPush(&device->endpoint, completed->data0, completed->data1, length, (1u << 10) | (1u << 5));
+    RoboRingPush(&device->intRing, completed->data0, completed->data1, length, (1u << 10) | (1u << 5));
     __asm__ volatile("" : : : "memory");
     RoboMmioWrite32(gDoorbell + static_cast<uint64_t>(device->slot) * 4u, device->dci);
 }
 
 void RoboUsbOnTransfer(uint32_t slot, uint64_t trbAddress, uint32_t code, uint32_t residual) {
-    if (gWaitTrb != 0 && (trbAddress & ~0xFull) == (gWaitTrb & ~0xFull)) {
-        gWaitDone = 1;
-        gWaitCode = static_cast<uint8_t>(code);
-        return;
+    if (gWaitTrb != 0 && slot == gWaitSlot) {
+        if ((trbAddress & ~0xFull) == (gWaitTrb & ~0xFull) || (code != 1u && code != 13u)) {
+            gWaitDone = 1;
+            gWaitCode = static_cast<uint8_t>(code);
+            return;
+        }
     }
     RoboUsbDevice* device = nullptr;
     for (uint32_t index = 0; index < ROBO_USB_DEVICE_MAX; ++index) {
@@ -662,7 +680,7 @@ void RoboUsbOnTransfer(uint32_t slot, uint64_t trbAddress, uint32_t code, uint32
     if (code != 1u && code != 13u) {
         return;
     }
-    if (trbAddress < device->endpoint.physical) {
+    if (trbAddress < device->intRing.physical) {
         return;
     }
     RoboTrb* completed = reinterpret_cast<RoboTrb*>(trbAddress);
@@ -682,15 +700,15 @@ void RoboUsbClearPort(uint32_t port) {
     if (port == 0 || port > gMaxPorts || gOperation == 0) {
         return;
     }
-    uint64_t reg = gOperation + 0x400u + (port - 1u) * 0x10u;
+    uint64_t reg = gOperation + 0x400ull + (static_cast<uint64_t>(port) - 1ull) * 0x10ull;
     uint32_t portsc = RoboMmioRead32(reg);
     RoboMmioWrite32(reg, (1u << 9) | (portsc & ROBO_PORT_CHANGE));
     portsc = RoboMmioRead32(reg);
-    if ((portsc & 1u) == 0 || port >= 32u) {
+    if ((portsc & 1u) == 0 || port > 32u) {
         return;
     }
     for (uint32_t index = 0; index < ROBO_USB_DEVICE_MAX; ++index) {
-        if (gDevices[index].used && gDevices[index].host == gHost->index && gDevices[index].port == port) {
+        if (gDevices[index].used && gDevices[index].host == gHost->index && gDevices[index].port == port && gDevices[index].parentSlot == 0) {
             return;
         }
     }
@@ -760,15 +778,16 @@ bool RoboUsbControl(RoboUsbDevice* device, uint8_t requestType, uint8_t request,
     uint32_t setup0 = requestType | (static_cast<uint32_t>(request) << 8) | (static_cast<uint32_t>(value) << 16);
     uint32_t setup1 = index | (static_cast<uint32_t>(length) << 16);
     uint32_t transferType = length == 0 ? 0u : (dataIn ? 3u : 2u);
-    uint32_t setupControl = (2u << 10) | (1u << 6) | (1u << 4) | (transferType << 16);
-    RoboRingPush(&device->endpoint, setup0, setup1, 8u, setupControl);
+    uint32_t setupControl = (2u << 10) | (1u << 6) | (transferType << 16);
+    RoboRingPush(&device->ep0Ring, setup0, setup1, 8u, setupControl);
     if (length != 0) {
-        uint32_t dataControl = (3u << 10) | (1u << 4) | (dataIn ? (1u << 16) : 0u);
-        RoboRingPush(&device->endpoint, static_cast<uint32_t>(gControlData), static_cast<uint32_t>(gControlData >> 32), length, dataControl);
+        uint32_t dataControl = (3u << 10) | (dataIn ? (1u << 16) : 0u);
+        RoboRingPush(&device->ep0Ring, static_cast<uint32_t>(gControlData), static_cast<uint32_t>(gControlData >> 32), length, dataControl);
     }
     uint32_t statusDirection = (length != 0 && dataIn) ? 0u : 1u;
-    uint64_t statusTrb = RoboRingPush(&device->endpoint, 0, 0, 0, (4u << 10) | (1u << 5) | (statusDirection << 16));
+    uint64_t statusTrb = RoboRingPush(&device->ep0Ring, 0, 0, 0, (4u << 10) | (1u << 5) | (statusDirection << 16));
     gWaitTrb = statusTrb;
+    gWaitSlot = device->slot;
     gWaitDone = 0;
     gWaitCode = 0;
     __asm__ volatile("" : : : "memory");
@@ -814,7 +833,12 @@ void RoboUsbFillSlot(RoboUsbDevice* device, uint32_t entries) {
         slot[1] |= static_cast<uint32_t>(device->hubPorts) << 24;
     }
     if (device->parentSlot != 0) {
-        slot[2] = static_cast<uint32_t>(device->parentSlot) | (static_cast<uint32_t>(device->parentPort) << 8);
+        if (device->speed == 1u || device->speed == 2u) {
+            slot[2] = static_cast<uint32_t>(device->parentSlot) | (static_cast<uint32_t>(device->parentPort) << 8);
+        } else if (device->speed >= 4u) {
+            slot[2] = static_cast<uint32_t>(device->parentSlot) | (static_cast<uint32_t>(device->parentPort) << 8);
+            slot[0] |= (static_cast<uint32_t>(device->parentPort) & 0x0Fu);
+        }
     }
 }
 
@@ -826,13 +850,13 @@ void RoboUsbFillEndpoint(uint32_t* endpoint, uint32_t type, uint32_t maxPacket, 
     endpoint[1] = (3u << 1) | (type << 3) | (maxPacket << 16);
     endpoint[2] = static_cast<uint32_t>(ring) | 1u;
     endpoint[3] = static_cast<uint32_t>(ring >> 32);
-    endpoint[4] = (type == 4u ? 8u : maxPacket) | (maxPacket << 16);
+    endpoint[4] = (type == 4u ? 8u : (maxPacket | (maxPacket << 16)));
 }
 
 bool RoboUsbAddress(RoboUsbDevice* device) {
     RoboZeroPage(device->input);
     RoboUsbFillSlot(device, 1u);
-    RoboUsbFillEndpoint(RoboContext(device->input, 2u), 4u, device->maxPacket, 0, device->endpoint.physical);
+    RoboUsbFillEndpoint(RoboContext(device->input, 2u), 4u, device->maxPacket, 0, device->ep0Ring.physical);
     uint32_t* control = RoboContext(device->input, 0u);
     control[1] = 0x3u;
     return RoboUsbCommand(static_cast<uint32_t>(device->input), static_cast<uint32_t>(device->input >> 32), 0, (11u << 10) | (static_cast<uint32_t>(device->slot) << 24));
@@ -841,7 +865,7 @@ bool RoboUsbAddress(RoboUsbDevice* device) {
 bool RoboUsbConfigureEndpoint(RoboUsbDevice* device, uint32_t interval) {
     RoboZeroPage(device->input);
     RoboUsbFillSlot(device, device->dci);
-    RoboUsbFillEndpoint(RoboContext(device->input, 1u + device->dci), 7u, device->maxPacket, interval, device->endpoint.physical);
+    RoboUsbFillEndpoint(RoboContext(device->input, 1u + device->dci), 7u, device->maxPacket, interval, device->intRing.physical);
     RoboContext(device->input, 0)[1] = (1u << device->dci) | 1u;
     return RoboUsbCommand(static_cast<uint32_t>(device->input), static_cast<uint32_t>(device->input >> 32), 0, (12u << 10) | (static_cast<uint32_t>(device->slot) << 24));
 }
@@ -854,7 +878,7 @@ void RoboUsbQueueReports(RoboUsbDevice* device) {
     device->maxPacket = static_cast<uint16_t>(length);
     for (uint32_t index = 0; index < 8u; ++index) {
         uint64_t buffer = device->buffers + index * 64u;
-        RoboRingPush(&device->endpoint, static_cast<uint32_t>(buffer), static_cast<uint32_t>(buffer >> 32), length, (1u << 10) | (1u << 5));
+        RoboRingPush(&device->intRing, static_cast<uint32_t>(buffer), static_cast<uint32_t>(buffer >> 32), length, (1u << 10) | (1u << 5));
     }
     device->running = 1;
     __asm__ volatile("" : : : "memory");
@@ -867,6 +891,15 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
     }
     uint8_t* descriptor = reinterpret_cast<uint8_t*>(gControlData);
     uint8_t devClass = descriptor[4];
+    uint8_t realMaxPacket0 = descriptor[7];
+    if (device->speed < 4u && realMaxPacket0 >= 8u && realMaxPacket0 <= 64u && realMaxPacket0 != device->maxPacket) {
+        device->maxPacket = realMaxPacket0;
+        RoboZeroPage(device->input);
+        RoboUsbFillSlot(device, 1u);
+        RoboUsbFillEndpoint(RoboContext(device->input, 2u), 4u, device->maxPacket, 0, device->ep0Ring.physical);
+        RoboContext(device->input, 0)[1] = 0x2u;
+        RoboUsbCommand(static_cast<uint32_t>(device->input), static_cast<uint32_t>(device->input >> 32), 0, (13u << 10) | (static_cast<uint32_t>(device->slot) << 24));
+    }
     if (!RoboUsbControl(device, 0x80u, 6u, 0x0200u, 0, 9u, true)) {
         return false;
     }
@@ -933,6 +966,7 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
         for (uint8_t port = 1; port <= numPorts; ++port) {
             RoboUsbControl(device, 0x23u, 3u, 8u, port, 0, false);
         }
+        RoboUsbDelay(20000u);
         RoboZeroPage(device->input);
         RoboUsbFillSlot(device, 1u);
         RoboContext(device->input, 0)[1] = 1u;
@@ -980,7 +1014,7 @@ bool RoboUsbPrepare(RoboUsbDevice* device, uint8_t protocol) {
         return false;
     }
     device->buffers = bufferPage;
-    RoboRingInit(&device->endpoint, interruptPage);
+    RoboRingInit(&device->intRing, interruptPage);
     if (!RoboUsbConfigureEndpoint(device, RoboUsbInterval(device->speed, endpointInterval))) {
         return false;
     }
@@ -997,7 +1031,7 @@ void RoboUsbEnumerate(uint32_t port, uint32_t portsc) {
         return;
     }
     uint8_t speed = static_cast<uint8_t>((portsc >> 10) & 0x0Fu);
-    if (speed < 1u || speed > 4u) {
+    if (speed < 1u || speed > 5u) {
         speed = 1u;
     }
     if (!RoboUsbCommand(0, 0, 0, 9u << 10) || gCommandSlot == 0 || gCommandSlot > gHost->maxSlots) {
@@ -1016,10 +1050,10 @@ void RoboUsbEnumerate(uint32_t port, uint32_t portsc) {
     device->host = gHost->index;
     device->speed = speed;
     device->port = static_cast<uint8_t>(port);
-    device->maxPacket = speed >= 3u ? 64u : 8u;
+    device->maxPacket = (speed >= 4u) ? 512u : (speed == 3u ? 64u : (speed == 1u ? 64u : 8u));
     device->output = output;
     device->input = input;
-    RoboRingInit(&device->endpoint, ep0);
+    RoboRingInit(&device->ep0Ring, ep0);
     reinterpret_cast<uint64_t*>(gDcba)[device->slot] = output;
     if (!RoboUsbAddress(device)) {
         device->used = 0;
@@ -1036,7 +1070,7 @@ void RoboUsbEnumerateChild(RoboUsbDevice* parentHub, uint8_t parentPort, uint8_t
     if (slotIndex >= ROBO_USB_DEVICE_MAX || gDcba == 0) {
         return;
     }
-    if (childSpeed < 1u || childSpeed > 4u) {
+    if (childSpeed < 1u || childSpeed > 5u) {
         childSpeed = 1u;
     }
     if (!RoboUsbCommand(0, 0, 0, 9u << 10) || gCommandSlot == 0 || gCommandSlot > gHost->maxSlots) {
@@ -1057,10 +1091,10 @@ void RoboUsbEnumerateChild(RoboUsbDevice* parentHub, uint8_t parentPort, uint8_t
     device->port = parentHub->port;
     device->parentSlot = parentHub->slot;
     device->parentPort = parentPort;
-    device->maxPacket = childSpeed >= 3u ? 64u : 8u;
+    device->maxPacket = (childSpeed >= 4u) ? 512u : (childSpeed == 3u ? 64u : (childSpeed == 1u ? 64u : 8u));
     device->output = output;
     device->input = input;
-    RoboRingInit(&device->endpoint, ep0);
+    RoboRingInit(&device->ep0Ring, ep0);
     reinterpret_cast<uint64_t*>(gDcba)[device->slot] = output;
     if (!RoboUsbAddress(device)) {
         device->used = 0;
@@ -1078,12 +1112,6 @@ bool RoboUsbPortFree(uint32_t port) {
     return true;
 }
 
-void RoboUsbDelay(uint32_t count) {
-    for (uint32_t i = 0; i < count; ++i) {
-        __asm__ volatile("" ::: "memory");
-    }
-}
-
 void RoboUsbResetPort(uint32_t port) {
     uint8_t kind = port < 33u ? gHost->portKind[port] : 0;
     if (kind != ROBO_PORT_KIND_USB && kind != ROBO_PORT_KIND_USBC && kind != ROBO_PORT_KIND_THUNDERBOLT) {
@@ -1096,27 +1124,30 @@ void RoboUsbResetPort(uint32_t port) {
     uint32_t portsc = RoboMmioRead32(reg);
     if ((portsc & (1u << 9)) == 0) {
         RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9));
-        RoboUsbDelay(10000u);
+        RoboUsbDelayMs(20u);
         portsc = RoboMmioRead32(reg);
     }
     if ((portsc & 1u) == 0) {
         return;
     }
-    RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9) | (1u << 4));
-    bool resetDone = false;
-    for (uint32_t spin = 0; spin < 500u; ++spin) {
-        portsc = RoboMmioRead32(reg);
-        if ((portsc & (1u << 4)) == 0) {
-            resetDone = true;
-            break;
+    if ((portsc & 2u) == 0) {
+        RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9) | (1u << 4));
+        bool resetDone = false;
+        for (uint32_t spin = 0; spin < 100u; ++spin) {
+            RoboUsbDelayMs(1u);
+            portsc = RoboMmioRead32(reg);
+            if ((portsc & (1u << 4)) == 0) {
+                resetDone = true;
+                break;
+            }
         }
-        RoboUsbDelay(2000u);
+        if (!resetDone) {
+            return;
+        }
+        RoboMmioWrite32(reg, (1u << 9) | (portsc & ROBO_PORT_CHANGE));
+        RoboUsbDelayMs(10u);
+        portsc = RoboMmioRead32(reg);
     }
-    if (!resetDone) {
-        return;
-    }
-    RoboMmioWrite32(reg, (1u << 9) | (portsc & ROBO_PORT_CHANGE));
-    portsc = RoboMmioRead32(reg);
     if ((portsc & 1u) == 0 || (portsc & 2u) == 0) {
         return;
     }
@@ -1165,13 +1196,18 @@ void RoboUsbLegacy(uint64_t bar, uint32_t hcc) {
         uint8_t next = static_cast<uint8_t>(value >> 8);
         if (id == 1u) {
             RoboMmioWrite32(cap, value | (1u << 24));
+            bool handedOff = false;
             for (uint32_t spin = 0; spin < 10000u; ++spin) {
                 if ((RoboMmioRead32(cap) & (1u << 16)) == 0) {
+                    handedOff = true;
                     break;
                 }
                 RoboUsbDelay(500u);
             }
-            RoboMmioWrite32(cap + 4u, 0);
+            if (!handedOff) {
+                RoboMmioWrite32(cap, (RoboMmioRead32(cap) & ~(1u << 16)) | (1u << 24));
+            }
+            RoboMmioWrite32(cap + 4u, 0xE0000000u);
         }
         if (next == 0) {
             break;
@@ -1181,15 +1217,22 @@ void RoboUsbLegacy(uint64_t bar, uint32_t hcc) {
 }
 
 bool RoboUsbReset(void) {
+    for (uint32_t spin = 0; spin < 50000u; ++spin) {
+        if ((RoboMmioRead32(gOperation + 4u) & (1u << 12)) == 0) {
+            break;
+        }
+        RoboUsbDelay(500u);
+    }
     uint32_t command = RoboMmioRead32(gOperation);
     if ((command & 1u) != 0) {
         RoboMmioWrite32(gOperation, command & ~1u);
         bool halted = false;
-        for (uint32_t spin = 0; spin < 2000u; ++spin) {
+        for (uint32_t spin = 0; spin < 10000u; ++spin) {
             if ((RoboMmioRead32(gOperation + 4u) & 1u) != 0) {
                 halted = true;
                 break;
             }
+            RoboUsbDelay(500u);
         }
         if (!halted) {
             return false;
@@ -1197,25 +1240,26 @@ bool RoboUsbReset(void) {
     }
     RoboMmioWrite32(gOperation, RoboMmioRead32(gOperation) | 2u);
     bool resetDone = false;
-    for (uint32_t spin = 0; spin < 2000u; ++spin) {
+    for (uint32_t spin = 0; spin < 20000u; ++spin) {
         if ((RoboMmioRead32(gOperation) & 2u) == 0) {
             resetDone = true;
             break;
         }
+        RoboUsbDelay(500u);
     }
     if (!resetDone) {
         return false;
     }
-    for (uint32_t spin = 0; spin < 2000u; ++spin) {
+    bool ready = false;
+    for (uint32_t spin = 0; spin < 50000u; ++spin) {
         uint32_t status = RoboMmioRead32(gOperation + 4u);
-        if ((status & (1u << 12)) != 0) {
-            return false;
+        if ((status & (1u << 12)) == 0) {
+            ready = true;
+            break;
         }
-        if ((status & (1u << 11)) == 0) {
-            return true;
-        }
+        RoboUsbDelay(500u);
     }
-    return false;
+    return ready;
 }
 
 void RoboUsbClassify(uint64_t bar, uint32_t hcc) {
@@ -1264,7 +1308,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     gHost->index = index;
     gHost->irq = pci->irq;
     gHost->contextBytes = 32;
-    RoboMemoryMarkUncached(pci->bar, 0x10000ull);
+    RoboMemoryMarkUncached(pci->bar, 0x100000ull);
     uint32_t cap0 = RoboMmioRead32(pci->bar);
     uint32_t capLength = cap0 & 0xFFu;
     if (capLength < 0x20u) {
@@ -1291,7 +1335,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
     gOperation = pci->bar + capLength;
     gDoorbell = pci->bar + doorbell;
     gRuntime = pci->bar + runtime;
-    if ((RoboMmioRead32(gOperation + 8u) & 1u) == 0 || !RoboUsbReset()) {
+    if (!RoboUsbReset() || (RoboMmioRead32(gOperation + 8u) & 1u) == 0) {
         gOperation = 0;
         return;
     }
@@ -1339,6 +1383,7 @@ void RoboUsbBringUp(const RoboPciDevice* pci, uint8_t index) {
         uint32_t portsc = RoboMmioRead32(reg);
         RoboMmioWrite32(reg, (portsc & ~ROBO_PORT_CHANGE) | (1u << 9));
     }
+    RoboUsbDelayMs(20u);
     if (gHost->irq >= 1u && gHost->irq <= 15u) {
         RoboArchIrqClaim(gHost->irq);
     }
@@ -1368,13 +1413,27 @@ void RoboUsbScanHubs(void) {
             if ((portStatus & 1u) != 0) {
                 if ((portStatus & 2u) == 0) {
                     RoboUsbControl(hub, 0x23u, 3u, 4u, p, 0, false);
-                    RoboUsbDelay(50000u);
+                    bool resetDone = false;
+                    for (uint32_t spin = 0; spin < 50u; ++spin) {
+                        RoboUsbDelayMs(2u);
+                        if (RoboUsbControl(hub, 0xA3u, 0u, 0u, p, 4u, true)) {
+                            portStatus = *reinterpret_cast<uint32_t*>(gControlData);
+                            if ((portStatus & (1u << 4)) == 0) {
+                                resetDone = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!resetDone) {
+                        continue;
+                    }
                     RoboUsbControl(hub, 0x23u, 1u, 20u, p, 0, false);
+                    RoboUsbDelayMs(10u);
                     if (RoboUsbControl(hub, 0xA3u, 0u, 0u, p, 4u, true)) {
                         portStatus = *reinterpret_cast<uint32_t*>(gControlData);
                     }
                 }
-                if ((portStatus & 1u) != 0) {
+                if ((portStatus & 1u) != 0 && (portStatus & 2u) != 0) {
                     uint8_t childSpeed = 1u;
                     if ((portStatus & (1u << 9)) != 0) {
                         childSpeed = 2u;
@@ -1415,9 +1474,8 @@ void RoboUsbCollect(void) {
                 gHost->scanPort = 0;
             }
         } else {
-            static uint32_t scanCounter = 0;
-            if (++scanCounter >= 30u) {
-                scanCounter = 0;
+            if (++gHost->scanCounter >= 30u) {
+                gHost->scanCounter = 0;
                 gHost->scanPort = 1;
             }
         }

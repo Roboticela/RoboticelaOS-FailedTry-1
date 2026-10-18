@@ -14,7 +14,10 @@ constexpr uint8_t ROBO_PCI_CLASS_BASE = 0x08;
 constexpr uint8_t ROBO_PCI_SUBCLASS_OTHER = 0x80;
 constexpr uint8_t ROBO_PCI_SUBCLASS_THUNDERBOLT = 0x0A;
 constexpr uint16_t ROBO_PCI_VENDOR_INTEL = 0x8086;
-constexpr uint32_t ROBO_PCI_USB_BARS[3] = {0xFEB00000u, 0xFEB04000u, 0xFEB08000u};
+constexpr uint32_t ROBO_PCI_USB_BARS[8] = {
+    0xFEB00000u, 0xFEC00000u, 0xFED00000u, 0xFEE00000u,
+    0xFE000000u, 0xFE100000u, 0xFE200000u, 0xFE300000u
+};
 constexpr uint16_t ROBO_PCI_THUNDERBOLT_IDS[] = {
     0x1137, 0x1138, 0x1575, 0x1577, 0x15BF, 0x15D2, 0x15D9, 0x15DC,
     0x15DD, 0x15DE, 0x15E8, 0x15EB, 0x15EF, 0x15F0, 0x463E, 0x466D,
@@ -67,7 +70,7 @@ bool RoboPciClaimUsb(uint8_t bus, uint8_t slot, uint8_t function, uint32_t barIn
     }
     uint64_t bar = (bar0 & ~0xFull) | (bar64 ? (static_cast<uint64_t>(bar1) << 32) : 0ull);
     if (bar == 0) {
-        uint32_t placed = ROBO_PCI_USB_BARS[barIndex < 3u ? barIndex : 0u];
+        uint32_t placed = ROBO_PCI_USB_BARS[barIndex < 8u ? barIndex : 0u];
         uint32_t commandOff = RoboPciRead32(bus, slot, function, 0x04);
         RoboPciWrite32(bus, slot, function, 0x04, commandOff & ~0x7u);
         RoboPciWrite32(bus, slot, function, 0x10, placed | (bar0 & 0xFu));
